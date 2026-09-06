@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { LogoutButton } from '@/components/logout-button';
+import { AppSidebar } from '@/components/admin-sidebar';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { Separator } from '@/components/ui/separator';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getAdminSession();
@@ -10,14 +13,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div>
-      <header className="flex items-center justify-between border-b p-4">
-        <span className="text-sm text-muted-foreground">
-          Signed in as {session.email}
-        </span>
-        <LogoutButton />
-      </header>
-      <main>{children}</main>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-14 items-center justify-between gap-2 border-b px-4">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="h-5" />
+            <span className="text-sm text-muted-foreground">
+              Signed in as {session.email}
+            </span>
+          </div>
+          <LogoutButton />
+        </header>
+        <main className="p-4">{children}</main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
