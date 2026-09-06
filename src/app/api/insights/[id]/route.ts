@@ -7,9 +7,6 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // Defense in depth: even though this route is only ever called from
-  // the already-gated /admin section, verify the session again here
-  // directly, in case someone calls this API route on its own.
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
@@ -25,6 +22,8 @@ export async function PATCH(
       readTime: body.readTime,
       youTubeUrl: body.youTubeUrl,
       citation: body.citation,
+      tabs: body.tabs,
+      panels: body.panels,
       updatedAt: Timestamp.now(),
     });
 

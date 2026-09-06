@@ -8,17 +8,23 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 
 export default async function InsightsListPage() {
   const articles = await getInsights();
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Insights Articles</h1>
-        <p className="text-sm text-muted-foreground">
-          {articles.length} articles — synced from Firestore
-        </p>
+            <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Insights Articles</h1>
+          <p className="text-sm text-muted-foreground">
+            {articles.length} articles — synced from Firestore
+          </p>
+        </div>
+                <Button render={<Link href="/admin/insights/new" />}>
+          + New Article
+        </Button>
       </div>
 
       <div className="rounded-md border">
