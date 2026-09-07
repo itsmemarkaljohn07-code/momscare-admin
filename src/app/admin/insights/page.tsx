@@ -9,25 +9,24 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/page-header';
 
 export default async function InsightsListPage() {
   const articles = await getInsights();
 
   return (
     <div className="space-y-4">
-            <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Insights Articles</h1>
-          <p className="text-sm text-muted-foreground">
-            {articles.length} articles — synced from Firestore
-          </p>
-        </div>
-                <Button render={<Link href="/admin/insights/new" />}>
-          + New Article
-        </Button>
-      </div>
+      <PageHeader
+        title="Insights Articles"
+        description={`${articles.length} articles — synced from Firestore`}
+        action={
+          <Button nativeButton={false} render={<Link href="/admin/insights/new" />}>
+            + New Article
+          </Button>
+        }
+      />
 
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>

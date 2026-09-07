@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { adminDb } from '@/lib/firebase-admin';
 import { InsightEditForm } from '@/components/insight-edit-form';
+import { PageHeader } from '@/components/page-header';
 
 export default async function InsightDetailPage({
   params,
@@ -18,13 +19,10 @@ export default async function InsightDetailPage({
 
   return (
     <div className="max-w-3xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">{data.title}</h1>
-        <p className="text-sm text-muted-foreground">Editing article: {id}</p>
-      </div>
+      <PageHeader title={data.title} description={`Editing article: ${id}`} />
       <InsightEditForm
-        id={id}
         mode="edit"
+        id={id}
         initialData={{
           title: data.title,
           heroTag: data.heroTag,

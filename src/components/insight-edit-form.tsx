@@ -48,6 +48,7 @@ interface InsightFormData {
   accentColor?: string;
   excerpt?: string;
   sections?: string[];
+  heroImage?: string | null;
 }
 
 const BLANK_ITEM: ArticleItem = { label: '', desc: '', iconBg: '', svgKey: 'star' };
@@ -67,14 +68,17 @@ export function InsightEditForm({
   id?: string;
   initialData: InsightFormData;
 }) {
+
   const router = useRouter();
   const [articleId, setArticleId] = useState(initialId ?? '');
-  const [form, setForm] = useState<InsightFormData>({
+   const [form, setForm] = useState<InsightFormData>({
     accentColor: '#e07eb8',
     excerpt: '',
     sections: [],
+    heroImage: null,
     ...initialData,
   });
+ 
   const [activeTabId, setActiveTabId] = useState(form.tabs[0]?.id ?? 0);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -141,6 +145,35 @@ export function InsightEditForm({
     return value.toLowerCase().replace(/[^a-z0-9]/g, '');
   }
 
+    async function handleDelete() {
+    if (!initialId) return;
+    if (
+      !window.confirm(
+        `Delete "${form.title}"? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage('');
+
+    try {
+      const res = await fetch(`/api/insights/${initialId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setMessage(data.error || 'Failed to delete article.');
+        setIsSaving(false);
+        return;
+      }
+      router.push('/admin/insights');
+    } catch (err: unknown) {
+      setMessage(err instanceof Error ? err.message : 'Failed to delete article.');
+      setIsSaving(false);
+    }
+  }
+
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsSaving(true);
@@ -163,7 +196,6 @@ export function InsightEditForm({
             id: cleanId,
             ...form,
             ...colors,
-            heroImage: null,
           }),
         });
 
@@ -208,6 +240,7 @@ export function InsightEditForm({
         </CardHeader>
         <CardContent className="space-y-4">
           {mode === 'create' && (
+            
             <div className="space-y-1">
               <label className="text-sm font-medium">Article ID (URL-safe slug)</label>
               <Input
@@ -231,7 +264,7 @@ export function InsightEditForm({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <label className="text-sm font-medium">Tag</label>
               <Input
@@ -262,6 +295,20 @@ export function InsightEditForm({
                 />
               </div>
 
+                            <div className="space-y-1">
+                <label className="text-sm font-medium">Hero Image Path</label>
+                <Input
+                  value={form.heroImage ?? ''}
+                  onChange={(e) => setForm({ ...form, heroImage: e.target.value || null })}
+                  placeholder="assets/icon/yourimage.jpg"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional. Must match a file already bundled in the mobile app under{' '}
+                  <code>src/assets/icon/</code> — the app rebuilds and republishes before this
+                  image will actually display.
+                </p>
+              </div>
+
               <div className="space-y-1">
                 <label className="text-sm font-medium">Accent Color</label>
                 <div className="flex items-center gap-2">
@@ -284,7 +331,7 @@ export function InsightEditForm({
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Sections</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {INSIGHT_SECTIONS.map((section) => (
                     <label key={section} className="flex items-center gap-2 text-sm">
                       <Checkbox
@@ -310,7 +357,7 @@ export function InsightEditForm({
 
           <div className="space-y-3 rounded-md border p-3">
             <p className="text-sm font-medium">Citation</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input
                 placeholder="Source"
                 value={form.citation.source}
@@ -381,7 +428,7 @@ export function InsightEditForm({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Panel Tag</label>
                   <Input value={activePanel.tag} onChange={(e) => updatePanel({ tag: e.target.value })} />
@@ -439,7 +486,7 @@ export function InsightEditForm({
                       value={item.desc}
                       onChange={(e) => updateItem(index, { desc: e.target.value })}
                     />
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <Select value={item.svgKey} onValueChange={(value) => updateItem(index, { svgKey: value })}>
                         <SelectTrigger>
                           <SelectValue placeholder="Icon" />
@@ -487,11 +534,24 @@ export function InsightEditForm({
         </CardContent>
       </Card>
 
-      {message && <p className="text-sm">{message}</p>}
+           {message && <p className="text-sm">{message}</p>}
 
-      <Button type="submit" disabled={isSaving}>
-        {isSaving ? 'Saving...' : mode === 'create' ? 'Create Article' : 'Save Changes'}
-      </Button>
-    </form>
+      <div className="flex items-center justify-between">
+        <Button type="submit" disabled={isSaving}>
+          {isSaving ? 'Saving...' : mode === 'create' ? 'Create Article' : 'Save Changes'}
+        </Button>
+
+        {mode === 'edit' && (
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={isSaving}
+            onClick={handleDelete}
+          >
+            Delete Article
+          </Button>
+        )}
+      </div>
+        </form>
   );
 }

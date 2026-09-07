@@ -45,10 +45,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40">
+    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-sm">
-        <CardHeader>
+        <CardHeader className="items-center space-y-1 text-center">
+          <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
+            M
+          </div>
           <CardTitle>MomsCare Admin</CardTitle>
+          <p className="text-sm text-muted-foreground">Sign in to continue</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

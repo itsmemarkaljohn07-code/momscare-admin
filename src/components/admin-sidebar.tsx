@@ -1,5 +1,8 @@
+'use client';
+
 import Link from 'next/link';
-import { LayoutDashboard, Newspaper, type LucideIcon } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { LayoutDashboard, Newspaper, Users, type LucideIcon } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -21,9 +24,12 @@ interface NavItem {
 const navItems: NavItem[] = [
   { title: 'Overview', url: '/admin', icon: LayoutDashboard },
   { title: 'Insights', url: '/admin/insights', icon: Newspaper },
+  { title: 'Users', url: '/admin/users', icon: Users },
 ];
 
 export function AppSidebar() {
+  const pathname = usePathname();
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -34,14 +40,18 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton render={<Link href={item.url} />}>
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {navItems.map((item) => {
+                const isActive =
+                  item.url === '/admin' ? pathname === '/admin' : pathname.startsWith(item.url);
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton isActive={isActive} render={<Link href={item.url} />}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
