@@ -1,9 +1,13 @@
 import Link from 'next/link';
 import { getUsers } from '@/lib/get-users';
 import { getInsights } from '@/lib/get-insights';
+import { getAppointmentStats } from '@/lib/get-appointment-stats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/page-header';
+import { StatCard } from '@/components/stat-card';
+import { AppointmentsChart } from '@/components/appointments-chart';
+import { Users as UsersIcon, CalendarCheck, Newspaper, UserX } from 'lucide-react';
 
 function toDateSafe(value: any): Date | null {
   if (!value) return null;
@@ -13,86 +17,108 @@ function toDateSafe(value: any): Date | null {
 }
 
 export default async function AdminOverviewPage() {
-  const [users, articles] = await Promise.all([getUsers(), getInsights()]);
+  const [users, articles, { stats }] = await Promise.all([
+    getUsers(),
+    getInsights(),
+    getAppointmentStats(),
+  ]);
 
-  const sevenDaysAgo = new Date();
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const fourteenDaysAgo = new Date(now);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
   const newThisWeek = users.filter((u) => {
     const created = toDateSafe(u.createdAt);
     return created && created >= sevenDaysAgo;
   }).length;
+  const newLastWeek = users.filter((u) => {
+    const created = toDateSafe(u.createdAt);
+    return created && created >= fourteenDaysAgo && created < sevenDaysAgo;
+  }).length;
+  const userTrend =
+    newLastWeek > 0
+      ? Math.round(((newThisWeek - newLastWeek) / newLastWeek) * 100)
+      : newThisWeek > 0
+      ? 100
+      : 0;
 
   const suspendedCount = users.filter((u) => u.disabled).length;
 
   const recentUsers = [...users]
-    .sort((a, b) => {
-      const da = toDateSafe(a.createdAt)?.getTime() ?? 0;
-      const db = toDateSafe(b.createdAt)?.getTime() ?? 0;
-      return db - da;
-    })
-    .slice(0, 5);
-
-  const recentArticles = [...articles]
-    .sort((a, b) => {
-      const da = toDateSafe(a.updatedAt)?.getTime() ?? 0;
-      const db = toDateSafe(b.updatedAt)?.getTime() ?? 0;
-      return db - da;
-    })
+    .sort(
+      (a, b) => (toDateSafe(b.createdAt)?.getTime() ?? 0) - (toDateSafe(a.createdAt)?.getTime() ?? 0)
+    )
     .slice(0, 5);
 
   return (
     <div className="space-y-6">
-            <PageHeader title="Overview" description="MomsCare admin dashboard summary" />
+      <PageHeader title="Overview" description="MomsCare admin dashboard summary" />
 
-      {/* ── Stat cards ── */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Users
-            </CardTitle>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          label="Total Users"
+          value={users.length}
+          icon={UsersIcon}
+          color="pink"
+          trend={{ value: userTrend, positive: userTrend >= 0 }}
+        />
+        <StatCard
+          label="Upcoming Appointments"
+          value={stats.upcoming}
+          icon={CalendarCheck}
+          color="purple"
+        />
+        <StatCard label="Insights Articles" value={articles.length} icon={Newspaper} color="mint" />
+        <StatCard label="Suspended Accounts" value={suspendedCount} icon={UserX} color="amber" />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Appointments — Last 14 Days</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{users.length}</p>
+            <AppointmentsChart data={stats.trend} />
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              <span>
+                <strong>{stats.total}</strong> total
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span>
+                <strong>{stats.upcoming}</strong> upcoming
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span>
+                <strong>{stats.completed}</strong> completed
+              </span>
+              <span className="text-muted-foreground">·</span>
+              <span>
+                <strong>{stats.cancelled}</strong> cancelled
+              </span>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              New This Week
-            </CardTitle>
+          <CardHeader>
+            <CardTitle className="text-base">Appointment Types</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{newThisWeek}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Suspended
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{suspendedCount}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Insights Articles
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{articles.length}</p>
+          <CardContent className="space-y-3">
+            {stats.byType.length === 0 && (
+              <p className="text-sm text-muted-foreground">No appointments yet.</p>
+            )}
+            {stats.byType.map((t) => (
+              <div key={t.type} className="flex items-center justify-between text-sm">
+                <span>{t.type}</span>
+                <Badge variant="secondary">{t.count}</Badge>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
 
-      {/* ── Recent activity ── */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -122,21 +148,17 @@ export default async function AdminOverviewPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Recently Updated Articles</CardTitle>
+            <CardTitle className="text-base">Busiest Doctors</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentArticles.length === 0 && (
-              <p className="text-sm text-muted-foreground">No articles yet.</p>
+            {stats.byDoctor.length === 0 && (
+              <p className="text-sm text-muted-foreground">No appointments yet.</p>
             )}
-            {recentArticles.map((a) => (
-              <Link
-                key={a.id}
-                href={`/admin/insights/${a.id}`}
-                className="flex items-center justify-between rounded-md border p-2 text-sm hover:bg-muted/50"
-              >
-                <p className="font-medium">{a.title}</p>
-                <Badge variant="outline">{a.heroTag}</Badge>
-              </Link>
+            {stats.byDoctor.map((d) => (
+              <div key={d.doctor} className="flex items-center justify-between text-sm">
+                <span>{d.doctor}</span>
+                <Badge variant="secondary">{d.count} appts</Badge>
+              </div>
             ))}
           </CardContent>
         </Card>

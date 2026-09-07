@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Newspaper, Users, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Newspaper, Users, CalendarDays, type LucideIcon } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +23,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { title: 'Overview', url: '/admin', icon: LayoutDashboard },
+  { title: 'Appointments', url: '/admin/appointments', icon: CalendarDays },
   { title: 'Insights', url: '/admin/insights', icon: Newspaper },
   { title: 'Users', url: '/admin/users', icon: Users },
 ];
@@ -33,7 +34,12 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <span className="px-2 text-sm font-semibold">MomsCare Admin</span>
+        <div className="flex items-center gap-2 px-2 py-1">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e07eb8] to-[#9b6fc4] text-sm font-bold text-white">
+            M
+          </div>
+          <span className="text-sm font-semibold">MomsCare Admin</span>
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
