@@ -4,6 +4,7 @@ import { LogoutButton } from '@/components/logout-button';
 import { AppSidebar } from '@/components/admin-sidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getAdminSession();
@@ -24,7 +25,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               Signed in as {session.email}
             </span>
           </div>
-          <LogoutButton />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <LogoutButton />
+          </div>
         </header>
         <main className="p-4">{children}</main>
       </SidebarInset>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,14 @@ import {
 import { AppointmentFormDialog } from '@/components/appointment-form-dialog';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { AdminUserView } from '@/lib/get-users';
+
+const ACCENT_STYLES: Record<string, { bg: string; text: string }> = {
+  green:  { bg: 'bg-[#e0f5ea]', text: 'text-[#3ba876]' },
+  pink:   { bg: 'bg-[#fce8f3]', text: 'text-[#d9609a]' },
+  purple: { bg: 'bg-[#f0e6fb]', text: 'text-[#9b6fc4]' },
+  blue:   { bg: 'bg-[#e3edfb]', text: 'text-[#4f7fc2]' },
+  orange: { bg: 'bg-[#fdf1e0]', text: 'text-[#d99a3a]' },
+};
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
   upcoming: 'default',
@@ -38,15 +47,20 @@ export function AppointmentsTable({
     );
   });
 
-  async function setStatus(appt: AdminAppointment, status: string) {
+    async function setStatus(appt: AdminAppointment, status: string) {
     setPendingId(appt.id);
     try {
-      await fetch(`/api/appointments/${appt.patientUid}/${appt.id}`, {
+      const res = await fetch(`/api/appointments/${appt.patientUid}/${appt.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
-      router.refresh();
+      if (res.ok) {
+        toast.success(`Appointment marked as ${status}.`);
+        router.refresh();
+      } else {
+        toast.error('Failed to update appointment.');
+      }
     } finally {
       setPendingId(null);
     }
@@ -80,9 +94,16 @@ export function AppointmentsTable({
           <TableBody>
             {filtered.map((a) => (
               <TableRow key={`${a.patientUid}-${a.id}`}>
-                <TableCell className="font-medium">{a.patientName}</TableCell>
+                                <TableCell className="font-medium">{a.patientName}</TableCell>
                 <TableCell>
-                  {a.icon} {a.label}
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm ${ACCENT_STYLES[a.accentColor]?.bg ?? 'bg-muted'}`}
+                    >
+                      {a.icon}
+                    </span>
+                    {a.label}
+                  </div>
                 </TableCell>
                 <TableCell>{a.doctor}</TableCell>
                 <TableCell>{a.date}</TableCell>

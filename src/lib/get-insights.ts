@@ -9,6 +9,7 @@ export interface InsightArticle {
   tabs: { id: number; label: string }[];
   youTubeUrl: string;
   updatedAt?: any;
+  accentColor: string;
 }
 
 export async function getInsights(): Promise<InsightArticle[]> {
@@ -16,7 +17,7 @@ export async function getInsights(): Promise<InsightArticle[]> {
 
   return snapshot.docs.map((doc) => {
     const data = doc.data();
-    return {
+        return {
       id: doc.id,
       title: data.title,
       heroTag: data.heroTag,
@@ -25,6 +26,7 @@ export async function getInsights(): Promise<InsightArticle[]> {
       tabs: data.tabs ?? [],
       youTubeUrl: data.youTubeUrl,
       updatedAt: data.updatedAt,
+      accentColor: data.accentColor ?? '#e07eb8',
     };
   });
 }

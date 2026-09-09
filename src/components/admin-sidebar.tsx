@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Newspaper, Users, CalendarDays, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, Newspaper, Users, CalendarDays, ShieldCheck, Camera, type LucideIcon } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -24,8 +24,10 @@ interface NavItem {
 const navItems: NavItem[] = [
   { title: 'Overview', url: '/admin', icon: LayoutDashboard },
   { title: 'Appointments', url: '/admin/appointments', icon: CalendarDays },
+  { title: 'Snapshots', url: '/admin/snapshots', icon: Camera },
   { title: 'Insights', url: '/admin/insights', icon: Newspaper },
   { title: 'Users', url: '/admin/users', icon: Users },
+  { title: 'Admins', url: '/admin/admins', icon: ShieldCheck },
 ];
 
 export function AppSidebar() {

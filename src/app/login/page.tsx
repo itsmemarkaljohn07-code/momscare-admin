@@ -7,6 +7,7 @@ import { auth } from '@/lib/firebase-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,8 +45,11 @@ export default function LoginPage() {
     }
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    return (
+    <div className="relative flex min-h-screen items-center justify-center bg-muted/40 p-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center space-y-1 text-center">
           <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">

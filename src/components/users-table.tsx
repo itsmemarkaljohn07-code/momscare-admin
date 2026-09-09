@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import {
   Table,
   TableBody,
@@ -15,11 +17,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { AdminUserView } from '@/lib/get-users';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export function UsersTable({ users }: { users: AdminUserView[] }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [pendingUid, setPendingUid] = useState<string | null>(null);
+  const [confirmUser, setConfirmUser] = useState<AdminUserView | null>(null);
 
   const filtered = users.filter((u) => {
     const q = query.toLowerCase();
@@ -27,9 +34,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
   });
 
   async function toggleDisabled(uid: string, currentlyDisabled: boolean) {
-    const action = currentlyDisabled ? 'reactivate' : 'suspend';
-    if (!window.confirm(`Are you sure you want to ${action} this account?`)) return;
-
+    setConfirmUser(null);
     setPendingUid(uid);
     try {
       const res = await fetch(`/api/users/${uid}`, {
@@ -38,7 +43,10 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
         body: JSON.stringify({ disabled: !currentlyDisabled }),
       });
       if (res.ok) {
+        toast.success(currentlyDisabled ? 'Account reactivated.' : 'Account suspended.');
         router.refresh();
+      } else {
+        toast.error('Failed to update account status.');
       }
     } finally {
       setPendingUid(null);
@@ -54,7 +62,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
         className="max-w-sm"
       />
 
-    <div className="overflow-x-auto rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -69,7 +77,16 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
           <TableBody>
             {filtered.map((u) => (
               <TableRow key={u.uid}>
-                <TableCell className="font-medium">{u.fullName}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${getAvatarStyle(u.uid).bg} ${getAvatarStyle(u.uid).text}`}
+                    >
+                      {getInitials(u.fullName)}
+                    </span>
+                    {u.fullName}
+                  </div>
+                </TableCell>
                 <TableCell>{u.email}</TableCell>
                 <TableCell>{u.dueDate ?? '—'}</TableCell>
                 <TableCell>
@@ -92,7 +109,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
                     variant="outline"
                     size="sm"
                     disabled={pendingUid === u.uid}
-                    onClick={() => toggleDisabled(u.uid, u.disabled)}
+                    onClick={() => setConfirmUser(u)}
                   >
                     {u.disabled ? 'Reactivate' : 'Suspend'}
                   </Button>
@@ -109,6 +126,29 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={!!confirmUser} onOpenChange={(open) => !open && setConfirmUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmUser?.disabled ? 'Reactivate this account?' : 'Suspend this account?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmUser?.disabled
+                ? `${confirmUser?.fullName} will regain access to the MomsCare app.`
+                : `${confirmUser?.fullName} will be unable to sign in until reactivated.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmUser && toggleDisabled(confirmUser.uid, confirmUser.disabled)}
+            >
+              {confirmUser?.disabled ? 'Reactivate' : 'Suspend'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

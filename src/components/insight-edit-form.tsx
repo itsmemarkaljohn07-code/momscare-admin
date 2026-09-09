@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -15,6 +16,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { INSIGHT_ICON_KEYS, INSIGHT_SECTIONS, deriveArticleColors } from '@/lib/insight-icons';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface ArticleItem {
   label: string;
@@ -145,15 +151,8 @@ export function InsightEditForm({
     return value.toLowerCase().replace(/[^a-z0-9]/g, '');
   }
 
-    async function handleDelete() {
+      async function handleDelete() {
     if (!initialId) return;
-    if (
-      !window.confirm(
-        `Delete "${form.title}"? This cannot be undone.`
-      )
-    ) {
-      return;
-    }
 
     setIsSaving(true);
     setMessage('');
@@ -162,13 +161,14 @@ export function InsightEditForm({
       const res = await fetch(`/api/insights/${initialId}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setMessage(data.error || 'Failed to delete article.');
+        toast.error(data.error || 'Failed to delete article.');
         setIsSaving(false);
         return;
       }
+      toast.success('Article deleted.');
       router.push('/admin/insights');
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : 'Failed to delete article.');
+      toast.error(err instanceof Error ? err.message : 'Failed to delete article.');
       setIsSaving(false);
     }
   }
@@ -223,10 +223,10 @@ export function InsightEditForm({
         return;
       }
 
-      setMessage('Saved successfully.');
+            toast.success('Saved successfully.');
       router.refresh();
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : 'Something went wrong.');
+      toast.error(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setIsSaving(false);
     }
@@ -534,24 +534,32 @@ export function InsightEditForm({
         </CardContent>
       </Card>
 
-           {message && <p className="text-sm">{message}</p>}
-
-      <div className="flex items-center justify-between">
+                 <div className="flex items-center justify-between">
         <Button type="submit" disabled={isSaving}>
           {isSaving ? 'Saving...' : mode === 'create' ? 'Create Article' : 'Save Changes'}
         </Button>
 
         {mode === 'edit' && (
-          <Button
-            type="button"
-            variant="destructive"
-            disabled={isSaving}
-            onClick={handleDelete}
-          >
-            Delete Article
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger render={<Button type="button" variant="destructive" disabled={isSaving} />}>
+              Delete Article
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete &quot;{form.title}&quot;?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This cannot be undone. The article will be permanently removed from Firestore
+                  and will disappear from the mobile app immediately.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
-        </form>
+    </form>
   );
 }
