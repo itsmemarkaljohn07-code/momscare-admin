@@ -5,6 +5,7 @@ import { StatCard } from '@/components/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Camera, Users as UsersIcon } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
 
 export default async function SnapshotsListPage() {
   const patients = await getSnapshotUsers();
@@ -22,12 +23,12 @@ export default async function SnapshotsListPage() {
         <StatCard label="Total Photos" value={totalPhotos} icon={Camera} color="purple" />
       </div>
 
-      {patients.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No patients have uploaded Snapshot photos yet.
-          </CardContent>
-        </Card>
+        {patients.length === 0 ? (
+        <EmptyState
+          icon={Camera}
+          title="No Snapshot photos yet"
+          description="Patients haven't uploaded any pregnancy photos."
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {patients.map((p) => (

@@ -1,14 +1,16 @@
 import { getAppointmentStats } from '@/lib/get-appointment-stats';
 import { getUsers } from '@/lib/get-users';
+import { getDoctors } from '@/lib/get-doctors';
 import { AppointmentsTable } from '@/components/appointments-table';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { CalendarClock, CalendarCheck, CalendarX, CalendarDays } from 'lucide-react';
 
 export default async function AppointmentsPage() {
-  const [{ appointments, stats }, users] = await Promise.all([
+  const [{ appointments, stats }, users, doctors] = await Promise.all([
     getAppointmentStats(),
     getUsers(),
+    getDoctors(),
   ]);
 
   return (
@@ -25,7 +27,8 @@ export default async function AppointmentsPage() {
         <StatCard label="Cancelled" value={stats.cancelled} icon={CalendarX} color="amber" />
       </div>
 
-      <AppointmentsTable appointments={appointments} users={users} />
+        <AppointmentsTable appointments={appointments} users={users} doctors={doctors} />
     </div>
+
   );
 }

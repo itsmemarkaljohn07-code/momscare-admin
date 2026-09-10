@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
-import { AppointmentsChart } from '@/components/appointments-chart';
+import { AppointmentAnalytics } from '@/components/appointment-analytics';
 import { Users as UsersIcon, CalendarCheck, Newspaper, UserX } from 'lucide-react';
 
 function toDateSafe(value: any): Date | null {
@@ -17,7 +17,7 @@ function toDateSafe(value: any): Date | null {
 }
 
 export default async function AdminOverviewPage() {
-  const [users, articles, { stats }] = await Promise.all([
+  const [users, articles, { appointments, stats }] = await Promise.all([
     getUsers(),
     getInsights(),
     getAppointmentStats(),
@@ -74,50 +74,7 @@ export default async function AdminOverviewPage() {
         <StatCard label="Suspended Accounts" value={suspendedCount} icon={UserX} color="amber" />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Appointments — Last 14 Days</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AppointmentsChart data={stats.trend} />
-            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              <span>
-                <strong>{stats.total}</strong> total
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span>
-                <strong>{stats.upcoming}</strong> upcoming
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span>
-                <strong>{stats.completed}</strong> completed
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span>
-                <strong>{stats.cancelled}</strong> cancelled
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Appointment Types</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {stats.byType.length === 0 && (
-              <p className="text-sm text-muted-foreground">No appointments yet.</p>
-            )}
-            {stats.byType.map((t) => (
-              <div key={t.type} className="flex items-center justify-between text-sm">
-                <span>{t.type}</span>
-                <Badge variant="secondary">{t.count}</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+      <AppointmentAnalytics appointments={appointments} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

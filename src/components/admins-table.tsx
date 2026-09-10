@@ -3,8 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { ShieldOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/empty-state';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -53,6 +56,7 @@ export function AdminsTable({
         return;
       }
 
+      toast.success('Admin created.');
       setOpen(false);
       setEmail('');
       setPassword('');
@@ -64,7 +68,7 @@ export function AdminsTable({
     }
   }
 
-    async function handleRemove(uid: string) {
+  async function handleRemove(uid: string) {
     setConfirmUid(null);
     setPendingUid(uid);
     try {
@@ -123,58 +127,96 @@ export function AdminsTable({
         </Dialog>
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Added</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      {admins.length === 0 ? (
+        <EmptyState icon={ShieldOff} title="No admins found" />
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="hidden overflow-x-auto rounded-md border md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Added</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {admins.map((a) => (
+                  <TableRow key={a.uid} className="transition-colors hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${getAvatarStyle(a.uid).bg} ${getAvatarStyle(a.uid).text}`}
+                        >
+                          {getInitials(a.email ?? '?')}
+                        </span>
+                        {a.email}
+                        {a.uid === currentUid && (
+                          <span className="text-xs text-muted-foreground">(you)</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}
+                    </TableCell>
+                    <TableCell>
+                      {a.uid !== currentUid && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={pendingUid === a.uid}
+                          onClick={() => setConfirmUid(a.uid)}
+                        >
+                          Remove Access
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile stacked cards */}
+          <div className="grid gap-3 md:hidden">
             {admins.map((a) => (
-              <TableRow key={a.uid}>
-                                <TableCell className="font-medium">
+              <Card key={a.uid} className="transition-shadow hover:shadow-md">
+                <CardContent className="flex items-center justify-between gap-3 p-4">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${getAvatarStyle(a.uid).bg} ${getAvatarStyle(a.uid).text}`}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${getAvatarStyle(a.uid).bg} ${getAvatarStyle(a.uid).text}`}
                     >
                       {getInitials(a.email ?? '?')}
                     </span>
-                    {a.email}
-                    {a.uid === currentUid && (
-                      <span className="text-xs text-muted-foreground">(you)</span>
-                    )}
+                    <div>
+                      <p className="text-sm font-medium leading-tight">
+                        {a.email}{' '}
+                        {a.uid === currentUid && (
+                          <span className="text-xs text-muted-foreground">(you)</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Added {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}
+                      </p>
+                    </div>
                   </div>
-                </TableCell>
-                <TableCell>
-                  {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}
-                </TableCell>
-                <TableCell>
-                                    {a.uid !== currentUid && (
+                  {a.uid !== currentUid && (
                     <Button
                       variant="outline"
                       size="sm"
                       disabled={pendingUid === a.uid}
                       onClick={() => setConfirmUid(a.uid)}
                     >
-                      Remove Access
+                      Remove
                     </Button>
                   )}
-                </TableCell>
-              </TableRow>
+                </CardContent>
+              </Card>
             ))}
-            {admins.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center text-sm text-muted-foreground">
-                  No admins found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+          </div>
+        </>
+      )}
 
       <AlertDialog open={!!confirmUid} onOpenChange={(open) => !open && setConfirmUid(null)}>
         <AlertDialogContent>
