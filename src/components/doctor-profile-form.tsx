@@ -147,8 +147,8 @@ export function DoctorProfileForm({ initial }: { initial: DoctorRecord }) {
             />
           </div>
           <div className="min-w-0 flex-1 space-y-1">
-            <h1 className="text-xl font-bold tracking-tight">{doctor.name}</h1>
-            <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
+            <h1 className="truncate text-xl font-bold tracking-tight">{doctor.name}</h1>
+            <p className="truncate text-sm text-muted-foreground">{doctor.specialty}</p>
           </div>
         </CardContent>
       </Card>

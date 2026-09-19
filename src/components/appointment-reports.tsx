@@ -154,9 +154,9 @@ export function AppointmentReports({
     <div className="space-y-6">
       {/* Filters */}
       <Card>
-        <CardContent className="flex flex-wrap gap-2 p-4">
+        <CardContent className="grid grid-cols-2 gap-2 p-4 sm:flex sm:flex-wrap">
           <Select value={period} onValueChange={(v) => v && setPeriod(v as Period)}>
-            <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[110px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="yearly">Yearly</SelectItem>
               <SelectItem value="monthly">Monthly</SelectItem>
@@ -165,7 +165,7 @@ export function AppointmentReports({
           </Select>
           {period !== 'yearly' && (
             <Select value={String(selectedYear)} onValueChange={(v) => v && setSelectedYear(Number(v))}>
-              <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[90px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {availableYears.map((y) => (
                   <SelectItem key={y} value={String(y)}>{y}</SelectItem>
@@ -174,7 +174,7 @@ export function AppointmentReports({
             </Select>
           )}
           <Select value={doctorFilter} onValueChange={(v) => setDoctorFilter(v ?? 'all')}>
-            <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[170px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Doctors</SelectItem>
               {doctors.map((d) => (
@@ -183,7 +183,7 @@ export function AppointmentReports({
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v ?? 'all')}>
-            <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[170px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               {TYPE_OPTIONS.map((t) => (
@@ -192,7 +192,7 @@ export function AppointmentReports({
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? 'all')}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="upcoming">Upcoming</SelectItem>
@@ -201,7 +201,7 @@ export function AppointmentReports({
             </SelectContent>
           </Select>
           <Select value={approvalFilter} onValueChange={(v) => setApprovalFilter(v ?? 'all')}>
-            <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[150px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Approvals</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>

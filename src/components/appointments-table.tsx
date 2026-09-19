@@ -226,24 +226,24 @@ export function AppointmentsTable({
                 <Card key={`${a.patientUid}-${a.id}`} className="transition-shadow hover:shadow-md">
                   <CardContent className="space-y-3 p-4">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <span
                           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
                           style={{ backgroundColor: ACCENT_BG_VAR[a.accentColor] ?? 'var(--muted)' }}
                         >
                           {a.icon}
                         </span>
-                        <div>
-                          <p className="font-medium leading-tight">{a.label}</p>
-                          <p className="text-xs text-muted-foreground">{a.patientName}</p>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium leading-tight">{a.label}</p>
+                          <p className="truncate text-xs text-muted-foreground">{a.patientName}</p>
                         </div>
                       </div>
                       <StatusBadge status={displayStatus} />
                     </div>
 
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{a.doctor}</span>
-                      <span>{a.date} · {a.time}</span>
+                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span className="min-w-0 truncate">{a.doctor}</span>
+                      <span className="shrink-0">{a.date} · {a.time}</span>
                     </div>
 
                     <div>

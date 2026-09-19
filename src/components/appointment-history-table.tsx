@@ -53,9 +53,9 @@ export function AppointmentHistoryTable({
           onChange={(e) => setQuery(e.target.value)}
           className="max-w-sm"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v as StatusFilter)}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
@@ -63,7 +63,7 @@ export function AppointmentHistoryTable({
             </SelectContent>
           </Select>
           <Select value={doctorFilter} onValueChange={(v) => setDoctorFilter(v ?? 'all')}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[180px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Doctors</SelectItem>
               {doctors.map((d) => (
@@ -127,15 +127,15 @@ export function AppointmentHistoryTable({
               <Card key={`${a.patientUid}-${a.id}`}>
                 <CardContent className="space-y-2 p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium leading-tight">{a.label}</p>
-                      <p className="text-xs text-muted-foreground">{a.patientName}</p>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium leading-tight">{a.label}</p>
+                      <p className="truncate text-xs text-muted-foreground">{a.patientName}</p>
                     </div>
                     <StatusBadge status={a.status} />
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{a.doctor}</span>
-                    <span>{a.date} · {a.time}</span>
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span className="min-w-0 truncate">{a.doctor}</span>
+                    <span className="shrink-0">{a.date} · {a.time}</span>
                   </div>
                   <StatusBadge status={a.doctorApproval} />
                 </CardContent>

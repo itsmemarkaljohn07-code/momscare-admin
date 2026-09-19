@@ -27,15 +27,15 @@ export function PatientsDoctorsView({
   return (
     <div className="space-y-5">
       {/* Tab switcher */}
-      <div className="inline-flex rounded-lg border bg-muted/40 p-1">
+      <div className="flex flex-col gap-1 sm:inline-flex sm:flex-row sm:rounded-lg sm:border sm:bg-muted/40 sm:p-1">
         <Button
           type="button"
           variant={tab === 'patients' ? 'default' : 'ghost'}
           size="sm"
-          className="gap-1.5"
+          className="justify-start gap-1.5 sm:justify-center"
           onClick={() => setTab('patients')}
         >
-          <UsersIcon className="h-3.5 w-3.5" />
+          <UsersIcon className="h-3.5 w-3.5 shrink-0" />
           Patient Accounts
           <span className="ml-0.5 rounded-full bg-background/60 px-1.5 text-xs font-normal">
             {users.length}
@@ -45,11 +45,12 @@ export function PatientsDoctorsView({
           type="button"
           variant={tab === 'doctors' ? 'default' : 'ghost'}
           size="sm"
-          className="gap-1.5"
+          className="justify-start gap-1.5 sm:justify-center"
           onClick={() => setTab('doctors')}
         >
-          <Stethoscope className="h-3.5 w-3.5" />
-          Doctor / Healthcare Provider Accounts
+          <Stethoscope className="h-3.5 w-3.5 shrink-0" />
+          <span className="sm:hidden">Doctor Accounts</span>
+          <span className="hidden sm:inline">Doctor / Healthcare Provider Accounts</span>
           <span className="ml-0.5 rounded-full bg-background/60 px-1.5 text-xs font-normal">
             {doctors.length}
           </span>

@@ -124,7 +124,7 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
             {doctors.map((d) => (
               <Card key={d.id} className="transition-shadow hover:shadow-md">
                 <CardContent className="space-y-3 p-4">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     {d.photoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -137,14 +137,14 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
                         {getInitials(d.name)}
                       </span>
                     )}
-                    <div>
-                      <p className="font-medium leading-tight">{d.name}</p>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium leading-tight">{d.name}</p>
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{d.specialty}</span>
                     </div>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    <p>{formatDays(d.workingDays)}</p>
-                    <p>{to12Hour(d.startTime)} – {to12Hour(d.endTime)} · {d.slotMinutes} min slots</p>
+                    <p className="truncate">{formatDays(d.workingDays)}</p>
+                    <p className="truncate">{to12Hour(d.startTime)} – {to12Hour(d.endTime)} · {d.slotMinutes} min slots</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 border-t pt-3">
                     <Link

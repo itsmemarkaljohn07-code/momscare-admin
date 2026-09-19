@@ -53,7 +53,7 @@ export function DoctorViewLive({ initial }: { initial: DoctorRecord }) {
   return (
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           {doctor.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -68,12 +68,12 @@ export function DoctorViewLive({ initial }: { initial: DoctorRecord }) {
               {getInitials(doctor.name)}
             </span>
           )}
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{doctor.name}</h1>
-            <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold tracking-tight">{doctor.name}</h1>
+            <p className="truncate text-sm text-muted-foreground">{doctor.specialty}</p>
           </div>
         </div>
-        <Badge variant={doctor.authUid ? 'secondary' : 'outline'} className="w-fit">
+        <Badge variant={doctor.authUid ? 'secondary' : 'outline'} className="w-fit shrink-0">
           {doctor.authUid ? 'Login Enabled' : 'No Login Yet'}
         </Badge>
       </div>

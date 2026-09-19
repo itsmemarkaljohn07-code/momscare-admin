@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -47,23 +47,25 @@ export function DoctorFormDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
-      if (editing) {
-        setForm({
-          name: editing.name,
-          specialty: editing.specialty,
-          workingDays: editing.workingDays,
-          startTime: editing.startTime,
-          endTime: editing.endTime,
-          slotMinutes: editing.slotMinutes,
-        });
-      } else {
-        setForm(BLANK);
-      }
+      setForm(
+        editing
+          ? {
+              name: editing.name,
+              specialty: editing.specialty,
+              workingDays: editing.workingDays,
+              startTime: editing.startTime,
+              endTime: editing.endTime,
+              slotMinutes: editing.slotMinutes,
+            }
+          : BLANK
+      );
       setError('');
     }
-  }, [open, editing]);
+  }
 
   function toggleDay(day: number, checked: boolean) {
     setForm((f) => ({
@@ -121,7 +123,7 @@ export function DoctorFormDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={trigger} />
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{editing ? 'Edit Doctor' : 'Add New Doctor'}</DialogTitle>
         </DialogHeader>
@@ -139,7 +141,7 @@ export function DoctorFormDialog({
 
           <div className="space-y-1">
             <label className="text-sm font-medium">Specialty</label>
-            <Select value={form.specialty} onValueChange={(value) => setForm((f) => ({ ...f, specialty: value }))}>
+            <Select value={form.specialty} onValueChange={(value) => value && setForm((f) => ({ ...f, specialty: value }))}>
               <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
                 {TYPE_OPTIONS.map((t) => (

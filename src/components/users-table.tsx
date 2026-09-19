@@ -217,33 +217,33 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
               <Card key={u.uid} className="transition-shadow hover:shadow-md">
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span
                         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${getAvatarStyle(u.uid).bg} ${getAvatarStyle(u.uid).text}`}
                       >
                         {getInitials(u.fullName)}
                       </span>
-                      <div>
-                        <p className="font-medium leading-tight">{u.fullName}</p>
-                        <p className="text-xs text-muted-foreground">{u.email}</p>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium leading-tight">{u.fullName}</p>
+                        <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                         <p className="mt-0.5 flex items-center gap-1.5 text-xs">
-                          <Badge variant="secondary" className="text-[10px]">Patient</Badge>
+                          <Badge variant="secondary" className="shrink-0 text-[10px]">Patient</Badge>
                           {u.username ? (
-                            <span className="font-mono text-muted-foreground">@{u.username}</span>
+                            <span className="truncate font-mono text-muted-foreground">@{u.username}</span>
                           ) : (
-                            <span className="text-muted-foreground">Username not set</span>
+                            <span className="truncate text-muted-foreground">Username not set</span>
                           )}
                         </p>
                       </div>
                     </div>
-                    <Badge variant={u.disabled ? 'destructive' : 'secondary'}>
+                    <Badge variant={u.disabled ? 'destructive' : 'secondary'} className="shrink-0">
                       {u.disabled ? 'Suspended' : 'Active'}
                     </Badge>
                   </div>
 
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Due: {u.dueDate ?? '—'}</span>
-                    <span>
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span className="truncate">Due: {u.dueDate ?? '—'}</span>
+                    <span className="shrink-0">
                       Joined: {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
                     </span>
                   </div>
@@ -309,7 +309,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
 
       {/* Permanent Delete — Step 1: what will be removed */}
       <Dialog open={deleteStep === 1} onOpenChange={(open) => !open && closeDeleteFlow()}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-5 w-5" />
@@ -343,7 +343,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
 
       {/* Permanent Delete — Step 2: typed-name confirmation */}
       <Dialog open={deleteStep === 2} onOpenChange={(open) => !open && closeDeleteFlow()}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-red-600">Final Confirmation</DialogTitle>
             <DialogDescription>

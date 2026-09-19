@@ -92,7 +92,7 @@ export function AdminsTable({
       <div className="flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger render={<Button>+ Add Admin</Button>} />
-          <DialogContent className="sm:max-w-sm">
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Add New Admin</DialogTitle>
             </DialogHeader>
@@ -197,22 +197,22 @@ export function AdminsTable({
             {admins.map((a) => (
               <Card key={a.uid} className="transition-shadow hover:shadow-md">
                 <CardContent className="space-y-3 p-4">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${getAvatarStyle(a.uid).bg} ${getAvatarStyle(a.uid).text}`}
                     >
                       {getInitials(a.email ?? '?')}
                     </span>
-                    <div>
-                      <p className="text-sm font-medium leading-tight">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium leading-tight">
                         {a.email}{' '}
                         {a.uid === currentUid && (
                           <span className="text-xs text-muted-foreground">(you)</span>
                         )}
                       </p>
                       <div className="mt-0.5 flex items-center gap-1.5">
-                        <Badge variant="secondary" className="text-[10px]">Admin</Badge>
-                        <p className="text-xs text-muted-foreground">
+                        <Badge variant="secondary" className="shrink-0 text-[10px]">Admin</Badge>
+                        <p className="truncate text-xs text-muted-foreground">
                           Added {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}
                         </p>
                       </div>

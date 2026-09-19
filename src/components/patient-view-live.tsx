@@ -55,18 +55,18 @@ export function PatientViewLive({ initial }: { initial: AdminUserView }) {
   return (
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <span
             className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold ${avatarStyle.bg} ${avatarStyle.text}`}
           >
             {getInitials(profile.fullName)}
           </span>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{profile.fullName}</h1>
-            <p className="text-sm text-muted-foreground">{initial.email}</p>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold tracking-tight">{profile.fullName}</h1>
+            <p className="truncate text-sm text-muted-foreground">{initial.email}</p>
           </div>
         </div>
-        <Badge variant={initial.disabled ? 'destructive' : 'secondary'} className="w-fit">
+        <Badge variant={initial.disabled ? 'destructive' : 'secondary'} className="w-fit shrink-0">
           {initial.disabled ? 'Suspended' : 'Active'}
         </Badge>
       </div>

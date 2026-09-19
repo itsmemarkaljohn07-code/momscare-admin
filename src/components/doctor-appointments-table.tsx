@@ -88,7 +88,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
                         <DialogTrigger render={<Button size="sm" variant="destructive" onClick={() => setRejectingAppt(a)} />}>
                           Decline
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-sm">
+                        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
                           <DialogHeader><DialogTitle>Decline Appointment</DialogTitle></DialogHeader>
                           <Textarea
                             placeholder="Reason for the patient (optional)"

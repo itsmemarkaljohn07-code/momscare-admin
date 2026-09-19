@@ -73,7 +73,7 @@ export function DoctorLoginDialog({ doctor }: { doctor: DoctorRecord }) {
       >
         {doctor.authUid ? 'Reset Login' : 'Set Up Login'}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>{doctor.authUid ? 'Reset' : 'Set Up'} Login for {doctor.name}</DialogTitle>
         </DialogHeader>

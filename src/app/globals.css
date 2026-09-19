@@ -186,6 +186,18 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html, body {
+    /* Guards against a one-frame hydration flash: useIsMobile() can't
+       know the real viewport until its client effect runs, so the
+       very first paint briefly renders the desktop sidebar layout
+       even on a phone. That's unavoidable with a JS-detected
+       breakpoint in an SSR app — this just stops the transient
+       overflow from leaving the page scrolled sideways after the
+       correct mobile layout takes over a moment later. It does not
+       mask any content that stays wider than the viewport; that's
+       fixed at the source in the components themselves. */
+    overflow-x: hidden;
+  }
   body {
     @apply bg-background text-foreground;
   }

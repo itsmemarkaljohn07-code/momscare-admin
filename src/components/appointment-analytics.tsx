@@ -166,9 +166,9 @@ export function AppointmentAnalytics({ appointments }: { appointments: AdminAppo
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">Appointment Analytics</CardTitle>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <Select value={period} onValueChange={(v) => v && setPeriod(v as Period)}>
-              <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[110px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="yearly">Yearly</SelectItem>
                 <SelectItem value="monthly">Monthly</SelectItem>
@@ -178,7 +178,7 @@ export function AppointmentAnalytics({ appointments }: { appointments: AdminAppo
 
             {period !== 'yearly' && (
               <Select value={String(selectedYear)} onValueChange={(v) => v && setSelectedYear(Number(v))}>
-                <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-[90px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {availableYears.map((y) => (
                     <SelectItem key={y} value={String(y)}>{y}</SelectItem>
@@ -188,7 +188,7 @@ export function AppointmentAnalytics({ appointments }: { appointments: AdminAppo
             )}
 
             <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v ?? 'all')}>
-              <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[170px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Appointment Types</SelectItem>
                 {TYPE_OPTIONS.map((t) => (
@@ -198,7 +198,7 @@ export function AppointmentAnalytics({ appointments }: { appointments: AdminAppo
             </Select>
 
             <Select value={nameFilter} onValueChange={(v) => setNameFilter(v ?? 'all')}>
-              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[180px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Appointment Names</SelectItem>
                 {NAME_OPTIONS.map((n) => (
