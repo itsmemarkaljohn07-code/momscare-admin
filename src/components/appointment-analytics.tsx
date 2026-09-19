@@ -24,9 +24,11 @@ const NAME_OPTIONS = [
   'Postpartum Checkup', 'Other',
 ];
 
+// The 5 theme-aware chart tokens from globals.css, cycled for bar
+// breakdowns of arbitrary length — replaces the old 10-color
+// hardcoded hex PALETTE, which didn't adapt to dark mode.
 const PALETTE = [
-  '#e07eb8', '#9b6fc4', '#6dbfbf', '#d99a3a', '#4f7fc2',
-  '#e08e5f', '#c46f9b', '#5fae8f', '#a888c4', '#d4a373',
+  'var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)',
 ];
 
 type Period = 'yearly' | 'monthly' | 'weekly';
@@ -151,13 +153,21 @@ export function AppointmentAnalytics({ appointments }: { appointments: AdminAppo
       .sort((a, b) => b.count - a.count);
   }, [appointments, typeFilter, period, selectedYear]);
 
+  const tooltipStyle = {
+    borderRadius: 8,
+    border: '1px solid var(--border)',
+    backgroundColor: 'var(--popover)',
+    color: 'var(--popover-foreground)',
+    fontSize: 12,
+  };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">Appointment Analytics</CardTitle>
           <div className="flex flex-wrap gap-2">
-            <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+            <Select value={period} onValueChange={(v) => v && setPeriod(v as Period)}>
               <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="yearly">Yearly</SelectItem>
@@ -167,7 +177,7 @@ export function AppointmentAnalytics({ appointments }: { appointments: AdminAppo
             </Select>
 
             {period !== 'yearly' && (
-              <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
+              <Select value={String(selectedYear)} onValueChange={(v) => v && setSelectedYear(Number(v))}>
                 <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {availableYears.map((y) => (
@@ -177,7 +187,7 @@ export function AppointmentAnalytics({ appointments }: { appointments: AdminAppo
               </Select>
             )}
 
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v ?? 'all')}>
               <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Appointment Types</SelectItem>
@@ -187,7 +197,7 @@ export function AppointmentAnalytics({ appointments }: { appointments: AdminAppo
               </SelectContent>
             </Select>
 
-            <Select value={nameFilter} onValueChange={setNameFilter}>
+            <Select value={nameFilter} onValueChange={(v) => setNameFilter(v ?? 'all')}>
               <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Appointment Names</SelectItem>
@@ -217,15 +227,15 @@ export function AppointmentAnalytics({ appointments }: { appointments: AdminAppo
               <AreaChart data={trendData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="analyticsTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#e07eb8" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#e07eb8" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                <XAxis dataKey="label" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} width={28} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #eee', fontSize: 12 }} />
-                <Area type="monotone" dataKey="count" stroke="#e07eb8" strokeWidth={2} fill="url(#analyticsTrendGradient)" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis dataKey="label" fontSize={11} tickLine={false} axisLine={false} stroke="var(--muted-foreground)" />
+                <YAxis allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} width={28} stroke="var(--muted-foreground)" />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Area type="monotone" dataKey="count" stroke="var(--chart-1)" strokeWidth={2} fill="url(#analyticsTrendGradient)" />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -239,10 +249,10 @@ export function AppointmentAnalytics({ appointments }: { appointments: AdminAppo
             ) : (
               <ResponsiveContainer width="100%" height={Math.max(180, typeBreakdown.length * 34)}>
                 <BarChart data={typeBreakdown} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
-                  <XAxis type="number" allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="type" fontSize={11} tickLine={false} axisLine={false} width={110} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #eee', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                  <XAxis type="number" allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} stroke="var(--muted-foreground)" />
+                  <YAxis type="category" dataKey="type" fontSize={11} tickLine={false} axisLine={false} width={110} stroke="var(--muted-foreground)" />
+                  <Tooltip contentStyle={tooltipStyle} />
                   <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                     {typeBreakdown.map((_, i) => (
                       <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
@@ -260,13 +270,13 @@ export function AppointmentAnalytics({ appointments }: { appointments: AdminAppo
             ) : (
               <ResponsiveContainer width="100%" height={Math.max(180, nameBreakdown.length * 34)}>
                 <BarChart data={nameBreakdown} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#eee" />
-                  <XAxis type="number" allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="name" fontSize={11} tickLine={false} axisLine={false} width={140} />
-                  <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #eee', fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                  <XAxis type="number" allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} stroke="var(--muted-foreground)" />
+                  <YAxis type="category" dataKey="name" fontSize={11} tickLine={false} axisLine={false} width={140} stroke="var(--muted-foreground)" />
+                  <Tooltip contentStyle={tooltipStyle} />
                   <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                     {nameBreakdown.map((_, i) => (
-                      <Cell key={i} fill={PALETTE[(i + 3) % PALETTE.length]} />
+                      <Cell key={i} fill={PALETTE[(i + 2) % PALETTE.length]} />
                     ))}
                   </Bar>
                 </BarChart>

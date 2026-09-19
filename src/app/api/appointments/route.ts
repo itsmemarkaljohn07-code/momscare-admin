@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 
 export async function POST(req: NextRequest) {
   const session = await getAdminSession();
@@ -17,16 +17,26 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const docRef = await adminDb
+        const docRef = await adminDb
       .collection('users')
       .doc(patientUid)
       .collection('appointments')
-      .add({
+        .add({
         ...appt,
         userId: patientUid,
         status: 'upcoming',
+        doctorApproval: 'pending',
         createdAt: Timestamp.now(),
       });
+
+    // Denormalized onto the patient's own doc so Firestore security
+    // rules can cheaply verify "is this doctor allowed to see this
+    // patient's photos/comments" without an expensive relationship
+    // query — rules can't scan subcollections, only check known paths.
+    await adminDb.collection('users').doc(patientUid).set(
+      { assignedDoctorNames: FieldValue.arrayUnion(appt.doctor) },
+      { merge: true }
+    );
 
     return NextResponse.json({ success: true, id: docRef.id });
   } catch (err: unknown) {

@@ -16,18 +16,37 @@ export function AppointmentsChart({ data }: { data: { date: string; count: numbe
       <AreaChart data={formatted} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
         <defs>
           <linearGradient id="apptGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#e07eb8" stopOpacity={0.35} />
-            <stop offset="95%" stopColor="#e07eb8" stopOpacity={0} />
+            <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.35} />
+            <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-        <XAxis dataKey="label" fontSize={11} tickLine={false} axisLine={false} />
-        <YAxis allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} width={28} />
-        <Tooltip
-          contentStyle={{ borderRadius: 8, border: '1px solid #eee', fontSize: 12 }}
-          labelStyle={{ fontWeight: 600 }}
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+        <XAxis
+          dataKey="label"
+          fontSize={11}
+          tickLine={false}
+          axisLine={false}
+          stroke="var(--muted-foreground)"
         />
-        <Area type="monotone" dataKey="count" stroke="#e07eb8" strokeWidth={2} fill="url(#apptGradient)" />
+        <YAxis
+          allowDecimals={false}
+          fontSize={11}
+          tickLine={false}
+          axisLine={false}
+          width={28}
+          stroke="var(--muted-foreground)"
+        />
+        <Tooltip
+          contentStyle={{
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+            backgroundColor: 'var(--popover)',
+            color: 'var(--popover-foreground)',
+            fontSize: 12,
+          }}
+          labelStyle={{ fontWeight: 600, color: 'var(--popover-foreground)' }}
+        />
+        <Area type="monotone" dataKey="count" stroke="var(--chart-1)" strokeWidth={2} fill="url(#apptGradient)" />
       </AreaChart>
     </ResponsiveContainer>
   );

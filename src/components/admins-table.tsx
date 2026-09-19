@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ShieldOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
 import {
@@ -137,6 +139,7 @@ export function AdminsTable({
               <TableHeader>
                 <TableRow>
                   <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Added</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
@@ -158,19 +161,30 @@ export function AdminsTable({
                       </div>
                     </TableCell>
                     <TableCell>
+                      <Badge variant="secondary">Admin</Badge>
+                    </TableCell>
+                    <TableCell>
                       {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}
                     </TableCell>
                     <TableCell>
-                      {a.uid !== currentUid && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={pendingUid === a.uid}
-                          onClick={() => setConfirmUid(a.uid)}
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/admin/admins/${a.uid}`}
+                          className="text-sm font-medium text-primary hover:underline"
                         >
-                          Remove Access
-                        </Button>
-                      )}
+                          View
+                        </Link>
+                        {a.uid !== currentUid && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={pendingUid === a.uid}
+                            onClick={() => setConfirmUid(a.uid)}
+                          >
+                            Remove Access
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -182,7 +196,7 @@ export function AdminsTable({
           <div className="grid gap-3 md:hidden">
             {admins.map((a) => (
               <Card key={a.uid} className="transition-shadow hover:shadow-md">
-                <CardContent className="flex items-center justify-between gap-3 p-4">
+                <CardContent className="space-y-3 p-4">
                   <div className="flex items-center gap-2">
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${getAvatarStyle(a.uid).bg} ${getAvatarStyle(a.uid).text}`}
@@ -196,21 +210,32 @@ export function AdminsTable({
                           <span className="text-xs text-muted-foreground">(you)</span>
                         )}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Added {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}
-                      </p>
+                      <div className="mt-0.5 flex items-center gap-1.5">
+                        <Badge variant="secondary" className="text-[10px]">Admin</Badge>
+                        <p className="text-xs text-muted-foreground">
+                          Added {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  {a.uid !== currentUid && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={pendingUid === a.uid}
-                      onClick={() => setConfirmUid(a.uid)}
+                  <div className="flex items-center justify-between gap-2 border-t pt-3">
+                    <Link
+                      href={`/admin/admins/${a.uid}`}
+                      className="text-sm font-medium text-primary hover:underline"
                     >
-                      Remove
-                    </Button>
-                  )}
+                      View
+                    </Link>
+                    {a.uid !== currentUid && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={pendingUid === a.uid}
+                        onClick={() => setConfirmUid(a.uid)}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}

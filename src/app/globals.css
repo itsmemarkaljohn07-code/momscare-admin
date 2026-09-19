@@ -49,72 +49,137 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #d9609a;
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: #e07eb8;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #d9609a;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --font-geist-sans: "Segoe UI", ui-sans-serif, system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-geist-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --background: #faf9f8;
+  --foreground: #1a1d23;
+  --card: #ffffff;
+  --card-foreground: #1a1d23;
+  --popover: #ffffff;
+  --popover-foreground: #1a1d23;
+  --primary: #d9527f;
+  --primary-foreground: #ffffff;
+  --secondary: #f2eef1;
+  --secondary-foreground: #33313a;
+  --muted: #f3f2f0;
+  --muted-foreground: #6b7280;
+  --accent: #f7eef4;
+  --accent-foreground: #33313a;
+  --destructive: #d9455a;
+  --border: #e7e4e1;
+  --input: #e7e4e1;
+  --ring: #d9527f;
+  --chart-1: #d9527f;
+  --chart-2: #4fa894;
+  --chart-3: #d99a3a;
+  --chart-4: #5b8def;
+  --chart-5: #9b6fc4;
+  --radius: 0.65rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1d23;
+  --sidebar-primary: #d9527f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f6eef2;
+  --sidebar-accent-foreground: #33313a;
+  --sidebar-border: #e7e4e1;
+  --sidebar-ring: #d9527f;
+
+  /* Appointment / approval status palette — used by status-badge.tsx.
+     Names are semantic, not literal colors, so the mapping can shift
+     without touching consuming components. */
+  --status-pending: #b7791f;
+  --status-pending-bg: #fbf0dc;
+  --status-approved: #1f7a5c;
+  --status-approved-bg: #e1f5ec;
+  --status-declined: #b3364a;
+  --status-declined-bg: #fbe5ea;
+  --status-cancelled: #6b7280;
+  --status-cancelled-bg: #f1f2f4;
+  --status-completed: #3e63a6;
+  --status-completed-bg: #e7edf8;
+  --status-upcoming: #7a4fb5;
+  --status-upcoming-bg: #f2e8fb;
+
+  /* Neutral "chip" accent palette — used by stat-card.tsx and any
+     appointment icon/category accent (appointments-table.tsx). Kept
+     separate from status colors, which always mean workflow state. */
+  --accent-pink: #d9609a;
+  --accent-pink-bg: #fce8f3;
+  --accent-purple: #9b6fc4;
+  --accent-purple-bg: #f0e6fb;
+  --accent-mint: #4fa89c;
+  --accent-mint-bg: #e0f5f2;
+  --accent-amber: #d99a3a;
+  --accent-amber-bg: #fdf1e0;
+  --accent-green: #3ba876;
+  --accent-green-bg: #e0f5ea;
+  --accent-blue: #4f7fc2;
+  --accent-blue-bg: #e3edfb;
+  --accent-orange: #d98e5f;
+  --accent-orange-bg: #fdede0;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: #d9609a;
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: #e07eb8;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: #d9609a;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #10141b;
+  --foreground: #eceef1;
+  --card: #1a212b;
+  --card-foreground: #eceef1;
+  --popover: #1a212b;
+  --popover-foreground: #eceef1;
+  --primary: #f094b8;
+  --primary-foreground: #24141b;
+  --secondary: #232a35;
+  --secondary-foreground: #eceef1;
+  --muted: #1e252f;
+  --muted-foreground: #93a0b4;
+  --accent: #232a35;
+  --accent-foreground: #eceef1;
+  --destructive: #e8748a;
+  --border: #262e3a;
+  --input: #262e3a;
+  --ring: #f094b8;
+  --chart-1: #f094b8;
+  --chart-2: #6fc7b4;
+  --chart-3: #e3b565;
+  --chart-4: #7da6f5;
+  --chart-5: #b79bdd;
+  --sidebar: #0e1219;
+  --sidebar-foreground: #eceef1;
+  --sidebar-primary: #f094b8;
+  --sidebar-primary-foreground: #24141b;
+  --sidebar-accent: #1c2430;
+  --sidebar-accent-foreground: #eceef1;
+  --sidebar-border: #1f2733;
+  --sidebar-ring: #f094b8;
+
+  --status-pending: #e3b565;
+  --status-pending-bg: rgba(227, 181, 101, 0.14);
+  --status-approved: #6fc7b4;
+  --status-approved-bg: rgba(111, 199, 180, 0.14);
+  --status-declined: #e8748a;
+  --status-declined-bg: rgba(232, 116, 138, 0.14);
+  --status-cancelled: #9ca3af;
+  --status-cancelled-bg: rgba(156, 163, 175, 0.14);
+  --status-completed: #7da6f5;
+  --status-completed-bg: rgba(125, 166, 245, 0.14);
+  --status-upcoming: #b79bdd;
+  --status-upcoming-bg: rgba(183, 155, 221, 0.14);
+
+  --accent-pink: #ec7fa6;
+  --accent-pink-bg: rgba(236, 127, 166, 0.14);
+  --accent-purple: #b79bdd;
+  --accent-purple-bg: rgba(183, 155, 221, 0.14);
+  --accent-mint: #6fc7b4;
+  --accent-mint-bg: rgba(111, 199, 180, 0.14);
+  --accent-amber: #e3b565;
+  --accent-amber-bg: rgba(227, 181, 101, 0.14);
+  --accent-green: #6fcb9b;
+  --accent-green-bg: rgba(111, 203, 155, 0.14);
+  --accent-blue: #7da6f5;
+  --accent-blue-bg: rgba(125, 166, 245, 0.14);
+  --accent-orange: #e3a26f;
+  --accent-orange-bg: rgba(227, 162, 111, 0.14);
 }
 
 @layer base {

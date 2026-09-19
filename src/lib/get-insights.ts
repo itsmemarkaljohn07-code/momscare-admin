@@ -1,4 +1,6 @@
 import { adminDb } from '@/lib/firebase-admin';
+import { withRetry } from '@/lib/with-retry';
+import type { Timestamp } from 'firebase-admin/firestore';
 
 export interface InsightArticle {
   id: string;
@@ -8,16 +10,16 @@ export interface InsightArticle {
   sections: string[];
   tabs: { id: number; label: string }[];
   youTubeUrl: string;
-  updatedAt?: any;
+  updatedAt?: Timestamp;
   accentColor: string;
 }
 
 export async function getInsights(): Promise<InsightArticle[]> {
-  const snapshot = await adminDb.collection('insights').orderBy('title').get();
+  const snapshot = await withRetry(() => adminDb.collection('insights').orderBy('title').get());
 
   return snapshot.docs.map((doc) => {
     const data = doc.data();
-        return {
+    return {
       id: doc.id,
       title: data.title,
       heroTag: data.heroTag,

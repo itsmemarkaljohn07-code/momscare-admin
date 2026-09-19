@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { CalendarX, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
@@ -17,24 +16,21 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AppointmentFormDialog } from '@/components/appointment-form-dialog';
+import { StatusBadge } from '@/components/status-badge';
+import { computeDisplayStatus } from '@/lib/appointment-status';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { AdminUserView } from '@/lib/get-users';
-
-const ACCENT_STYLES: Record<string, { bg: string; text: string }> = {
-  green:  { bg: 'bg-[#e0f5ea]', text: 'text-[#3ba876]' },
-  pink:   { bg: 'bg-[#fce8f3]', text: 'text-[#d9609a]' },
-  purple: { bg: 'bg-[#f0e6fb]', text: 'text-[#9b6fc4]' },
-  blue:   { bg: 'bg-[#e3edfb]', text: 'text-[#4f7fc2]' },
-  orange: { bg: 'bg-[#fdf1e0]', text: 'text-[#d99a3a]' },
-};
-
-const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
-  upcoming: 'default',
-  completed: 'secondary',
-  cancelled: 'destructive',
-};
-
 import type { DoctorRecord } from '@/lib/get-doctors';
+
+// Dark-mode-safe accent chip colors, sourced from globals.css tokens
+// instead of hardcoded light-only hex classes.
+const ACCENT_BG_VAR: Record<string, string> = {
+  green: 'var(--accent-green-bg)',
+  pink: 'var(--accent-pink-bg)',
+  purple: 'var(--accent-purple-bg)',
+  blue: 'var(--accent-blue-bg)',
+  orange: 'var(--accent-orange-bg)',
+};
 
 export function AppointmentsTable({
   appointments,
@@ -106,7 +102,7 @@ export function AppointmentsTable({
           onChange={(e) => setQuery(e.target.value)}
           className="max-w-sm"
         />
-         <AppointmentFormDialog users={users} appointments={appointments} doctors={doctors} trigger={<Button>+ New Appointment</Button>} />
+        <AppointmentFormDialog users={users} appointments={appointments} doctors={doctors} trigger={<Button>+ New Appointment</Button>} />
       </div>
 
       {filtered.length === 0 ? (
@@ -128,161 +124,187 @@ export function AppointmentsTable({
                   <TableHead>Date</TableHead>
                   <TableHead>Time</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Approval</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((a) => (
-                  <TableRow key={`${a.patientUid}-${a.id}`} className="transition-colors hover:bg-muted/50">
-                    <TableCell className="font-medium">{a.patientName}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm ${ACCENT_STYLES[a.accentColor]?.bg ?? 'bg-muted'}`}
-                        >
-                          {a.icon}
-                        </span>
-                        {a.label}
-                      </div>
-                    </TableCell>
-                    <TableCell>{a.doctor}</TableCell>
-                    <TableCell>{a.date}</TableCell>
-                    <TableCell>{a.time}</TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_VARIANT[a.status] ?? 'default'}>{a.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {a.status === 'upcoming' ? (
-                        <div className="flex flex-wrap gap-2">
-                            <AppointmentFormDialog
-                            users={users}
-                            appointments={appointments}
-                            doctors={doctors}
-                            editing={a}
-                            trigger={<Button variant="outline" size="sm">Edit</Button>}
-                          />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={pendingId === a.id}
-                            onClick={() => setStatus(a, 'completed')}
+                {filtered.map((a) => {
+                  const displayStatus = computeDisplayStatus(a.date, a.time, a.status);
+                  const approval = a.doctorApproval ?? 'pending';
+                  const rejectionReason = a.rejectionReason;
+                  return (
+                    <TableRow key={`${a.patientUid}-${a.id}`} className="transition-colors hover:bg-muted/50">
+                      <TableCell className="font-medium">{a.patientName}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm"
+                            style={{ backgroundColor: ACCENT_BG_VAR[a.accentColor] ?? 'var(--muted)' }}
                           >
-                            Complete
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={pendingId === a.id}
-                            onClick={() => setStatus(a, 'cancelled')}
-                          >
-                            Cancel
-                          </Button>
+                            {a.icon}
+                          </span>
+                          {a.label}
                         </div>
-                      ) : (
-                        <div className="group flex items-center gap-1">
+                      </TableCell>
+                      <TableCell>{a.doctor}</TableCell>
+                      <TableCell>{a.date}</TableCell>
+                      <TableCell>{a.time}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={displayStatus} />
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={approval} />
+                        {approval === 'rejected' && rejectionReason && (
+                          <p className="mt-1 max-w-[160px] text-xs text-muted-foreground">{rejectionReason}</p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {a.status === 'upcoming' ? (
+                          <div className="flex flex-wrap gap-2">
                             <AppointmentFormDialog
-                            users={users}
-                            appointments={appointments}
-                            doctors={doctors}
-                            editing={a}
-                            trigger={<Button variant="outline" size="sm">Edit</Button>}
-                          />
-                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5" />
-                          <div className="max-w-0 overflow-hidden opacity-0 transition-all duration-200 ease-out group-hover:max-w-[90px] group-hover:opacity-100">
+                              users={users}
+                              appointments={appointments}
+                              doctors={doctors}
+                              editing={a}
+                              trigger={<Button variant="outline" size="sm">Edit</Button>}
+                            />
                             <Button
-                              variant="destructive"
+                              variant="outline"
                               size="sm"
                               disabled={pendingId === a.id}
-                              onClick={() => setConfirmDelete(a)}
+                              onClick={() => setStatus(a, 'completed')}
                             >
-                              Delete
+                              Complete
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={pendingId === a.id}
+                              onClick={() => setStatus(a, 'cancelled')}
+                            >
+                              Cancel
                             </Button>
                           </div>
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                        ) : (
+                          <div className="group flex items-center gap-1">
+                            <AppointmentFormDialog
+                              users={users}
+                              appointments={appointments}
+                              doctors={doctors}
+                              editing={a}
+                              trigger={<Button variant="outline" size="sm">Edit</Button>}
+                            />
+                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5" />
+                            <div className="max-w-0 overflow-hidden opacity-0 transition-all duration-500 ease-out group-hover:max-w-[90px] group-hover:opacity-100">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                disabled={pendingId === a.id}
+                                onClick={() => setConfirmDelete(a)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
 
           {/* Mobile stacked cards */}
           <div className="grid gap-3 md:hidden">
-            {filtered.map((a) => (
-              <Card key={`${a.patientUid}-${a.id}`} className="transition-shadow hover:shadow-md">
-                <CardContent className="space-y-3 p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base ${ACCENT_STYLES[a.accentColor]?.bg ?? 'bg-muted'}`}
-                      >
-                        {a.icon}
-                      </span>
-                      <div>
-                        <p className="font-medium leading-tight">{a.label}</p>
-                        <p className="text-xs text-muted-foreground">{a.patientName}</p>
+            {filtered.map((a) => {
+              const displayStatus = computeDisplayStatus(a.date, a.time, a.status);
+              const approval = a.doctorApproval ?? 'pending';
+              const rejectionReason = a.rejectionReason;
+              return (
+                <Card key={`${a.patientUid}-${a.id}`} className="transition-shadow hover:shadow-md">
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
+                          style={{ backgroundColor: ACCENT_BG_VAR[a.accentColor] ?? 'var(--muted)' }}
+                        >
+                          {a.icon}
+                        </span>
+                        <div>
+                          <p className="font-medium leading-tight">{a.label}</p>
+                          <p className="text-xs text-muted-foreground">{a.patientName}</p>
+                        </div>
                       </div>
+                      <StatusBadge status={displayStatus} />
                     </div>
-                    <Badge variant={STATUS_VARIANT[a.status] ?? 'default'}>{a.status}</Badge>
-                  </div>
 
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{a.doctor}</span>
-                    <span>{a.date} · {a.time}</span>
-                  </div>
-
-                  {a.status === 'upcoming' ? (
-                    <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-                      <AppointmentFormDialog
-                        users={users}
-                        appointments={appointments}
-                        doctors={doctors}
-                        editing={a}
-                        trigger={<Button variant="outline" size="sm">Edit</Button>}
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={pendingId === a.id}
-                        onClick={() => setStatus(a, 'completed')}
-                      >
-                        Complete
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={pendingId === a.id}
-                        onClick={() => setStatus(a, 'cancelled')}
-                      >
-                        Cancel
-                      </Button>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{a.doctor}</span>
+                      <span>{a.date} · {a.time}</span>
                     </div>
-                  ) : (
-                    <div className="group flex items-center gap-1 border-t pt-3">
-                      <AppointmentFormDialog
-                        users={users}
-                        appointments={appointments}
-                        doctors={doctors}
-                        editing={a}
-                        trigger={<Button variant="outline" size="sm">Edit</Button>}
-                      />
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5" />
-                      <div className="max-w-0 overflow-hidden opacity-0 transition-all duration-200 ease-out group-hover:max-w-[90px] group-hover:opacity-100">
+
+                    <div>
+                      <StatusBadge status={approval} />
+                      {approval === 'rejected' && rejectionReason && (
+                        <p className="mt-1 text-xs text-muted-foreground">{rejectionReason}</p>
+                      )}
+                    </div>
+
+                    {a.status === 'upcoming' ? (
+                      <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                        <AppointmentFormDialog
+                          users={users}
+                          appointments={appointments}
+                          doctors={doctors}
+                          editing={a}
+                          trigger={<Button variant="outline" size="sm">Edit</Button>}
+                        />
                         <Button
-                          variant="destructive"
+                          variant="outline"
                           size="sm"
                           disabled={pendingId === a.id}
-                          onClick={() => setConfirmDelete(a)}
+                          onClick={() => setStatus(a, 'completed')}
                         >
-                          Delete
+                          Complete
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={pendingId === a.id}
+                          onClick={() => setStatus(a, 'cancelled')}
+                        >
+                          Cancel
                         </Button>
                       </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                    ) : (
+                      <div className="group flex items-center gap-1 border-t pt-3">
+                        <AppointmentFormDialog
+                          users={users}
+                          appointments={appointments}
+                          doctors={doctors}
+                          editing={a}
+                          trigger={<Button variant="outline" size="sm">Edit</Button>}
+                        />
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5" />
+                        <div className="max-w-0 overflow-hidden opacity-0 transition-all duration-500 ease-out group-hover:max-w-[90px] group-hover:opacity-100">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={pendingId === a.id}
+                            onClick={() => setConfirmDelete(a)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </>
       )}

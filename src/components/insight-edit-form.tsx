@@ -21,6 +21,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { FileText, Layers } from 'lucide-react';
 
 interface ArticleItem {
   label: string;
@@ -74,17 +75,16 @@ export function InsightEditForm({
   id?: string;
   initialData: InsightFormData;
 }) {
-
   const router = useRouter();
   const [articleId, setArticleId] = useState(initialId ?? '');
-   const [form, setForm] = useState<InsightFormData>({
+  const [form, setForm] = useState<InsightFormData>({
     accentColor: '#e07eb8',
     excerpt: '',
     sections: [],
     heroImage: null,
     ...initialData,
   });
- 
+
   const [activeTabId, setActiveTabId] = useState(form.tabs[0]?.id ?? 0);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -151,7 +151,7 @@ export function InsightEditForm({
     return value.toLowerCase().replace(/[^a-z0-9]/g, '');
   }
 
-      async function handleDelete() {
+  async function handleDelete() {
     if (!initialId) return;
 
     setIsSaving(true);
@@ -172,7 +172,6 @@ export function InsightEditForm({
       setIsSaving(false);
     }
   }
-
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -223,7 +222,7 @@ export function InsightEditForm({
         return;
       }
 
-            toast.success('Saved successfully.');
+      toast.success('Saved successfully.');
       router.refresh();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Something went wrong.');
@@ -233,14 +232,16 @@ export function InsightEditForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <Card>
         <CardHeader>
-          <CardTitle>Article Details</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileText className="h-4 w-4 text-primary" />
+            Article Details
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {mode === 'create' && (
-            
             <div className="space-y-1">
               <label className="text-sm font-medium">Article ID (URL-safe slug)</label>
               <Input
@@ -295,7 +296,7 @@ export function InsightEditForm({
                 />
               </div>
 
-                            <div className="space-y-1">
+              <div className="space-y-1">
                 <label className="text-sm font-medium">Hero Image Path</label>
                 <Input
                   value={form.heroImage ?? ''}
@@ -304,17 +305,17 @@ export function InsightEditForm({
                 />
                 <p className="text-xs text-muted-foreground">
                   Optional. Must match a file already bundled in the mobile app under{' '}
-                  <code>src/assets/icon/</code> — the app rebuilds and republishes before this
-                  image will actually display.
+                  <code className="rounded bg-muted px-1 py-0.5">src/assets/icon/</code> — the app
+                  rebuilds and republishes before this image will actually display.
                 </p>
               </div>
 
               <div className="space-y-1">
                 <label className="text-sm font-medium">Accent Color</label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 rounded-md border p-2">
                   <Input
                     type="color"
-                    className="h-9 w-14 p-1"
+                    className="h-9 w-14 shrink-0 p-1"
                     value={form.accentColor}
                     onChange={(e) => setForm({ ...form, accentColor: e.target.value })}
                   />
@@ -322,6 +323,7 @@ export function InsightEditForm({
                     value={form.accentColor}
                     onChange={(e) => setForm({ ...form, accentColor: e.target.value })}
                     placeholder="#e07eb8"
+                    className="border-0 shadow-none focus-visible:ring-0"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -333,7 +335,10 @@ export function InsightEditForm({
                 <label className="text-sm font-medium">Sections</label>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {INSIGHT_SECTIONS.map((section) => (
-                    <label key={section} className="flex items-center gap-2 text-sm">
+                    <label
+                      key={section}
+                      className="flex items-center gap-2 rounded-md border px-2.5 py-2 text-sm transition-colors hover:bg-muted/50"
+                    >
                       <Checkbox
                         checked={form.sections?.includes(section)}
                         onCheckedChange={(checked) => toggleSection(section, checked === true)}
@@ -385,10 +390,13 @@ export function InsightEditForm({
 
       <Card>
         <CardHeader>
-          <CardTitle>Panel Content</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Layers className="h-4 w-4 text-primary" />
+            Panel Content
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 p-2">
             {form.tabs.map((tab) => (
               <Button
                 key={tab.id}
@@ -534,7 +542,7 @@ export function InsightEditForm({
         </CardContent>
       </Card>
 
-                 <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-t pt-4">
         <Button type="submit" disabled={isSaving}>
           {isSaving ? 'Saving...' : mode === 'create' ? 'Create Article' : 'Save Changes'}
         </Button>

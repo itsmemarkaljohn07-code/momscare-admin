@@ -5,6 +5,7 @@ import { AppointmentsTable } from '@/components/appointments-table';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { CalendarClock, CalendarCheck, CalendarX, CalendarDays } from 'lucide-react';
+import { AdminAppointmentsLive } from '@/components/admin-appointments-live';
 
 export default async function AppointmentsPage() {
   const [{ appointments, stats }, users, doctors] = await Promise.all([
@@ -27,7 +28,7 @@ export default async function AppointmentsPage() {
         <StatCard label="Cancelled" value={stats.cancelled} icon={CalendarX} color="amber" />
       </div>
 
-        <AppointmentsTable appointments={appointments} users={users} doctors={doctors} />
+          <AdminAppointmentsLive users={users} doctors={doctors} initial={appointments} />
     </div>
 
   );

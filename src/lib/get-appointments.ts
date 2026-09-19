@@ -14,16 +14,20 @@ export interface AdminAppointment {
   notes?: string;
   icon: string;
   accentColor: 'green' | 'pink' | 'purple' | 'blue' | 'orange';
-  status: 'upcoming' | 'completed' | 'cancelled';
+    status: 'upcoming' | 'completed' | 'cancelled';
+  doctorApproval: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
   createdAt?: string | null;
 }
 
 /** Uses a Firestore collection-group query to read appointments across
  *  EVERY patient's subcollection at once — this is what lets the admin
  *  see the whole clinic's schedule, not just one patient at a time. */
+import { withRetry } from '@/lib/with-retry';
+
 export async function getAppointments(): Promise<AdminAppointment[]> {
   const [snapshot, users] = await Promise.all([
-    adminDb.collectionGroup('appointments').get(),
+    withRetry(() => adminDb.collectionGroup('appointments').get()),
     getUsers(),
   ]);
 
@@ -46,6 +50,8 @@ export async function getAppointments(): Promise<AdminAppointment[]> {
       icon: data.icon,
       accentColor: data.accentColor,
       status: data.status,
+      doctorApproval: data.doctorApproval ?? 'pending',
+      rejectionReason: data.rejectionReason,
       createdAt: data.createdAt?.toDate?.().toISOString() ?? null,
     };
   });

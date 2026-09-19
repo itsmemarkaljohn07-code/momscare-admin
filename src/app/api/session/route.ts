@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { withRetry } from '@/lib/with-retry';
 
 const SESSION_EXPIRES_IN_MS = 60 * 60 * 24 * 5 * 1000; // 5 days
 
@@ -10,9 +11,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing token' }, { status: 400 });
     }
 
-    const decoded = await adminAuth.verifyIdToken(idToken);
+    const decoded = await withRetry(() => adminAuth.verifyIdToken(idToken));
 
-    const adminDoc = await adminDb.collection('admins').doc(decoded.uid).get();
+    const adminDoc = await withRetry(() =>
+      adminDb.collection('admins').doc(decoded.uid).get()
+    );
     if (!adminDoc.exists) {
       return NextResponse.json({ error: 'Not an admin account' }, { status: 403 });
     }

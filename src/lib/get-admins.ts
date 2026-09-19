@@ -26,3 +26,19 @@ export async function getAdmins(): Promise<AdminView[]> {
 
   return admins.sort((a, b) => (a.email ?? '').localeCompare(b.email ?? ''));
 }
+
+export async function getAdminById(uid: string): Promise<AdminView | null> {
+  const doc = await adminDb.collection('admins').doc(uid).get();
+  if (!doc.exists) return null;
+
+  try {
+    const user = await adminAuth.getUser(uid);
+    return {
+      uid,
+      email: user.email ?? null,
+      createdAt: doc.data()?.createdAt ?? user.metadata.creationTime ?? null,
+    };
+  } catch {
+    return null;
+  }
+}

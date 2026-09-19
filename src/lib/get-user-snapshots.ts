@@ -1,5 +1,6 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { getUserById } from '@/lib/get-users';
+import { withRetry } from '@/lib/with-retry';
 
 export interface AdminSnapshotPhoto {
   id: string;
@@ -46,7 +47,9 @@ function formatGroupLabel(dateKey: string): string {
 export async function getUserSnapshots(uid: string) {
   const [patient, snapshot] = await Promise.all([
     getUserById(uid),
-    adminDb.collection('users').doc(uid).collection('snapshots').orderBy('createdAt', 'desc').get(),
+    withRetry(() =>
+      adminDb.collection('users').doc(uid).collection('snapshots').orderBy('createdAt', 'desc').get()
+    ),
   ]);
 
   const photos: AdminSnapshotPhoto[] = snapshot.docs.map((doc) => {

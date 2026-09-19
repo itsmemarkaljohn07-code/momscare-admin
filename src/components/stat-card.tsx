@@ -2,10 +2,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, type LucideIcon } from 'lucide-react';
 
 const COLOR_MAP = {
-  pink:   { bg: 'bg-[#fce8f3]', text: 'text-[#d9609a]', ring: 'ring-[#f6c9e2]/50' },
-  purple: { bg: 'bg-[#f0e6fb]', text: 'text-[#9b6fc4]', ring: 'ring-[#dcc4f2]/50' },
-  mint:   { bg: 'bg-[#e0f5f2]', text: 'text-[#4fa89c]', ring: 'ring-[#bfe8e1]/50' },
-  amber:  { bg: 'bg-[#fdf1e0]', text: 'text-[#d99a3a]', ring: 'ring-[#f5ddb0]/50' },
+  pink:   { text: 'var(--accent-pink)',   bg: 'var(--accent-pink-bg)' },
+  purple: { text: 'var(--accent-purple)', bg: 'var(--accent-purple-bg)' },
+  mint:   { text: 'var(--accent-mint)',   bg: 'var(--accent-mint-bg)' },
+  amber:  { text: 'var(--accent-amber)',  bg: 'var(--accent-amber-bg)' },
 };
 
 export function StatCard({
@@ -26,7 +26,7 @@ export function StatCard({
 
   return (
     <Card className="group relative overflow-hidden transition-shadow hover:shadow-md">
-      <div className={`absolute inset-x-0 top-0 h-1 ${c.bg}`} />
+      <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: c.text }} />
       <CardContent className="flex items-start justify-between gap-3 p-5">
         <div className="min-w-0 space-y-1.5">
           <p className="text-xs font-medium text-muted-foreground">{label}</p>
@@ -34,7 +34,7 @@ export function StatCard({
           {trend && (
             <p
               className={`flex items-center gap-1 text-xs font-medium ${
-                trend.positive ? 'text-emerald-600' : 'text-red-500'
+                trend.positive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'
               }`}
             >
               <TrendIcon className="h-3 w-3" />
@@ -43,9 +43,10 @@ export function StatCard({
           )}
         </div>
         <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${c.bg} ring-4 ${c.ring} transition-transform group-hover:scale-105`}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105"
+          style={{ backgroundColor: c.bg, boxShadow: `0 0 0 4px ${c.bg}` }}
         >
-          <Icon className={`h-5 w-5 ${c.text}`} />
+          <Icon className="h-5 w-5" style={{ color: c.text }} />
         </div>
       </CardContent>
     </Card>

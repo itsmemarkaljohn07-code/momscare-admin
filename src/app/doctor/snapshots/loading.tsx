@@ -1,6 +1,6 @@
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function PatientSnapshotsLoading() {
+export default function DoctorSnapshotsLoading() {
   return (
     <div className="space-y-4">
       <Skeleton className="h-8 w-48" />

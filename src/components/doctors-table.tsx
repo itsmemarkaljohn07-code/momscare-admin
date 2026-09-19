@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { UserX } from 'lucide-react';
@@ -17,6 +18,7 @@ import {
 import { DoctorFormDialog } from '@/components/doctor-form-dialog';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import type { DoctorRecord } from '@/lib/get-doctors';
+import { DoctorLoginDialog } from '@/components/doctor-login-dialog';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -67,6 +69,7 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
                   <TableHead>Working Days</TableHead>
                   <TableHead>Hours</TableHead>
                   <TableHead>Slot Length</TableHead>
+                  <TableHead>Login</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -75,9 +78,18 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
                   <TableRow key={d.id} className="transition-colors hover:bg-muted/50">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
-                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${getAvatarStyle(d.id).bg} ${getAvatarStyle(d.id).text}`}>
-                          {getInitials(d.name)}
-                        </span>
+                        {d.photoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={d.photoUrl}
+                            alt={d.name}
+                            className="h-7 w-7 shrink-0 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${getAvatarStyle(d.id).bg} ${getAvatarStyle(d.id).text}`}>
+                            {getInitials(d.name)}
+                          </span>
+                        )}
                         {d.name}
                       </div>
                     </TableCell>
@@ -87,7 +99,16 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
                     <TableCell className="text-sm text-muted-foreground">{formatDays(d.workingDays)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{to12Hour(d.startTime)} – {to12Hour(d.endTime)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{d.slotMinutes} min</TableCell>
-                    <TableCell className="flex gap-2">
+                    <TableCell>
+                      <DoctorLoginDialog doctor={d} />
+                    </TableCell>
+                    <TableCell className="flex flex-wrap gap-2">
+                      <Link
+                        href={`/admin/doctors/${d.id}`}
+                        className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+                      >
+                        View
+                      </Link>
                       <DoctorFormDialog editing={d} trigger={<Button variant="outline" size="sm">Edit</Button>} />
                       <Button variant="ghost" size="sm" disabled={pendingId === d.id} onClick={() => setConfirmDoctor(d)}>
                         Remove
@@ -104,9 +125,18 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
               <Card key={d.id} className="transition-shadow hover:shadow-md">
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-center gap-2">
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${getAvatarStyle(d.id).bg} ${getAvatarStyle(d.id).text}`}>
-                      {getInitials(d.name)}
-                    </span>
+                    {d.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={d.photoUrl}
+                        alt={d.name}
+                        className="h-9 w-9 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${getAvatarStyle(d.id).bg} ${getAvatarStyle(d.id).text}`}>
+                        {getInitials(d.name)}
+                      </span>
+                    )}
                     <div>
                       <p className="font-medium leading-tight">{d.name}</p>
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{d.specialty}</span>
@@ -116,7 +146,13 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
                     <p>{formatDays(d.workingDays)}</p>
                     <p>{to12Hour(d.startTime)} – {to12Hour(d.endTime)} · {d.slotMinutes} min slots</p>
                   </div>
-                  <div className="flex gap-2 border-t pt-3">
+                  <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                    <Link
+                      href={`/admin/doctors/${d.id}`}
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      View
+                    </Link>
                     <DoctorFormDialog editing={d} trigger={<Button variant="outline" size="sm">Edit</Button>} />
                     <Button variant="ghost" size="sm" disabled={pendingId === d.id} onClick={() => setConfirmDoctor(d)}>
                       Remove

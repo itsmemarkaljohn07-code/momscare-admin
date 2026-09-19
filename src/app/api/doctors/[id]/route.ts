@@ -12,15 +12,16 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const { name, specialty, workingDays, startTime, endTime, slotMinutes } = await req.json();
+  const { name, specialty, workingDays, startTime, endTime, slotMinutes, username  } = await req.json();
 
   if (!name || !specialty || !Array.isArray(workingDays) || workingDays.length === 0 || !startTime || !endTime || !slotMinutes) {
     return NextResponse.json({ error: 'Please complete all required fields.' }, { status: 400 });
   }
 
   try {
-    await adminDb.collection('doctors').doc(id).update({
+      await adminDb.collection('doctors').doc(id).update({
       name, specialty, workingDays, startTime, endTime, slotMinutes: Number(slotMinutes),
+      ...(username ? { username: username.toLowerCase() } : {}),
     });
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
