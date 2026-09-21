@@ -4,6 +4,7 @@ export interface AdminView {
   uid: string;
   email: string | null;
   createdAt: string | null;
+  lastSignInTime: string | null;
 }
 
 export async function getAdmins(): Promise<AdminView[]> {
@@ -17,6 +18,7 @@ export async function getAdmins(): Promise<AdminView[]> {
         uid: doc.id,
         email: user.email ?? null,
         createdAt: doc.data().createdAt ?? user.metadata.creationTime ?? null,
+        lastSignInTime: user.metadata.lastSignInTime ?? null,
       });
     } catch {
       // The Auth account no longer exists but the admins/{uid} doc does
@@ -37,6 +39,7 @@ export async function getAdminById(uid: string): Promise<AdminView | null> {
       uid,
       email: user.email ?? null,
       createdAt: doc.data()?.createdAt ?? user.metadata.creationTime ?? null,
+      lastSignInTime: user.metadata.lastSignInTime ?? null,
     };
   } catch {
     return null;

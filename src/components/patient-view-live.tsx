@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import { CalendarDays, Baby, Heart, Building2, UserPlus, Radio, AtSign, Shield } from 'lucide-react';
 import type { AdminUserView } from '@/lib/get-users';
+import { formatRelativeTime } from '@/lib/format-relative-time';
 
 function computeWeek(dueDate: string | null): number | null {
   if (!dueDate) return null;
@@ -126,7 +127,7 @@ export function PatientViewLive({ initial }: { initial: AdminUserView }) {
             </span>
             <span className="font-medium">{profile.clinicName || '—'}</span>
           </div>
-          <div className="flex items-center justify-between py-2.5 text-sm">
+          <div className="flex items-center justify-between border-b py-2.5 text-sm">
             <span className="flex items-center gap-2 text-muted-foreground">
               <Heart className="h-4 w-4" />
               Signed Up
@@ -134,6 +135,13 @@ export function PatientViewLive({ initial }: { initial: AdminUserView }) {
             <span className="font-medium">
               {initial.createdAt ? new Date(initial.createdAt).toLocaleDateString() : '—'}
             </span>
+          </div>
+          <div className="flex items-center justify-between py-2.5 text-sm">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <Radio className="h-4 w-4" />
+              Last Active
+            </span>
+            <span className="font-medium">{formatRelativeTime(initial.lastSignInTime)}</span>
           </div>
         </CardContent>
       </Card>

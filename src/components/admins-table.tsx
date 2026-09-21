@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { AdminView } from '@/lib/get-admins';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
+import { getApiErrorMessage, showApiError } from '@/lib/error-messages';
+import { formatRelativeTime } from '@/lib/format-relative-time';
 
 export function AdminsTable({
   admins,
@@ -52,8 +54,8 @@ export function AdminsTable({
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Failed to create admin.');
+        const data = await res.json().catch(() => null);
+        setError(getApiErrorMessage(res, data, undefined, 'create admin').description);
         setIsSaving(false);
         return;
       }
@@ -64,7 +66,7 @@ export function AdminsTable({
       setPassword('');
       router.refresh();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+      setError(getApiErrorMessage(null, null, err, 'create admin').description);
     } finally {
       setIsSaving(false);
     }
@@ -75,13 +77,15 @@ export function AdminsTable({
     setPendingUid(uid);
     try {
       const res = await fetch(`/api/admins/${uid}`, { method: 'DELETE' });
-      if (res.ok) {
-        toast.success('Admin access removed.');
-        router.refresh();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.error || 'Failed to remove admin.');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        showApiError(res, data, undefined, 'remove admin access');
+        return;
       }
+      toast.success('Admin access removed.');
+      router.refresh();
+    } catch (err) {
+      showApiError(null, null, err, 'remove admin access');
     } finally {
       setPendingUid(null);
     }
@@ -141,6 +145,7 @@ export function AdminsTable({
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Added</TableHead>
+                  <TableHead>Last Active</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -165,6 +170,9 @@ export function AdminsTable({
                     </TableCell>
                     <TableCell>
                       {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatRelativeTime(a.lastSignInTime)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -216,6 +224,9 @@ export function AdminsTable({
                           Added {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}
                         </p>
                       </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Last active: {formatRelativeTime(a.lastSignInTime)}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-2 border-t pt-3">

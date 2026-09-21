@@ -5,6 +5,7 @@ import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase-client';
 import { toast } from 'sonner';
 import { uploadToCloudinary } from '@/lib/cloudinary';
+import { showFriendlyError } from '@/lib/error-messages';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -84,7 +85,7 @@ export function DoctorProfileForm({ initial }: { initial: DoctorRecord }) {
       await updateDoc(doc(db, `doctors/${initial.id}`), { photoUrl: secure_url });
       toast.success('Profile picture updated.');
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to upload photo.');
+      showFriendlyError(err, 'upload profile photo');
     } finally {
       setIsUploading(false);
     }
@@ -100,8 +101,8 @@ export function DoctorProfileForm({ initial }: { initial: DoctorRecord }) {
     try {
       await updateDoc(doc(db, `doctors/${initial.id}`), { title: trimmed });
       toast.success('Title updated.');
-    } catch {
-      toast.error('Failed to update title.');
+    } catch (err) {
+      showFriendlyError(err, 'update doctor title');
     } finally {
       setIsSavingTitle(false);
     }

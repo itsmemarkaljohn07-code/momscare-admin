@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { AppointmentFormDialog } from '@/components/appointment-form-dialog';
 import { StatusBadge } from '@/components/status-badge';
+import { showApiError } from '@/lib/error-messages';
 import { computeDisplayStatus } from '@/lib/appointment-status';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { AdminUserView } from '@/lib/get-users';
@@ -63,12 +64,15 @@ export function AppointmentsTable({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
-      if (res.ok) {
-        toast.success(`Appointment marked as ${status}.`);
-        router.refresh();
-      } else {
-        toast.error('Failed to update appointment.');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        showApiError(res, data, undefined, 'update appointment status');
+        return;
       }
+      toast.success(`Appointment marked as ${status}.`);
+      router.refresh();
+    } catch (err) {
+      showApiError(null, null, err, 'update appointment status');
     } finally {
       setPendingId(null);
     }
@@ -81,13 +85,15 @@ export function AppointmentsTable({
       const res = await fetch(`/api/appointments/${appt.patientUid}/${appt.id}`, {
         method: 'DELETE',
       });
-      if (res.ok) {
-        toast.success('Appointment deleted successfully.');
-        router.refresh();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.error || 'Failed to delete appointment.');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        showApiError(res, data, undefined, 'delete appointment');
+        return;
       }
+      toast.success('Appointment deleted successfully.');
+      router.refresh();
+    } catch (err) {
+      showApiError(null, null, err, 'delete appointment');
     } finally {
       setPendingId(null);
     }

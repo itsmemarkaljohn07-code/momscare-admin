@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import type { DoctorRecord } from '@/lib/get-doctors';
+import { getApiErrorMessage } from '@/lib/error-messages';
 
 const TYPE_OPTIONS = [
   'Obstetrics', 'OB-GYN', 'Radiology', 'Laboratory',
@@ -104,8 +105,8 @@ export function DoctorFormDialog({
           });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Failed to save doctor.');
+        const data = await res.json().catch(() => null);
+        setError(getApiErrorMessage(res, data, undefined, 'save doctor').description);
         setIsSaving(false);
         return;
       }
@@ -114,7 +115,7 @@ export function DoctorFormDialog({
       setOpen(false);
       router.refresh();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+      setError(getApiErrorMessage(null, null, err, 'save doctor').description);
     } finally {
       setIsSaving(false);
     }

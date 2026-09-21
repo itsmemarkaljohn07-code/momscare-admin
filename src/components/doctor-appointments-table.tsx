@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/status-badge';
 import { computeDisplayStatus } from '@/lib/appointment-status';
+import { showApiError } from '@/lib/error-messages';
 import type { DoctorAppointmentView } from '@/lib/get-doctor-appointments';
 
 export function DoctorAppointmentsTable({ appointments }: { appointments: DoctorAppointmentView[] }) {
@@ -29,12 +30,15 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ doctorApproval, rejectionReason }),
       });
-      if (res.ok) {
-        toast.success(`Appointment ${doctorApproval === 'approved' ? 'approved' : 'declined'}.`);
-        router.refresh();
-      } else {
-        toast.error('Failed to update appointment.');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        showApiError(res, data, undefined, 'doctor appointment approval');
+        return;
       }
+      toast.success(`Appointment ${doctorApproval === 'approved' ? 'approved' : 'declined'}.`);
+      router.refresh();
+    } catch (err) {
+      showApiError(null, null, err, 'doctor appointment approval');
     } finally {
       setPendingId(null);
       setRejectingAppt(null);

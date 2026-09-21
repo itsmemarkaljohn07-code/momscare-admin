@@ -12,6 +12,8 @@ export interface AdminUserView {
   clinicName: string | null;
   createdAt: string | null;
   disabled: boolean;
+  lastSignInTime: string | null;
+  assignedDoctorNames: string[];
 }
 
 /** Merges Firebase Auth records (email, disabled status) with each
@@ -70,6 +72,8 @@ export async function getUsers(): Promise<AdminUserView[]> {
         clinicName: profile.clinicName ?? null,
         createdAt: profile.createdAt ?? authUser.metadata.creationTime ?? null,
         disabled: authUser.disabled,
+        lastSignInTime: authUser.metadata.lastSignInTime ?? null,
+        assignedDoctorNames: profile.assignedDoctorNames ?? [],
       });
     }
     pageToken = result.pageToken;

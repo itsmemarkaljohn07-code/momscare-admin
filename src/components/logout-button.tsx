@@ -5,14 +5,24 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase-client';
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
+import { showFriendlyError } from '@/lib/error-messages';
 
 export function LogoutButton() {
   const router = useRouter();
 
   async function handleLogout() {
-    await signOut(auth);
-    await fetch('/api/session', { method: 'DELETE' });
-    router.push('/login');
+    try {
+      await signOut(auth);
+      await fetch('/api/session', { method: 'DELETE' });
+      router.push('/login');
+    } catch (err) {
+      showFriendlyError(err, 'logout');
+      // Still navigate — the client-side sign-out has very likely
+      // already succeeded even if the server-side cookie cleanup
+      // request failed, so leaving the person on a stale dashboard
+      // page would be more confusing than sending them to /login.
+      router.push('/login');
+    }
   }
 
   return (

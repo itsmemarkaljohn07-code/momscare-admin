@@ -19,6 +19,8 @@ import { DoctorFormDialog } from '@/components/doctor-form-dialog';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import type { DoctorRecord } from '@/lib/get-doctors';
 import { DoctorLoginDialog } from '@/components/doctor-login-dialog';
+import { showApiError } from '@/lib/error-messages';
+import { formatRelativeTime } from '@/lib/format-relative-time';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -43,12 +45,15 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
     setPendingId(id);
     try {
       const res = await fetch(`/api/doctors/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        toast.success('Doctor removed.');
-        router.refresh();
-      } else {
-        toast.error('Failed to remove doctor.');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        showApiError(res, data, undefined, 'remove doctor');
+        return;
       }
+      toast.success('Doctor removed.');
+      router.refresh();
+    } catch (err) {
+      showApiError(null, null, err, 'remove doctor');
     } finally {
       setPendingId(null);
     }
@@ -70,6 +75,7 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
                   <TableHead>Hours</TableHead>
                   <TableHead>Slot Length</TableHead>
                   <TableHead>Login</TableHead>
+                  <TableHead>Last Active</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -101,6 +107,9 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
                     <TableCell className="text-sm text-muted-foreground">{d.slotMinutes} min</TableCell>
                     <TableCell>
                       <DoctorLoginDialog doctor={d} />
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {d.authUid ? formatRelativeTime(d.lastSignInTime) : '—'}
                     </TableCell>
                     <TableCell className="flex flex-wrap gap-2">
                       <Link
@@ -145,6 +154,7 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
                   <div className="text-xs text-muted-foreground">
                     <p className="truncate">{formatDays(d.workingDays)}</p>
                     <p className="truncate">{to12Hour(d.startTime)} – {to12Hour(d.endTime)} · {d.slotMinutes} min slots</p>
+                    {d.authUid && <p>Last active: {formatRelativeTime(d.lastSignInTime)}</p>}
                   </div>
                   <div className="flex flex-wrap items-center gap-2 border-t pt-3">
                     <Link

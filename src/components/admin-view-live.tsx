@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import { Mail, CalendarDays, Radio } from 'lucide-react';
 import type { AdminView } from '@/lib/get-admins';
+import { formatRelativeTime } from '@/lib/format-relative-time';
 
 export function AdminViewLive({ initial }: { initial: AdminView }) {
   const [createdAt, setCreatedAt] = useState(initial.createdAt);
@@ -26,18 +27,18 @@ export function AdminViewLive({ initial }: { initial: AdminView }) {
   return (
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <span
             className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold ${avatarStyle.bg} ${avatarStyle.text}`}
           >
             {getInitials(initial.email ?? '?')}
           </span>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{initial.email}</h1>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold tracking-tight">{initial.email}</h1>
             <p className="text-sm text-muted-foreground">Admin account</p>
           </div>
         </div>
-        <Badge variant="secondary" className="w-fit">Admin</Badge>
+        <Badge variant="secondary" className="w-fit shrink-0">Admin</Badge>
       </div>
 
       <Card>
@@ -64,6 +65,13 @@ export function AdminViewLive({ initial }: { initial: AdminView }) {
             <span className="font-medium">
               {createdAt ? new Date(createdAt).toLocaleDateString() : '—'}
             </span>
+          </div>
+          <div className="flex items-center justify-between py-2.5 text-sm">
+            <span className="flex items-center gap-2 text-muted-foreground">
+              <Radio className="h-4 w-4" />
+              Last Active
+            </span>
+            <span className="font-medium">{formatRelativeTime(initial.lastSignInTime)}</span>
           </div>
         </CardContent>
       </Card>

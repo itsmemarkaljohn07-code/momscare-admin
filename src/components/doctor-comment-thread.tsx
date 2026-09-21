@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
 import {
-  collection, query, orderBy, onSnapshot, addDoc, Timestamp,
+  collection, query, orderBy, onSnapshot, Timestamp,
 } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase-client';
+import { db } from '@/lib/firebase-client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
+import { showApiError } from '@/lib/error-messages';
 
 interface SnapshotComment {
   id: string;
@@ -16,7 +16,7 @@ interface SnapshotComment {
   authorName: string;
   message: string;
   parentCommentId: string | null;
-  createdAt?: any;
+  createdAt?: Timestamp;
 }
 
 export function DoctorCommentThread({
@@ -29,16 +29,6 @@ export function DoctorCommentThread({
   const [comments, setComments] = useState<SnapshotComment[]>([]);
   const [draft, setDraft] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [doctorName, setDoctorName] = useState<string | null>(null);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
-      const tokenResult = await user.getIdTokenResult();
-      setDoctorName((tokenResult.claims.doctorName as string) ?? null);
-    });
-    return () => unsub();
-  }, []);
 
   useEffect(() => {
     const colRef = collection(db, `users/${patientUid}/snapshots/${photoId}/comments`);
@@ -50,20 +40,22 @@ export function DoctorCommentThread({
   }, [patientUid, photoId]);
 
   async function handleSend() {
-    if (!draft.trim() || !doctorName) return;
+    if (!draft.trim()) return;
     setIsSending(true);
     try {
-      const colRef = collection(db, `users/${patientUid}/snapshots/${photoId}/comments`);
-      await addDoc(colRef, {
-        userId: patientUid,
-        snapshotId: photoId,
-        authorRole: 'doctor',
-        authorName: doctorName,
-        message: draft.trim(),
-        parentCommentId: null,
-        createdAt: Timestamp.now(),
+      const res = await fetch(`/api/doctors/comment/${patientUid}/${photoId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: draft.trim() }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        showApiError(res, data, undefined, 'post doctor comment');
+        return;
+      }
       setDraft('');
+    } catch (err) {
+      showApiError(null, null, err, 'post doctor comment');
     } finally {
       setIsSending(false);
     }

@@ -27,6 +27,8 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
+import { showApiError } from '@/lib/error-messages';
+import { formatRelativeTime } from '@/lib/format-relative-time';
 
 export function UsersTable({ users }: { users: AdminUserView[] }) {
   const router = useRouter();
@@ -58,12 +60,15 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ disabled: !currentlyDisabled }),
       });
-      if (res.ok) {
-        toast.success(currentlyDisabled ? 'Account reactivated.' : 'Account suspended.');
-        router.refresh();
-      } else {
-        toast.error('Failed to update account status.');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        showApiError(res, data, undefined, 'suspend/reactivate account');
+        return;
       }
+      toast.success(currentlyDisabled ? 'Account reactivated.' : 'Account suspended.');
+      router.refresh();
+    } catch (err) {
+      showApiError(null, null, err, 'suspend/reactivate account');
     } finally {
       setPendingUid(null);
     }
@@ -90,14 +95,16 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ confirmName: typedName }),
       });
-      if (res.ok) {
-        toast.success('Account permanently deleted.');
-        closeDeleteFlow();
-        router.refresh();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.error || 'Failed to delete account.');
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        showApiError(res, data, undefined, 'delete account');
+        return;
       }
+      toast.success('Account permanently deleted.');
+      closeDeleteFlow();
+      router.refresh();
+    } catch (err) {
+      showApiError(null, null, err, 'delete account');
     } finally {
       setIsDeleting(false);
     }
@@ -131,6 +138,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
                   <TableHead>Role</TableHead>
                   <TableHead>Due Date</TableHead>
                   <TableHead>Signed Up</TableHead>
+                  <TableHead>Last Active</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
@@ -162,6 +170,9 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
                     <TableCell>{u.dueDate ?? '—'}</TableCell>
                     <TableCell>
                       {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatRelativeTime(u.lastSignInTime)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={u.disabled ? 'destructive' : 'secondary'}>
@@ -247,6 +258,9 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
                       Joined: {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
                     </span>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Last active: {formatRelativeTime(u.lastSignInTime)}
+                  </p>
 
                   <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
                     <Link

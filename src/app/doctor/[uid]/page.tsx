@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { getDoctorSession } from '@/lib/get-doctor-session';
 import { getUserSnapshots } from '@/lib/get-user-snapshots';
 import { DoctorSnapshotCard } from '@/components/doctor-snapshot-card';
+import { PatientHealthTrends } from '@/components/patient-health-trends';
 import { PageHeader } from '@/components/page-header';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
@@ -22,10 +23,14 @@ export default async function DoctorPatientSnapshotsPage({
   // Server-side security check — a doctor can only view patients
   // actually assigned to them, verified against the same
   // assignedDoctorNames array the appointment system maintains.
-  const assigned: string[] = (patient as any).assignedDoctorNames ?? [];
-  if (!assigned.includes(session.doctorName)) {
+  if (!patient.assignedDoctorNames.includes(session.doctorName)) {
     notFound();
   }
+
+  // Same data already fetched above for the day-grouped photo grid —
+  // flattened back into one chronological list for the trend charts,
+  // no additional Firestore read.
+  const allPhotos = groups.flatMap((g) => g.items);
 
   return (
     <div className="space-y-6">
@@ -41,6 +46,8 @@ export default async function DoctorPatientSnapshotsPage({
         title={patient.fullName}
         description={`${totalPhotos} photo${totalPhotos === 1 ? '' : 's'} uploaded`}
       />
+
+      <PatientHealthTrends photos={allPhotos} />
 
       {groups.length === 0 && (
         <p className="text-sm text-muted-foreground">No photos uploaded yet.</p>

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import { Stethoscope, Clock, Timer, Mail, AtSign, CalendarDays, Radio } from 'lucide-react';
 import type { DoctorRecord } from '@/lib/get-doctors';
+import { formatRelativeTime } from '@/lib/format-relative-time';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -29,7 +30,7 @@ export function DoctorViewLive({ initial }: { initial: DoctorRecord }) {
     const unsub = onSnapshot(doc(db, `doctors/${initial.id}`), (docSnap) => {
       if (!docSnap.exists()) return;
       const data = docSnap.data();
-      setDoctor({
+      setDoctor((prev) => ({
         id: docSnap.id,
         name: data.name,
         specialty: data.specialty,
@@ -43,7 +44,8 @@ export function DoctorViewLive({ initial }: { initial: DoctorRecord }) {
         username: data.username ?? null,
         photoUrl: data.photoUrl ?? null,
         title: data.title ?? null,
-      });
+        lastSignInTime: prev.lastSignInTime,
+      }));
     });
     return () => unsub();
   }, [initial.id]);
@@ -141,6 +143,15 @@ export function DoctorViewLive({ initial }: { initial: DoctorRecord }) {
             </span>
             <span className="font-medium">{doctor.loginEmail ?? '—'}</span>
           </div>
+          {doctor.authUid && (
+            <div className="flex items-center justify-between border-t py-2.5 text-sm">
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <Radio className="h-4 w-4" />
+                Last Active
+              </span>
+              <span className="font-medium">{formatRelativeTime(doctor.lastSignInTime)}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
     </>

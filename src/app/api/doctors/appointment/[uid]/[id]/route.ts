@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getDoctorSession } from '@/lib/get-doctor-session';
+import { Timestamp } from 'firebase-admin/firestore';
 
 export async function PATCH(
   req: NextRequest,
@@ -37,6 +38,30 @@ export async function PATCH(
       doctorApproval,
       rejectionReason: doctorApproval === 'rejected' ? (rejectionReason ?? '') : null,
     });
+
+    // Best-effort in-app notification for the patient — uses the
+    // Admin SDK, so this bypasses rules entirely (unlike the doctor
+    // comment thread's client-side write, which needed a rules
+    // change). If this fails for any reason, the approval/decline
+    // above already succeeded and is not rolled back — the
+    // notification is a nice-to-have, not the actual action.
+    try {
+      const appt = snap.data() ?? {};
+      const label = appt.label || 'appointment';
+      const isApproved = doctorApproval === 'approved';
+      await adminDb.collection('users').doc(uid).collection('notifications').add({
+        icon: isApproved ? '✅' : '❌',
+        title: isApproved ? 'Appointment Approved' : 'Appointment Declined',
+        message: isApproved
+          ? `${session.doctorName} approved your ${label} appointment on ${appt.date} at ${appt.time}.`
+          : `${session.doctorName} declined your ${label} appointment.${rejectionReason ? ` Reason: ${rejectionReason}` : ''}`,
+        read: false,
+        route: null,
+        createdAt: Timestamp.now(),
+      });
+    } catch (notifyErr) {
+      console.error('Failed to create appointment notification (non-fatal):', notifyErr);
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
