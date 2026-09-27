@@ -5,15 +5,17 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { StatCard } from '@/components/stat-card';
 import {
-  CalendarDays, CalendarCheck, CalendarX, Clock, ThumbsUp, ThumbsDown,
+  CalendarDays, CalendarCheck, CalendarX, Clock, ThumbsUp, ThumbsDown, Download,
 } from 'lucide-react';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { DoctorRecord } from '@/lib/get-doctors';
+import { exportToCsv } from '@/lib/export-csv';
 
 const TYPE_OPTIONS = [
   'Obstetrics', 'OB-GYN', 'Radiology', 'Laboratory',
@@ -143,17 +145,28 @@ export function AppointmentReports({
   }, [periodScoped]);
 
   const tooltipStyle = {
-    borderRadius: 8,
+    borderRadius: 12,
     border: '1px solid var(--border)',
     backgroundColor: 'var(--popover)',
     color: 'var(--popover-foreground)',
     fontSize: 12,
+    boxShadow: 'var(--shadow-soft)',
   };
+
+  function handleExport() {
+    exportToCsv(
+      `appointment-report-${new Date().toISOString().slice(0, 10)}`,
+      ['Patient', 'Doctor', 'Type', 'Appointment', 'Date', 'Time', 'Status', 'Approval'],
+      filtered.map((a) => [
+        a.patientName, a.doctor, a.type, a.label, a.date, a.time, a.status, a.doctorApproval,
+      ])
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <Card>
+      <Card className="rounded-2xl shadow-soft">
         <CardContent className="grid grid-cols-2 gap-2 p-4 sm:flex sm:flex-wrap">
           <Select value={period} onValueChange={(v) => v && setPeriod(v as Period)}>
             <SelectTrigger className="w-full sm:w-[110px]"><SelectValue /></SelectTrigger>
@@ -209,6 +222,16 @@ export function AppointmentReports({
               <SelectItem value="rejected">Declined</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            type="button"
+            variant="outline"
+            className="col-span-2 gap-1.5 sm:col-span-1 sm:ml-auto"
+            onClick={handleExport}
+            disabled={filtered.length === 0}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </Button>
         </CardContent>
       </Card>
 
@@ -226,7 +249,7 @@ export function AppointmentReports({
       </div>
 
       {/* Trend */}
-      <Card>
+      <Card className="rounded-2xl shadow-soft">
         <CardHeader>
           <CardTitle className="text-base">Appointment Trend</CardTitle>
         </CardHeader>
@@ -235,7 +258,7 @@ export function AppointmentReports({
             <p className="py-8 text-center text-sm text-muted-foreground">No data for the selected filters.</p>
           ) : (
             <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={trendData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+              <AreaChart data={trendData} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
                 <defs>
                   <linearGradient id="reportsTrendGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.35} />
@@ -244,7 +267,7 @@ export function AppointmentReports({
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis dataKey="label" fontSize={11} tickLine={false} axisLine={false} stroke="var(--muted-foreground)" />
-                <YAxis allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} width={28} stroke="var(--muted-foreground)" />
+                <YAxis allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} stroke="var(--muted-foreground)" />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Area type="monotone" dataKey="count" stroke="var(--chart-1)" strokeWidth={2} fill="url(#reportsTrendGradient)" />
               </AreaChart>
@@ -255,7 +278,7 @@ export function AppointmentReports({
 
       {/* Breakdowns */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card className="rounded-2xl shadow-soft">
           <CardHeader>
             <CardTitle className="text-base">Appointments by Doctor</CardTitle>
           </CardHeader>
@@ -267,7 +290,7 @@ export function AppointmentReports({
                 <BarChart data={byDoctor} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
                   <XAxis type="number" allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} stroke="var(--muted-foreground)" />
-                  <YAxis type="category" dataKey="doctor" fontSize={11} tickLine={false} axisLine={false} width={120} stroke="var(--muted-foreground)" />
+                  <YAxis type="category" dataKey="doctor" fontSize={11} tickLine={false} axisLine={false} stroke="var(--muted-foreground)" />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                     {byDoctor.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
@@ -278,7 +301,7 @@ export function AppointmentReports({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl shadow-soft">
           <CardHeader>
             <CardTitle className="text-base">Appointments by Type</CardTitle>
           </CardHeader>
@@ -290,7 +313,7 @@ export function AppointmentReports({
                 <BarChart data={byType} layout="vertical" margin={{ top: 0, right: 16, left: 8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
                   <XAxis type="number" allowDecimals={false} fontSize={11} tickLine={false} axisLine={false} stroke="var(--muted-foreground)" />
-                  <YAxis type="category" dataKey="type" fontSize={11} tickLine={false} axisLine={false} width={120} stroke="var(--muted-foreground)" />
+                  <YAxis type="category" dataKey="type" fontSize={11} tickLine={false} axisLine={false} stroke="var(--muted-foreground)" />
                   <Tooltip contentStyle={tooltipStyle} />
                   <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                     {byType.map((_, i) => <Cell key={i} fill={PALETTE[(i + 2) % PALETTE.length]} />)}

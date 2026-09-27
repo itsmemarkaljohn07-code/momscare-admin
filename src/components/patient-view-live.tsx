@@ -9,15 +9,8 @@ import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import { CalendarDays, Baby, Heart, Building2, UserPlus, Radio, AtSign, Shield } from 'lucide-react';
 import type { AdminUserView } from '@/lib/get-users';
 import { formatRelativeTime } from '@/lib/format-relative-time';
-
-function computeWeek(dueDate: string | null): number | null {
-  if (!dueDate) return null;
-  const TOTAL_DAYS = 280;
-  const msPerDay = 24 * 60 * 60 * 1000;
-  const daysUntilDue = Math.round((new Date(dueDate).getTime() - Date.now()) / msPerDay);
-  const daysElapsed = Math.max(0, Math.min(TOTAL_DAYS, TOTAL_DAYS - daysUntilDue));
-  return Math.min(40, Math.floor(daysElapsed / 7));
-}
+import { showFriendlyError } from '@/lib/error-messages';
+import { computePregnancyWeek } from '@/lib/compute-pregnancy-week';
 
 export function PatientViewLive({ initial }: { initial: AdminUserView }) {
   // Firestore profile fields (fullName, dueDate, weeksPregnant,
@@ -35,22 +28,26 @@ export function PatientViewLive({ initial }: { initial: AdminUserView }) {
   });
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, `users/${initial.uid}`), (docSnap) => {
-      if (!docSnap.exists()) return;
-      const data = docSnap.data();
-      setProfile({
-        fullName: data.fullName ?? '(no profile)',
-        username: data.username || null,
-        dueDate: data.dueDate ?? null,
-        weeksPregnant: data.weeksPregnant ?? null,
-        firstTimeMom: data.firstTimeMom ?? null,
-        clinicName: data.clinicName ?? null,
-      });
-    });
+    const unsub = onSnapshot(
+      doc(db, `users/${initial.uid}`),
+      (docSnap) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+        setProfile({
+          fullName: data.fullName ?? '(no profile)',
+          username: data.username || null,
+          dueDate: data.dueDate ?? null,
+          weeksPregnant: data.weeksPregnant ?? null,
+          firstTimeMom: data.firstTimeMom ?? null,
+          clinicName: data.clinicName ?? null,
+        });
+      },
+      (error) => showFriendlyError(error, 'live patient profile sync')
+    );
     return () => unsub();
   }, [initial.uid]);
 
-  const week = computeWeek(profile.dueDate);
+  const week = computePregnancyWeek(profile.dueDate);
   const avatarStyle = getAvatarStyle(initial.uid);
 
   return (

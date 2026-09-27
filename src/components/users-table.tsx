@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { UserX, AlertTriangle, ChevronRight } from 'lucide-react';
+import { UserX, AlertTriangle, ChevronRight, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dialog';
 import { showApiError } from '@/lib/error-messages';
 import { formatRelativeTime } from '@/lib/format-relative-time';
+import { exportToCsv } from '@/lib/export-csv';
 
 export function UsersTable({ users }: { users: AdminUserView[] }) {
   const router = useRouter();
@@ -110,14 +111,43 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
     }
   }
 
+  function handleExport() {
+    exportToCsv(
+      `patients-${new Date().toISOString().slice(0, 10)}`,
+      ['Full Name', 'Username', 'Email', 'Due Date', 'Signed Up', 'Last Active', 'Status'],
+      filtered.map((u) => [
+        u.fullName,
+        u.username ?? '',
+        u.email ?? '',
+        u.dueDate ?? '',
+        u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '',
+        formatRelativeTime(u.lastSignInTime),
+        u.disabled ? 'Suspended' : 'Active',
+      ])
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <Input
-        placeholder="Search by name or email..."
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="max-w-sm"
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Input
+          placeholder="Search by name or email..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="max-w-sm rounded-full"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={handleExport}
+          disabled={filtered.length === 0}
+        >
+          <Download className="h-3.5 w-3.5" />
+          Export CSV
+        </Button>
+      </div>
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -128,18 +158,18 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden overflow-x-auto rounded-md border md:block">
+          <div className="hidden overflow-x-auto rounded-2xl border shadow-soft md:block">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Signed Up</TableHead>
-                  <TableHead>Last Active</TableHead>
-                  <TableHead>Status</TableHead>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Username</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Role</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Due Date</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Signed Up</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Last Active</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -225,7 +255,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
               always-visible button here, so no hover interaction to fix. */}
           <div className="grid gap-3 md:hidden">
             {filtered.map((u) => (
-              <Card key={u.uid} className="transition-shadow hover:shadow-md">
+              <Card key={u.uid} className="rounded-2xl shadow-soft transition-shadow hover:shadow-card">
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">

@@ -3,6 +3,7 @@ import { getDoctorSession } from '@/lib/get-doctor-session';
 import { getUserSnapshots } from '@/lib/get-user-snapshots';
 import { DoctorSnapshotCard } from '@/components/doctor-snapshot-card';
 import { PatientHealthTrends } from '@/components/patient-health-trends';
+import { ClinicalNotesPanel } from '@/components/clinical-notes-panel';
 import { PageHeader } from '@/components/page-header';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
@@ -48,6 +49,12 @@ export default async function DoctorPatientSnapshotsPage({
       />
 
       <PatientHealthTrends photos={allPhotos} />
+
+      <ClinicalNotesPanel
+        patientUid={uid}
+        viewerRole="doctor"
+        currentDoctorUid={session.uid}
+      />
 
       {groups.length === 0 && (
         <p className="text-sm text-muted-foreground">No photos uploaded yet.</p>

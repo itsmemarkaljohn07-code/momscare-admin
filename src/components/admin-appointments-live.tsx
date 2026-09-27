@@ -7,6 +7,7 @@ import { CalendarClock, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AppointmentsTable } from '@/components/appointments-table';
 import { AppointmentHistoryTable } from '@/components/appointment-history-table';
+import { showFriendlyError } from '@/lib/error-messages';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { AdminUserView } from '@/lib/get-users';
 import type { DoctorRecord } from '@/lib/get-doctors';
@@ -36,38 +37,42 @@ export function AdminAppointmentsLive({
     // matching that same reliable pattern.
     const unsubs = initial.map((a) => {
       const key = `${a.patientUid}/${a.id}`;
-      return onSnapshot(doc(db, `users/${a.patientUid}/appointments/${a.id}`), (docSnap) => {
-        if (!docSnap.exists()) {
-          setAppointments((prev) => {
-            const next = { ...prev };
-            delete next[key];
-            return next;
-          });
-          return;
-        }
-        const data = docSnap.data();
-        setAppointments((prev) => ({
-          ...prev,
-          [key]: {
-            id: docSnap.id,
-            patientUid: a.patientUid,
-            patientName: namesRef.current.get(a.patientUid) ?? '(unknown patient)',
-            label: data.label,
-            type: data.type,
-            doctor: data.doctor,
-            date: data.date,
-            time: data.time,
-            location: data.location ?? '',
-            notes: data.notes ?? '',
-            icon: data.icon,
-            accentColor: data.accentColor,
-            status: data.status,
-            doctorApproval: data.doctorApproval ?? 'pending',
-            rejectionReason: data.rejectionReason,
-            createdAt: data.createdAt?.toDate?.().toISOString() ?? null,
-          },
-        }));
-      });
+      return onSnapshot(
+        doc(db, `users/${a.patientUid}/appointments/${a.id}`),
+        (docSnap) => {
+          if (!docSnap.exists()) {
+            setAppointments((prev) => {
+              const next = { ...prev };
+              delete next[key];
+              return next;
+            });
+            return;
+          }
+          const data = docSnap.data();
+          setAppointments((prev) => ({
+            ...prev,
+            [key]: {
+              id: docSnap.id,
+              patientUid: a.patientUid,
+              patientName: namesRef.current.get(a.patientUid) ?? '(unknown patient)',
+              label: data.label,
+              type: data.type,
+              doctor: data.doctor,
+              date: data.date,
+              time: data.time,
+              location: data.location ?? '',
+              notes: data.notes ?? '',
+              icon: data.icon,
+              accentColor: data.accentColor,
+              status: data.status,
+              doctorApproval: data.doctorApproval ?? 'pending',
+              rejectionReason: data.rejectionReason,
+              createdAt: data.createdAt?.toDate?.().toISOString() ?? null,
+            },
+          }));
+        },
+        (error) => showFriendlyError(error, 'live appointment sync')
+      );
     });
     return () => unsubs.forEach((u) => u());
     // eslint-disable-next-line react-hooks/exhaustive-deps

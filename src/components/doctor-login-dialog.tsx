@@ -10,6 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import type { DoctorRecord } from '@/lib/get-doctors';
+import { getApiErrorMessage } from '@/lib/error-messages';
 
 export function DoctorLoginDialog({ doctor }: { doctor: DoctorRecord }) {
   const router = useRouter();
@@ -48,8 +49,8 @@ export function DoctorLoginDialog({ doctor }: { doctor: DoctorRecord }) {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Failed to set up login.');
+        const data = await res.json().catch(() => null);
+        setError(getApiErrorMessage(res, data, undefined, 'set up doctor login').description);
         setIsSaving(false);
         return;
       }
@@ -60,7 +61,7 @@ export function DoctorLoginDialog({ doctor }: { doctor: DoctorRecord }) {
       setConfirmPassword('');
       router.refresh();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+      setError(getApiErrorMessage(null, null, err, 'set up doctor login').description);
     } finally {
       setIsSaving(false);
     }
@@ -79,7 +80,7 @@ export function DoctorLoginDialog({ doctor }: { doctor: DoctorRecord }) {
         </DialogHeader>
 
         {doctor.authUid && (
-          <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+          <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
             This replaces their current login — old credentials stop working immediately. Their
             profile, patients, and appointments are not affected.
           </p>
@@ -92,6 +93,7 @@ export function DoctorLoginDialog({ doctor }: { doctor: DoctorRecord }) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="e.g. drmaria"
+              className="rounded-xl"
               required
             />
           </div>
@@ -103,7 +105,7 @@ export function DoctorLoginDialog({ doctor }: { doctor: DoctorRecord }) {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pr-10"
+                className="rounded-xl pr-10"
                 minLength={6}
                 required
               />
@@ -126,7 +128,7 @@ export function DoctorLoginDialog({ doctor }: { doctor: DoctorRecord }) {
                 type={showConfirm ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="pr-10"
+                className="rounded-xl pr-10"
                 minLength={6}
                 required
               />
@@ -145,8 +147,12 @@ export function DoctorLoginDialog({ doctor }: { doctor: DoctorRecord }) {
             </p>
           </div>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <Button type="submit" className="w-full" disabled={isSaving}>
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+              {error}
+            </p>
+          )}
+          <Button type="submit" className="h-11 w-full rounded-full" disabled={isSaving}>
             {isSaving ? 'Saving...' : doctor.authUid ? 'Reset Login' : 'Create Login'}
           </Button>
         </form>

@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { History } from 'lucide-react';
+import { History, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/empty-state';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -12,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/status-badge';
+import { exportToCsv } from '@/lib/export-csv';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { DoctorRecord } from '@/lib/get-doctors';
 
@@ -44,6 +46,16 @@ export function AppointmentHistoryTable({
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [appointments, query, doctorFilter, statusFilter]);
 
+  function handleExport() {
+    exportToCsv(
+      `appointment-history-${new Date().toISOString().slice(0, 10)}`,
+      ['Patient', 'Appointment', 'Type', 'Doctor', 'Date', 'Time', 'Status', 'Approval'],
+      filtered.map((a) => [
+        a.patientName, a.label, a.type, a.doctor, a.date, a.time, a.status, a.doctorApproval,
+      ])
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -51,9 +63,9 @@ export function AppointmentHistoryTable({
           placeholder="Search by patient, appointment, or doctor..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="max-w-sm"
+          className="max-w-sm rounded-full"
         />
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v as StatusFilter)}>
             <SelectTrigger className="w-full sm:w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -71,6 +83,17 @@ export function AppointmentHistoryTable({
               ))}
             </SelectContent>
           </Select>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="col-span-2 gap-1.5 sm:col-span-1"
+            onClick={handleExport}
+            disabled={filtered.length === 0}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </Button>
         </div>
       </div>
 
@@ -85,17 +108,17 @@ export function AppointmentHistoryTable({
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden overflow-x-auto rounded-md border md:block">
+          <div className="hidden overflow-x-auto rounded-2xl border shadow-soft md:block">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Patient</TableHead>
-                  <TableHead>Appointment</TableHead>
-                  <TableHead>Doctor</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Approval</TableHead>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Appointment</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Doctor</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Time</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Approval</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -112,7 +135,7 @@ export function AppointmentHistoryTable({
                     <TableCell>
                       <StatusBadge status={a.doctorApproval} />
                       {a.doctorApproval === 'rejected' && a.rejectionReason && (
-                        <p className="mt-1 max-w-[160px] text-xs text-muted-foreground">{a.rejectionReason}</p>
+                      <p className="mt-1 line-clamp-2 max-w-[160px] whitespace-normal break-words text-xs text-muted-foreground" title={a.rejectionReason}>{a.rejectionReason}</p>
                       )}
                     </TableCell>
                   </TableRow>
@@ -124,7 +147,7 @@ export function AppointmentHistoryTable({
           {/* Mobile stacked cards */}
           <div className="grid gap-3 md:hidden">
             {filtered.map((a) => (
-              <Card key={`${a.patientUid}-${a.id}`}>
+              <Card key={`${a.patientUid}-${a.id}`} className="rounded-2xl shadow-soft">
                 <CardContent className="space-y-2 p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">

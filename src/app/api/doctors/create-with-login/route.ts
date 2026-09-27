@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { Timestamp } from 'firebase-admin/firestore';
+import { logAuditEvent } from '@/lib/audit-log';
 
 export async function POST(req: NextRequest) {
   const session = await getAdminSession();
@@ -50,8 +51,9 @@ export async function POST(req: NextRequest) {
   try {
     await adminAuth.getUserByEmail(normalizedEmail);
     return NextResponse.json({ error: 'Email is already registered.' }, { status: 400 });
-  } catch (err: any) {
-    if (err?.code !== 'auth/user-not-found') {
+  } catch (err: unknown) {
+    const code = err && typeof err === 'object' && 'code' in err ? (err as { code?: string }).code : undefined;
+    if (code !== 'auth/user-not-found') {
       console.error('Email availability check failed:', err);
       return NextResponse.json({ error: 'Could not verify email availability. Please try again.' }, { status: 500 });
     }
@@ -88,6 +90,17 @@ export async function POST(req: NextRequest) {
     await adminDb.collection('doctorAccounts').doc(authUid).set({
       doctorId: docRef.id,
       email: normalizedEmail,
+    });
+
+    await logAuditEvent({
+      actorUid: session.uid,
+      actorEmail: session.email ?? 'unknown',
+      actorRole: 'admin',
+      action: 'doctor.create_account',
+      targetType: 'doctor',
+      targetId: docRef.id,
+      targetLabel: name,
+      details: `Created login for ${normalizedEmail} (username: ${normalizedUsername})`,
     });
 
     return NextResponse.json({ success: true, id: docRef.id });

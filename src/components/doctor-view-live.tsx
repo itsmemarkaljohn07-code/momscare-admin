@@ -9,6 +9,7 @@ import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import { Stethoscope, Clock, Timer, Mail, AtSign, CalendarDays, Radio } from 'lucide-react';
 import type { DoctorRecord } from '@/lib/get-doctors';
 import { formatRelativeTime } from '@/lib/format-relative-time';
+import { showFriendlyError } from '@/lib/error-messages';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -27,26 +28,30 @@ export function DoctorViewLive({ initial }: { initial: DoctorRecord }) {
   const [doctor, setDoctor] = useState(initial);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, `doctors/${initial.id}`), (docSnap) => {
-      if (!docSnap.exists()) return;
-      const data = docSnap.data();
-      setDoctor((prev) => ({
-        id: docSnap.id,
-        name: data.name,
-        specialty: data.specialty,
-        workingDays: data.workingDays ?? [],
-        startTime: data.startTime,
-        endTime: data.endTime,
-        slotMinutes: data.slotMinutes,
-        createdAt: data.createdAt?.toDate?.().toISOString() ?? null,
-        authUid: data.authUid ?? null,
-        loginEmail: data.loginEmail ?? null,
-        username: data.username ?? null,
-        photoUrl: data.photoUrl ?? null,
-        title: data.title ?? null,
-        lastSignInTime: prev.lastSignInTime,
-      }));
-    });
+    const unsub = onSnapshot(
+      doc(db, `doctors/${initial.id}`),
+      (docSnap) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+        setDoctor((prev) => ({
+          id: docSnap.id,
+          name: data.name,
+          specialty: data.specialty,
+          workingDays: data.workingDays ?? [],
+          startTime: data.startTime,
+          endTime: data.endTime,
+          slotMinutes: data.slotMinutes,
+          createdAt: data.createdAt?.toDate?.().toISOString() ?? null,
+          authUid: data.authUid ?? null,
+          loginEmail: data.loginEmail ?? null,
+          username: data.username ?? null,
+          photoUrl: data.photoUrl ?? null,
+          title: data.title ?? null,
+          lastSignInTime: prev.lastSignInTime,
+        }));
+      },
+      (error) => showFriendlyError(error, 'live doctor profile sync')
+    );
     return () => unsub();
   }, [initial.id]);
 

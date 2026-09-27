@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getUserById } from '@/lib/get-users';
 import { PatientViewLive } from '@/components/patient-view-live';
+import { ClinicalNotesPanel } from '@/components/clinical-notes-panel';
 import { ChevronLeft } from 'lucide-react';
 
 export default async function UserDetailPage({
@@ -27,6 +28,8 @@ export default async function UserDetailPage({
       </Link>
 
       <PatientViewLive initial={user} />
+
+      <ClinicalNotesPanel patientUid={uid} viewerRole="admin" />
     </div>
   );
 }

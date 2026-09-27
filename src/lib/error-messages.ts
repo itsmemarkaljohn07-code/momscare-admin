@@ -56,12 +56,16 @@ export function getFriendlyError(err: unknown, context?: string): FriendlyError 
   // Firebase Auth error codes
   switch (code) {
     case 'auth/wrong-password':
-    case 'auth/user-not-found':
     case 'auth/invalid-credential':
     case 'auth/invalid-email':
       return {
         title: 'Incorrect Login Information',
         description: 'Please check your username and password and try again.',
+      };
+    case 'auth/user-not-found':
+      return {
+        title: 'Account Not Found',
+        description: "We couldn't find an account with those login details.",
       };
     case 'auth/user-disabled':
       return {

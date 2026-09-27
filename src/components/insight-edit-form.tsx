@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -21,7 +20,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { FileText, Layers } from 'lucide-react';
+import { FileText, Layers, Check, Trash2, Plus, Palette } from 'lucide-react';
 
 interface ArticleItem {
   label: string;
@@ -88,9 +87,15 @@ export function InsightEditForm({
   const [activeTabId, setActiveTabId] = useState(form.tabs[0]?.id ?? 0);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [justAddedItemIndex, setJustAddedItemIndex] = useState<number | null>(null);
 
   const activePanelKey = String(activeTabId);
   const activePanel = form.panels[activePanelKey];
+
+  // Live preview of what deriveArticleColors will actually produce on
+  // save — lets someone see the real gradient/highlight tint the
+  // color will generate, not just the raw hex swatch.
+  const previewColors = deriveArticleColors(form.accentColor ?? '#e07eb8');
 
   function updatePanel(patch: Partial<ArticlePanel>) {
     setForm({
@@ -105,7 +110,12 @@ export function InsightEditForm({
   }
 
   function addItem() {
+    const newIndex = activePanel.items.length;
     updatePanel({ items: [...activePanel.items, { ...BLANK_ITEM }] });
+    setJustAddedItemIndex(newIndex);
+    // Clear the "just added" flag after the entrance animation finishes,
+    // so it doesn't replay if the item is edited afterward.
+    setTimeout(() => setJustAddedItemIndex(null), 500);
   }
 
   function removeItem(index: number) {
@@ -233,7 +243,7 @@ export function InsightEditForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <Card>
+      <Card className="rounded-2xl shadow-soft">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <FileText className="h-4 w-4 text-primary" />
@@ -248,6 +258,7 @@ export function InsightEditForm({
                 value={articleId}
                 onChange={(e) => setArticleId(e.target.value)}
                 placeholder="e.g. newarticle"
+                className="rounded-xl"
                 required
               />
               <p className="text-xs text-muted-foreground">
@@ -261,6 +272,7 @@ export function InsightEditForm({
             <Input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
+              className="rounded-xl"
               required
             />
           </div>
@@ -271,6 +283,7 @@ export function InsightEditForm({
               <Input
                 value={form.heroTag}
                 onChange={(e) => setForm({ ...form, heroTag: e.target.value })}
+                className="rounded-xl"
                 required
               />
             </div>
@@ -280,6 +293,7 @@ export function InsightEditForm({
                 type="number"
                 value={form.readTime}
                 onChange={(e) => setForm({ ...form, readTime: Number(e.target.value) })}
+                className="rounded-xl"
                 required
               />
             </div>
@@ -293,6 +307,7 @@ export function InsightEditForm({
                   rows={2}
                   value={form.excerpt}
                   onChange={(e) => setForm({ ...form, excerpt: e.target.value })}
+                  className="rounded-xl"
                 />
               </div>
 
@@ -302,6 +317,7 @@ export function InsightEditForm({
                   value={form.heroImage ?? ''}
                   onChange={(e) => setForm({ ...form, heroImage: e.target.value || null })}
                   placeholder="assets/icon/yourimage.jpg"
+                  className="rounded-xl"
                 />
                 <p className="text-xs text-muted-foreground">
                   Optional. Must match a file already bundled in the mobile app under{' '}
@@ -311,11 +327,14 @@ export function InsightEditForm({
               </div>
 
               <div className="space-y-1">
-                <label className="text-sm font-medium">Accent Color</label>
-                <div className="flex items-center gap-2 rounded-md border p-2">
+                <label className="flex items-center gap-1.5 text-sm font-medium">
+                  <Palette className="h-3.5 w-3.5" />
+                  Accent Color
+                </label>
+                <div className="flex items-center gap-2 rounded-xl border p-2">
                   <Input
                     type="color"
-                    className="h-9 w-14 shrink-0 p-1"
+                    className="h-9 w-14 shrink-0 rounded-lg p-1"
                     value={form.accentColor}
                     onChange={(e) => setForm({ ...form, accentColor: e.target.value })}
                   />
@@ -326,6 +345,15 @@ export function InsightEditForm({
                     className="border-0 shadow-none focus-visible:ring-0"
                   />
                 </div>
+                {/* Live preview of the actual derived hero background —
+                    shows what deriveArticleColors will really produce,
+                    not just the raw hex, before anything is saved. */}
+                <div
+                  className="mt-1 flex h-10 items-center gap-3 overflow-hidden rounded-xl px-3 text-xs font-medium shadow-soft transition-colors"
+                  style={{ background: previewColors.heroBg }}
+                >
+                  Preview
+                </div>
                 <p className="text-xs text-muted-foreground">
                   The gradient and highlight tints are generated automatically from this color.
                 </p>
@@ -333,19 +361,25 @@ export function InsightEditForm({
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Sections</label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {INSIGHT_SECTIONS.map((section) => (
-                    <label
-                      key={section}
-                      className="flex items-center gap-2 rounded-md border px-2.5 py-2 text-sm transition-colors hover:bg-muted/50"
-                    >
-                      <Checkbox
-                        checked={form.sections?.includes(section)}
-                        onCheckedChange={(checked) => toggleSection(section, checked === true)}
-                      />
-                      {section}
-                    </label>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  {INSIGHT_SECTIONS.map((section) => {
+                    const checked = form.sections?.includes(section) ?? false;
+                    return (
+                      <button
+                        key={section}
+                        type="button"
+                        onClick={() => toggleSection(section, !checked)}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-all ${
+                          checked
+                            ? 'border-primary bg-primary text-primary-foreground shadow-soft'
+                            : 'border-input text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                        }`}
+                      >
+                        {checked && <Check className="h-3.5 w-3.5" />}
+                        {section}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </>
@@ -357,38 +391,43 @@ export function InsightEditForm({
               value={form.youTubeUrl}
               onChange={(e) => setForm({ ...form, youTubeUrl: e.target.value })}
               placeholder="https://www.youtube.com/watch?v=..."
+              className="rounded-xl"
             />
           </div>
 
-          <div className="space-y-3 rounded-md border p-3">
+          <div className="space-y-3 rounded-2xl border p-4 shadow-soft">
             <p className="text-sm font-medium">Citation</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input
                 placeholder="Source"
                 value={form.citation.source}
                 onChange={(e) => setForm({ ...form, citation: { ...form.citation, source: e.target.value } })}
+                className="rounded-xl"
               />
               <Input
                 placeholder="Author"
                 value={form.citation.author}
                 onChange={(e) => setForm({ ...form, citation: { ...form.citation, author: e.target.value } })}
+                className="rounded-xl"
               />
               <Input
                 placeholder="Year"
                 value={form.citation.year}
                 onChange={(e) => setForm({ ...form, citation: { ...form.citation, year: e.target.value } })}
+                className="rounded-xl"
               />
               <Input
                 placeholder="URL"
                 value={form.citation.url}
                 onChange={(e) => setForm({ ...form, citation: { ...form.citation, url: e.target.value } })}
+                className="rounded-xl"
               />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-2xl shadow-soft">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Layers className="h-4 w-4 text-primary" />
@@ -396,31 +435,40 @@ export function InsightEditForm({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 p-2">
+          <div className="flex flex-wrap items-center gap-1.5 rounded-full border bg-muted/40 p-1.5">
             {form.tabs.map((tab) => (
-              <Button
+              <button
                 key={tab.id}
                 type="button"
-                variant={tab.id === activeTabId ? 'default' : 'outline'}
-                size="sm"
                 onClick={() => setActiveTabId(tab.id)}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-all ${
+                  tab.id === activeTabId
+                    ? 'bg-primary text-primary-foreground shadow-soft'
+                    : 'text-muted-foreground hover:bg-background hover:text-foreground'
+                }`}
               >
                 {tab.label}
-              </Button>
+              </button>
             ))}
-            <Button type="button" variant="outline" size="sm" onClick={addTab}>
-              + Add Tab
-            </Button>
+            <button
+              type="button"
+              onClick={addTab}
+              className="flex items-center gap-1 rounded-full border border-dashed px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Tab
+            </button>
           </div>
 
           {activePanel && (
-            <>
-              <div className="flex items-center justify-between rounded-md border p-3">
+            <div key={activeTabId} className="animate-in fade-in slide-in-from-top-1 space-y-4 duration-200">
+              <div className="flex items-center justify-between rounded-2xl border p-3 shadow-soft">
                 <div className="flex-1 space-y-1">
                   <label className="text-sm font-medium">Tab Label</label>
                   <Input
                     value={form.tabs.find((t) => t.id === activeTabId)?.label ?? ''}
                     onChange={(e) => renameActiveTab(e.target.value)}
+                    className="rounded-xl"
                   />
                 </div>
                 {form.tabs.length > 1 && (
@@ -428,9 +476,10 @@ export function InsightEditForm({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="ml-3"
+                    className="ml-3 gap-1.5 text-muted-foreground hover:text-destructive"
                     onClick={() => removeTab(activeTabId)}
                   >
+                    <Trash2 className="h-3.5 w-3.5" />
                     Remove Tab
                   </Button>
                 )}
@@ -439,47 +488,68 @@ export function InsightEditForm({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Panel Tag</label>
-                  <Input value={activePanel.tag} onChange={(e) => updatePanel({ tag: e.target.value })} />
+                  <Input value={activePanel.tag} onChange={(e) => updatePanel({ tag: e.target.value })} className="rounded-xl" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Panel Title</label>
-                  <Input value={activePanel.title} onChange={(e) => updatePanel({ title: e.target.value })} />
+                  <Input value={activePanel.title} onChange={(e) => updatePanel({ title: e.target.value })} className="rounded-xl" />
                 </div>
               </div>
 
               <div className="space-y-1">
                 <label className="text-sm font-medium">Intro</label>
-                <Textarea rows={3} value={activePanel.intro} onChange={(e) => updatePanel({ intro: e.target.value })} />
+                <Textarea rows={3} value={activePanel.intro} onChange={(e) => updatePanel({ intro: e.target.value })} className="rounded-xl" />
               </div>
 
-              <div className="space-y-3 rounded-md border p-3">
+              <div className="space-y-3 rounded-2xl border p-4 shadow-soft">
                 <p className="text-sm font-medium">Highlight</p>
                 <Input
                   placeholder="Label (e.g. 'Did you know?')"
                   value={activePanel.highlight.label}
                   onChange={(e) => updatePanel({ highlight: { ...activePanel.highlight, label: e.target.value } })}
+                  className="rounded-xl"
                 />
                 <Textarea
                   rows={2}
                   placeholder="Highlight text"
                   value={activePanel.highlight.text}
                   onChange={(e) => updatePanel({ highlight: { ...activePanel.highlight, text: e.target.value } })}
+                  className="rounded-xl"
                 />
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">Items ({activePanel.items.length})</p>
-                  <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                    + Add Item
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5 rounded-full" onClick={addItem}>
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Item
                   </Button>
                 </div>
 
+                {activePanel.items.length === 0 && (
+                  <p className="rounded-2xl border border-dashed py-6 text-center text-sm text-muted-foreground">
+                    No items yet — click &quot;Add Item&quot; to add the panel&apos;s first point.
+                  </p>
+                )}
+
                 {activePanel.items.map((item, index) => (
-                  <div key={index} className="space-y-2 rounded-md border p-3">
+                  <div
+                    key={index}
+                    className={`space-y-2 rounded-2xl border p-4 shadow-soft transition-shadow hover:shadow-card ${
+                      justAddedItemIndex === index ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''
+                    }`}
+                  >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">Item {index + 1}</span>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(index)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeItem(index)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                         Remove
                       </Button>
                     </div>
@@ -487,16 +557,18 @@ export function InsightEditForm({
                       placeholder="Label"
                       value={item.label}
                       onChange={(e) => updateItem(index, { label: e.target.value })}
+                      className="rounded-xl"
                     />
                     <Textarea
                       rows={2}
                       placeholder="Description"
                       value={item.desc}
                       onChange={(e) => updateItem(index, { desc: e.target.value })}
+                      className="rounded-xl"
                     />
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <Select value={item.svgKey} onValueChange={(value) => updateItem(index, { svgKey: value })}>
-                        <SelectTrigger>
+                      <Select value={item.svgKey} onValueChange={(value) => value && updateItem(index, { svgKey: value })}>
+                        <SelectTrigger className="rounded-xl">
                           <SelectValue placeholder="Icon" />
                         </SelectTrigger>
                         <SelectContent>
@@ -511,45 +583,54 @@ export function InsightEditForm({
                         placeholder="iconBg (e.g. rgba(224,126,184,0.12))"
                         value={item.iconBg}
                         onChange={(e) => updateItem(index, { iconBg: e.target.value })}
+                        className="rounded-xl"
                       />
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="space-y-3 rounded-md border p-3">
+              <div className="space-y-3 rounded-2xl border p-4 shadow-soft">
                 <p className="text-sm font-medium">Tip</p>
                 <Textarea
                   rows={2}
                   placeholder="Tip text"
                   value={activePanel.tip.text}
                   onChange={(e) => updatePanel({ tip: { ...activePanel.tip, text: e.target.value } })}
+                  className="rounded-xl"
                 />
                 <Input
                   placeholder="Source (e.g. MomsCare Health · Nutrition)"
                   value={activePanel.tip.source}
                   onChange={(e) => updatePanel({ tip: { ...activePanel.tip, source: e.target.value } })}
+                  className="rounded-xl"
                 />
               </div>
-            </>
+            </div>
           )}
 
           {form.tabs.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No tabs yet — click &quot;+ Add Tab&quot; to create the article&apos;s first section.
+            <p className="rounded-2xl border border-dashed py-8 text-center text-sm text-muted-foreground">
+              No tabs yet — click &quot;Add Tab&quot; to create the article&apos;s first section.
             </p>
           )}
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-between border-t pt-4">
-        <Button type="submit" disabled={isSaving}>
+      {message && (
+        <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+          {message}
+        </p>
+      )}
+
+      <div className="flex flex-col-reverse items-stretch justify-between gap-3 border-t pt-4 sm:flex-row sm:items-center">
+        <Button type="submit" className="h-11 rounded-full sm:min-w-[180px]" disabled={isSaving}>
           {isSaving ? 'Saving...' : mode === 'create' ? 'Create Article' : 'Save Changes'}
         </Button>
 
         {mode === 'edit' && (
           <AlertDialog>
-            <AlertDialogTrigger render={<Button type="button" variant="destructive" disabled={isSaving} />}>
+            <AlertDialogTrigger render={<Button type="button" variant="destructive" className="h-11 rounded-full" disabled={isSaving} />}>
               Delete Article
             </AlertDialogTrigger>
             <AlertDialogContent>

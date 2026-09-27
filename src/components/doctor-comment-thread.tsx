@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import {
@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase-client';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
-import { showApiError } from '@/lib/error-messages';
+import { showApiError, showFriendlyError } from '@/lib/error-messages';
 
 interface SnapshotComment {
   id: string;
@@ -33,9 +33,13 @@ export function DoctorCommentThread({
   useEffect(() => {
     const colRef = collection(db, `users/${patientUid}/snapshots/${photoId}/comments`);
     const q = query(colRef, orderBy('createdAt', 'asc'));
-    const unsub = onSnapshot(q, (snap) => {
-      setComments(snap.docs.map((d) => ({ id: d.id, ...d.data() } as SnapshotComment)));
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setComments(snap.docs.map((d) => ({ id: d.id, ...d.data() } as SnapshotComment)));
+      },
+      (error) => showFriendlyError(error, 'live comments sync')
+    );
     return () => unsub();
   }, [patientUid, photoId]);
 

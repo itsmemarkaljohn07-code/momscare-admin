@@ -106,9 +106,9 @@ export function AppointmentsTable({
           placeholder="Search by patient, appointment, or doctor..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="max-w-sm"
+          className="max-w-sm rounded-full"
         />
-        <AppointmentFormDialog users={users} appointments={appointments} doctors={doctors} trigger={<Button>+ New Appointment</Button>} />
+        <AppointmentFormDialog users={users} appointments={appointments} doctors={doctors} trigger={<Button className="rounded-full">+ New Appointment</Button>} />
       </div>
 
       {filtered.length === 0 ? (
@@ -120,17 +120,17 @@ export function AppointmentsTable({
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden overflow-x-auto rounded-md border md:block">
+          <div className="hidden overflow-x-auto rounded-2xl border shadow-soft md:block">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Patient</TableHead>
-                  <TableHead>Appointment</TableHead>
-                  <TableHead>Doctor</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Approval</TableHead>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Appointment</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Doctor</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Time</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Approval</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -162,7 +162,12 @@ export function AppointmentsTable({
                       <TableCell>
                         <StatusBadge status={approval} />
                         {approval === 'rejected' && rejectionReason && (
-                          <p className="mt-1 max-w-[160px] text-xs text-muted-foreground">{rejectionReason}</p>
+                          <p
+                            className="mt-1 line-clamp-2 max-w-[200px] whitespace-normal break-words text-xs text-muted-foreground"
+                            title={rejectionReason}
+                          >
+                            {rejectionReason}
+                          </p>
                         )}
                       </TableCell>
                       <TableCell>
@@ -229,7 +234,7 @@ export function AppointmentsTable({
               const approval = a.doctorApproval ?? 'pending';
               const rejectionReason = a.rejectionReason;
               return (
-                <Card key={`${a.patientUid}-${a.id}`} className="transition-shadow hover:shadow-md">
+                <Card key={`${a.patientUid}-${a.id}`} className="rounded-2xl shadow-soft transition-shadow hover:shadow-card">
                   <CardContent className="space-y-3 p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
@@ -255,7 +260,12 @@ export function AppointmentsTable({
                     <div>
                       <StatusBadge status={approval} />
                       {approval === 'rejected' && rejectionReason && (
-                        <p className="mt-1 text-xs text-muted-foreground">{rejectionReason}</p>
+                        <p
+                          className="mt-1 line-clamp-2 whitespace-normal break-words text-xs text-muted-foreground"
+                          title={rejectionReason}
+                        >
+                          {rejectionReason}
+                        </p>
                       )}
                     </div>
 

@@ -39,6 +39,14 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-stat-1: var(--stat-1);
+  --color-stat-1-foreground: var(--stat-1-foreground);
+  --color-stat-2: var(--stat-2);
+  --color-stat-2-foreground: var(--stat-2-foreground);
+  --color-stat-3: var(--stat-3);
+  --color-stat-3-foreground: var(--stat-3-foreground);
+  --color-stat-4: var(--stat-4);
+  --color-stat-4-foreground: var(--stat-4-foreground);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -46,6 +54,8 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --shadow-soft: 0 2px 8px -2px rgba(17, 24, 39, 0.06), 0 1px 2px -1px rgba(17, 24, 39, 0.04);
+  --shadow-card: 0 4px 20px -4px rgba(17, 24, 39, 0.08), 0 2px 6px -2px rgba(17, 24, 39, 0.04);
 }
 
 :root {
@@ -118,6 +128,21 @@
   --accent-blue-bg: #e3edfb;
   --accent-orange: #d98e5f;
   --accent-orange-bg: #fdede0;
+
+  /* Solid, saturated stat-card palette — for a bold card whose ENTIRE
+     background is this color with white text/icon on top (the
+     Medicare-reference stat card style), distinct from the pastel
+     accent-*-bg tokens above (used for a small icon circle on a
+     white card). Reuses MomsCare's own rose/purple as stat-1/3
+     rather than adopting a foreign palette. */
+  --stat-1: #d9527f;
+  --stat-1-foreground: #ffffff;
+  --stat-2: #2f9c88;
+  --stat-2-foreground: #ffffff;
+  --stat-3: #7a5fc4;
+  --stat-3-foreground: #ffffff;
+  --stat-4: #c9791a;
+  --stat-4-foreground: #ffffff;
 }
 
 .dark {
@@ -180,6 +205,15 @@
   --accent-blue-bg: rgba(125, 166, 245, 0.14);
   --accent-orange: #e3a26f;
   --accent-orange-bg: rgba(227, 162, 111, 0.14);
+
+  --stat-1: #e0658f;
+  --stat-1-foreground: #ffffff;
+  --stat-2: #3aab95;
+  --stat-2-foreground: #ffffff;
+  --stat-3: #8a6fd4;
+  --stat-3-foreground: #ffffff;
+  --stat-4: #d1902f;
+  --stat-4-foreground: #ffffff;
 }
 
 @layer base {

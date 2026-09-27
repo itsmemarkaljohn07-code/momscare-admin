@@ -21,11 +21,12 @@ interface TrendPoint {
 }
 
 const tooltipStyle = {
-  borderRadius: 8,
+  borderRadius: 12,
   border: '1px solid var(--border)',
   backgroundColor: 'var(--popover)',
   color: 'var(--popover-foreground)',
   fontSize: 12,
+  boxShadow: 'var(--shadow-soft)',
 };
 
 function MiniTrendChart({
@@ -44,7 +45,7 @@ function MiniTrendChart({
   const hasData = data.some((d) => lines.some((l) => d[l.dataKey as keyof TrendPoint] != null));
 
   return (
-    <Card>
+    <Card className="rounded-2xl shadow-soft">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
       </CardHeader>
@@ -53,7 +54,7 @@ function MiniTrendChart({
           <p className="py-10 text-center text-xs text-muted-foreground">Not enough data yet.</p>
         ) : (
           <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+            <LineChart data={data} margin={{ top: 4, right: 8, left: 4, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
               <XAxis
                 dataKey="week"
@@ -67,7 +68,6 @@ function MiniTrendChart({
                 fontSize={11}
                 tickLine={false}
                 axisLine={false}
-                width={32}
                 stroke="var(--muted-foreground)"
                 domain={yDomain}
                 tickFormatter={yTickFormatter}
@@ -120,7 +120,7 @@ export function PatientHealthTrends({ photos }: { photos: AdminSnapshotPhoto[] }
 
   if (points.length === 0) {
     return (
-      <Card>
+      <Card className="rounded-2xl shadow-soft">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <TrendingUp className="h-4 w-4" />

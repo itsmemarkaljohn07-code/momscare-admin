@@ -47,16 +47,16 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border">
+    <div className="overflow-x-auto rounded-2xl border shadow-soft">
       <Table>
         <TableHeader>
-          <TableRow>
-            <TableHead>Patient</TableHead>
-            <TableHead>Appointment</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Time</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Approval</TableHead>
+          <TableRow className="bg-muted/40 hover:bg-muted/40">
+            <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patient</TableHead>
+            <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Appointment</TableHead>
+            <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date</TableHead>
+            <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Time</TableHead>
+            <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</TableHead>
+            <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Approval</TableHead>
             <TableHead></TableHead>
           </TableRow>
         </TableHeader>
@@ -75,7 +75,12 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
                 <TableCell>
                   <StatusBadge status={a.doctorApproval} />
                   {a.doctorApproval === 'rejected' && a.rejectionReason && (
-                    <p className="mt-1 text-xs text-muted-foreground">{a.rejectionReason}</p>
+                    <p
+                      className="mt-1 line-clamp-2 max-w-[200px] whitespace-normal break-words text-xs text-muted-foreground"
+                      title={a.rejectionReason}
+                    >
+                      {a.rejectionReason}
+                    </p>
                   )}
                 </TableCell>
                 <TableCell>

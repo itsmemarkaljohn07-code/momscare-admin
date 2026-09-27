@@ -1,10 +1,9 @@
 import { redirect } from 'next/navigation';
 import { getAdminSession } from '@/lib/get-admin-session';
-import { LogoutButton } from '@/components/logout-button';
 import { AppSidebar } from '@/components/admin-sidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { GlobalSearch } from '@/components/global-search';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getAdminSession();
@@ -14,21 +13,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider style={{ '--sidebar-width-icon': '4.5rem' } as React.CSSProperties}>
       <AppSidebar />
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-2 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6">
-          <div className="flex items-center gap-2">
+        <header className="sticky top-0 z-10 flex h-16 items-center gap-3 border-b bg-background/80 px-4 shadow-soft backdrop-blur-sm sm:px-6">
+          <div className="flex shrink-0 items-center gap-2">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-5" />
-            <span className="text-sm text-muted-foreground">
-              Signed in as {session.email}
-            </span>
           </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <LogoutButton />
+          <div className="min-w-0 max-w-md flex-1">
+            <GlobalSearch />
           </div>
+          <span className="hidden shrink-0 text-sm text-muted-foreground lg:inline">
+            Signed in as {session.email}
+          </span>
         </header>
         <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </SidebarInset>

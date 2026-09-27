@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -9,10 +9,13 @@ import {
   LayoutDashboard, Users, Camera, CalendarDays, UserCircle, type LucideIcon,
 } from 'lucide-react';
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
+  Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { getInitials } from '@/lib/avatar-color';
+import { showFriendlyError } from '@/lib/error-messages';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { LogoutButton } from '@/components/logout-button';
 
 interface NavItem {
   title: string;
@@ -57,14 +60,18 @@ export function DoctorSidebar({
   const [identity, setIdentity] = useState({ name: doctorName, photoUrl: null as string | null });
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, `doctors/${doctorId}`), (docSnap) => {
-      if (!docSnap.exists()) return;
-      const data = docSnap.data();
-      setIdentity({
-        name: data.name ?? doctorName,
-        photoUrl: data.photoUrl ?? null,
-      });
-    });
+    const unsub = onSnapshot(
+      doc(db, `doctors/${doctorId}`),
+      (docSnap) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+        setIdentity({
+          name: data.name ?? doctorName,
+          photoUrl: data.photoUrl ?? null,
+        });
+      },
+      (error) => showFriendlyError(error, 'live sidebar identity sync')
+    );
     return () => unsub();
   }, [doctorId, doctorName]);
 
@@ -77,12 +84,12 @@ export function DoctorSidebar({
             <img
               src={identity.photoUrl}
               alt={identity.name}
-              className="h-8 w-8 shrink-0 rounded-lg object-cover"
+              className="h-8 w-8 shrink-0 rounded-xl object-cover shadow-soft group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9"
             />
           ) : (
             <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-semibold"
-              style={{ backgroundColor: 'var(--accent-blue-bg)', color: 'var(--accent-blue)' }}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-semibold shadow-soft group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9"
+              style={{ backgroundColor: 'var(--accent-blue)', color: '#ffffff' }}
             >
               {getInitials(identity.name)}
             </div>
@@ -95,14 +102,14 @@ export function DoctorSidebar({
           </div>
         </Link>
       </SidebarHeader>
-      <SidebarContent className="px-2 py-3">
+      <SidebarContent className="px-3 py-4 group-data-[collapsible=icon]:px-2">
         {navGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel className="px-3 text-[0.65rem] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
               {group.label}
             </SidebarGroupLabel>
             <SidebarGroupContent className="mt-1.5">
-              <SidebarMenu className="gap-0.5">
+              <SidebarMenu className="gap-1 group-data-[collapsible=icon]:gap-2">
                 {group.items.map((item) => {
                   const isActive =
                     item.url === '/doctor' ? pathname === '/doctor' : pathname.startsWith(item.url);
@@ -112,18 +119,18 @@ export function DoctorSidebar({
                         isActive={isActive}
                         tooltip={item.title}
                         render={<Link href={item.url} />}
-                        className="group relative h-9 rounded-lg px-3 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary/10 data-[active=true]:font-semibold data-[active=true]:text-primary"
+                        className="h-10 rounded-full px-3.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:font-semibold data-[active=true]:text-primary-foreground data-[active=true]:shadow-soft data-[active=true]:hover:bg-primary group-data-[collapsible=icon]:h-11 group-data-[collapsible=icon]:w-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-2xl group-data-[collapsible=icon]:p-0"
                       >
-                        <span
-                          className="absolute -left-2 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-primary opacity-0 transition-opacity group-data-[active=true]:opacity-100"
-                          aria-hidden="true"
-                        />
-                        <item.icon className="h-[17px] w-[17px]" />
+                        <item.icon className="h-[17px] w-[17px] group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
                         <span>{item.title}</span>
                         {item.url === '/doctor/appointments' && pendingCount > 0 && (
                           <span
                             className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold group-data-[collapsible=icon]:hidden"
-                            style={{ backgroundColor: 'var(--accent-blue-bg)', color: 'var(--accent-blue)' }}
+                            style={
+                              isActive
+                                ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#ffffff' }
+                                : { backgroundColor: 'var(--accent-blue-bg)', color: 'var(--accent-blue)' }
+                            }
                           >
                             {pendingCount}
                           </span>
@@ -137,6 +144,12 @@ export function DoctorSidebar({
           </SidebarGroup>
         ))}
       </SidebarContent>
+      <SidebarFooter className="gap-2 border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:hidden">
+        <div className="flex items-center justify-between gap-2">
+          <ThemeToggle />
+          <LogoutButton />
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }

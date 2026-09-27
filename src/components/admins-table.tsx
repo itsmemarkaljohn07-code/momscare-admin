@@ -95,7 +95,7 @@ export function AdminsTable({
     <div className="space-y-4">
       <div className="flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger render={<Button>+ Add Admin</Button>} />
+          <DialogTrigger render={<Button className="rounded-full">+ Add Admin</Button>} />
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Add New Admin</DialogTitle>
@@ -107,6 +107,7 @@ export function AdminsTable({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="rounded-xl"
                   required
                 />
               </div>
@@ -116,6 +117,7 @@ export function AdminsTable({
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  className="rounded-xl"
                   minLength={6}
                   required
                 />
@@ -124,8 +126,12 @@ export function AdminsTable({
                   after signing in.
                 </p>
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isSaving}>
+              {error && (
+                <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" className="h-11 w-full rounded-full" disabled={isSaving}>
                 {isSaving ? 'Creating...' : 'Create Admin'}
               </Button>
             </form>
@@ -138,14 +144,14 @@ export function AdminsTable({
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden overflow-x-auto rounded-md border md:block">
+          <div className="hidden overflow-x-auto rounded-2xl border shadow-soft md:block">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Added</TableHead>
-                  <TableHead>Last Active</TableHead>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Role</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Added</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Last Active</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -203,7 +209,7 @@ export function AdminsTable({
           {/* Mobile stacked cards */}
           <div className="grid gap-3 md:hidden">
             {admins.map((a) => (
-              <Card key={a.uid} className="transition-shadow hover:shadow-md">
+              <Card key={a.uid} className="rounded-2xl shadow-soft transition-shadow hover:shadow-card">
                 <CardContent className="space-y-3 p-4">
                   <div className="flex min-w-0 items-center gap-2">
                     <span

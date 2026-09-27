@@ -13,6 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { getApiErrorMessage } from '@/lib/error-messages';
 
 const TYPE_OPTIONS = [
   'Obstetrics', 'OB-GYN', 'Radiology', 'Laboratory',
@@ -213,8 +214,8 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Failed to create doctor account.');
+        const data = await res.json().catch(() => null);
+        setError(getApiErrorMessage(res, data, undefined, 'create doctor account').description);
         setIsSaving(false);
         return;
       }
@@ -225,7 +226,7 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
       setConfirmPassword('');
       router.refresh();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+      setError(getApiErrorMessage(null, null, err, 'create doctor account').description);
     } finally {
       setIsSaving(false);
     }
@@ -244,7 +245,7 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-3 rounded-md border p-3">
+          <div className="space-y-3 rounded-2xl border p-4 shadow-soft">
             <p className="text-sm font-medium">Doctor Details</p>
 
             <div className="space-y-1">
@@ -253,6 +254,7 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="e.g. Dr. Maria Santos"
+                className="rounded-xl"
                 required
               />
             </div>
@@ -260,7 +262,7 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
             <div className="space-y-1">
               <label className="text-sm font-medium">Specialty</label>
               <Select value={form.specialty} onValueChange={(value) => value && setForm((f) => ({ ...f, specialty: value }))}>
-                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select…" /></SelectTrigger>
                 <SelectContent>
                   {TYPE_OPTIONS.map((t) => (
                     <SelectItem key={t} value={t}>{t}</SelectItem>
@@ -291,6 +293,7 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
                   type="time"
                   value={form.startTime}
                   onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                  className="rounded-xl"
                   required
                 />
               </div>
@@ -300,6 +303,7 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
                   type="time"
                   value={form.endTime}
                   onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                  className="rounded-xl"
                   required
                 />
               </div>
@@ -313,12 +317,13 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
                 step={5}
                 value={form.slotMinutes}
                 onChange={(e) => setForm((f) => ({ ...f, slotMinutes: Number(e.target.value) }))}
+                className="rounded-xl"
                 required
               />
             </div>
           </div>
 
-          <div className="space-y-3 rounded-md border p-3">
+          <div className="space-y-3 rounded-2xl border p-4 shadow-soft">
             <p className="text-sm font-medium">Login Credentials</p>
 
             <div className="space-y-1">
@@ -327,6 +332,10 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
                 value={form.username}
                 onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
                 placeholder="e.g. drmaria"
+                className={`rounded-xl transition-colors ${
+                  usernameDisplayStatus === 'taken' ? 'border-red-400 focus-visible:ring-red-300' :
+                  usernameDisplayStatus === 'available' ? 'border-[color:var(--status-approved)] focus-visible:ring-[color:var(--status-approved)]/30' : ''
+                }`}
                 required
               />
               <AvailabilityHint status={usernameDisplayStatus} takenMessage="Username is already taken." />
@@ -343,6 +352,10 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                className={`rounded-xl transition-colors ${
+                  emailDisplayStatus === 'taken' ? 'border-red-400 focus-visible:ring-red-300' :
+                  emailDisplayStatus === 'available' ? 'border-[color:var(--status-approved)] focus-visible:ring-[color:var(--status-approved)]/30' : ''
+                }`}
                 required
               />
               <AvailabilityHint status={emailDisplayStatus} takenMessage="Email is already registered." />
@@ -360,7 +373,7 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
                   type={showPassword ? 'text' : 'password'}
                   value={form.password}
                   onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  className="pr-10"
+                  className="rounded-xl pr-10"
                   minLength={6}
                   required
                 />
@@ -386,7 +399,7 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
                   type={showConfirm ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pr-10"
+                  className="rounded-xl pr-10"
                   minLength={6}
                   required
                 />
@@ -403,9 +416,13 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
             </div>
           </div>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+              {error}
+            </p>
+          )}
 
-          <Button type="submit" className="w-full" disabled={!canSubmit}>
+          <Button type="submit" className="h-11 w-full rounded-full" disabled={!canSubmit}>
             {isSaving ? 'Creating...' : 'Create Doctor Account'}
           </Button>
         </form>

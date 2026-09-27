@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Newspaper, Users, CalendarDays, ShieldCheck, Stethoscope, BarChart3, type LucideIcon,
+  LayoutDashboard, Newspaper, Users, CalendarDays, ShieldCheck, Stethoscope, BarChart3, ScrollText, type LucideIcon,
 } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -16,6 +17,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { LogoutButton } from '@/components/logout-button';
 
 interface NavItem {
   title: string;
@@ -48,7 +51,10 @@ const navGroups: NavGroup[] = [
   },
   {
     label: 'Access',
-    items: [{ title: 'Admins', url: '/admin/admins', icon: ShieldCheck }],
+    items: [
+      { title: 'Admins', url: '/admin/admins', icon: ShieldCheck },
+      { title: 'Audit Log', url: '/admin/audit-log', icon: ScrollText },
+    ],
   },
 ];
 
@@ -59,7 +65,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4 group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-soft group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9">
             M
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
@@ -68,14 +74,14 @@ export function AppSidebar() {
           </div>
         </div>
       </SidebarHeader>
-      <SidebarContent className="px-2 py-3">
+      <SidebarContent className="px-3 py-4 group-data-[collapsible=icon]:px-2">
         {navGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel className="px-3 text-[0.65rem] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
               {group.label}
             </SidebarGroupLabel>
             <SidebarGroupContent className="mt-1.5">
-              <SidebarMenu className="gap-0.5">
+              <SidebarMenu className="gap-1 group-data-[collapsible=icon]:gap-2">
                 {group.items.map((item) => {
                   const isActive =
                     item.url === '/admin' ? pathname === '/admin' : pathname.startsWith(item.url);
@@ -85,13 +91,9 @@ export function AppSidebar() {
                         isActive={isActive}
                         tooltip={item.title}
                         render={<Link href={item.url} />}
-                        className="group relative h-9 rounded-lg px-3 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary/10 data-[active=true]:font-semibold data-[active=true]:text-primary"
+                        className="h-10 rounded-full px-3.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:font-semibold data-[active=true]:text-primary-foreground data-[active=true]:shadow-soft data-[active=true]:hover:bg-primary group-data-[collapsible=icon]:h-11 group-data-[collapsible=icon]:w-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-2xl group-data-[collapsible=icon]:p-0"
                       >
-                        <span
-                          className="absolute -left-2 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-primary opacity-0 transition-opacity group-data-[active=true]:opacity-100"
-                          aria-hidden="true"
-                        />
-                        <item.icon className="h-[17px] w-[17px]" />
+                        <item.icon className="h-[17px] w-[17px] group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
                         <span>{item.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -102,6 +104,12 @@ export function AppSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
+      <SidebarFooter className="gap-2 border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:hidden">
+        <div className="flex items-center justify-between gap-2">
+          <ThemeToggle />
+          <LogoutButton />
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }

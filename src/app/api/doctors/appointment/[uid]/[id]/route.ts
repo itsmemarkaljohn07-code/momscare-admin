@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getDoctorSession } from '@/lib/get-doctor-session';
 import { Timestamp } from 'firebase-admin/firestore';
+import { logAuditEvent } from '@/lib/audit-log';
 
 export async function PATCH(
   req: NextRequest,
@@ -39,6 +40,19 @@ export async function PATCH(
       rejectionReason: doctorApproval === 'rejected' ? (rejectionReason ?? '') : null,
     });
 
+    const apptData = snap.data() ?? {};
+
+    await logAuditEvent({
+      actorUid: session.uid,
+      actorEmail: session.doctorName ?? 'unknown',
+      actorRole: 'doctor',
+      action: doctorApproval === 'approved' ? 'appointment.approve' : 'appointment.decline',
+      targetType: 'appointment',
+      targetId: id,
+      targetLabel: `${apptData.label || 'Appointment'} — ${apptData.date ?? ''} ${apptData.time ?? ''}`.trim(),
+      details: doctorApproval === 'rejected' ? (rejectionReason || null) : null,
+    });
+
     // Best-effort in-app notification for the patient — uses the
     // Admin SDK, so this bypasses rules entirely (unlike the doctor
     // comment thread's client-side write, which needed a rules
@@ -46,14 +60,13 @@ export async function PATCH(
     // above already succeeded and is not rolled back — the
     // notification is a nice-to-have, not the actual action.
     try {
-      const appt = snap.data() ?? {};
-      const label = appt.label || 'appointment';
+      const label = apptData.label || 'appointment';
       const isApproved = doctorApproval === 'approved';
       await adminDb.collection('users').doc(uid).collection('notifications').add({
         icon: isApproved ? '✅' : '❌',
         title: isApproved ? 'Appointment Approved' : 'Appointment Declined',
         message: isApproved
-          ? `${session.doctorName} approved your ${label} appointment on ${appt.date} at ${appt.time}.`
+          ? `${session.doctorName} approved your ${label} appointment on ${apptData.date} at ${apptData.time}.`
           : `${session.doctorName} declined your ${label} appointment.${rejectionReason ? ` Reason: ${rejectionReason}` : ''}`,
         read: false,
         route: null,

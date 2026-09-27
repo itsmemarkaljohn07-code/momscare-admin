@@ -13,7 +13,7 @@ export function AppointmentsChart({ data }: { data: { date: string; count: numbe
 
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <AreaChart data={formatted} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+      <AreaChart data={formatted} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
         <defs>
           <linearGradient id="apptGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.35} />
@@ -33,16 +33,16 @@ export function AppointmentsChart({ data }: { data: { date: string; count: numbe
           fontSize={11}
           tickLine={false}
           axisLine={false}
-          width={28}
           stroke="var(--muted-foreground)"
         />
         <Tooltip
           contentStyle={{
-            borderRadius: 8,
+            borderRadius: 12,
             border: '1px solid var(--border)',
             backgroundColor: 'var(--popover)',
             color: 'var(--popover-foreground)',
             fontSize: 12,
+            boxShadow: 'var(--shadow-soft)',
           }}
           labelStyle={{ fontWeight: 600, color: 'var(--popover-foreground)' }}
         />

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
+import { logAuditEvent } from '@/lib/audit-log';
 
 const SYNTHETIC_EMAIL_DOMAIN = 'doctors.momscare.internal';
 
@@ -48,6 +49,7 @@ export async function POST(
     // invalidates any of their existing sessions — the doctor's
     // profile document, patients, and appointments are never touched.
     const oldAuthUid: string | undefined = doctorData.authUid;
+    const isReset = !!oldAuthUid;
     if (oldAuthUid) {
       try {
         await adminAuth.deleteUser(oldAuthUid);
@@ -76,6 +78,17 @@ export async function POST(
       authUid: authUser.uid,
       username: normalizedUsername,
       loginEmail: syntheticEmail,
+    });
+
+    await logAuditEvent({
+      actorUid: session.uid,
+      actorEmail: session.email ?? 'unknown',
+      actorRole: 'admin',
+      action: isReset ? 'doctor.reset_login' : 'doctor.setup_login',
+      targetType: 'doctor',
+      targetId: id,
+      targetLabel: doctorData.name,
+      details: `Username: ${normalizedUsername}`,
     });
 
     return NextResponse.json({ success: true });

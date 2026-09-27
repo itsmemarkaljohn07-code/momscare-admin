@@ -1,15 +1,17 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 import { getUsers } from '@/lib/get-users';
 import { getDoctors } from '@/lib/get-doctors';
 import { getAdmins } from '@/lib/get-admins';
 import { getInsights } from '@/lib/get-insights';
 import { getAppointmentStats } from '@/lib/get-appointment-stats';
 import { getAdminSession } from '@/lib/get-admin-session';
+import { getPatientRiskIndicators } from '@/lib/get-patient-risk-indicators';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { AppointmentAnalytics } from '@/components/appointment-analytics';
+import { PatientRiskPanel } from '@/components/patient-risk-panel';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import {
   Users as UsersIcon, Stethoscope, ShieldCheck, LayoutGrid,
@@ -24,13 +26,14 @@ function toDateSafe(value: string | { toDate: () => Date } | null | undefined): 
 }
 
 export default async function AdminOverviewPage() {
-  const [users, doctors, admins, articles, { appointments, stats }, session] = await Promise.all([
+  const [users, doctors, admins, articles, { appointments, stats }, session, riskFlags] = await Promise.all([
     getUsers(),
     getDoctors(),
     getAdmins(),
     getInsights(),
     getAppointmentStats(),
     getAdminSession(),
+    getPatientRiskIndicators(),
   ]);
 
   const now = new Date();
@@ -63,8 +66,36 @@ export default async function AdminOverviewPage() {
     )
     .slice(0, 5);
 
-  const maxDoctorCount = Math.max(1, ...stats.byDoctor.map((d) => d.count));
   const firstName = session?.email?.split('@')[0];
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const weekFromNowStr = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const upcomingThisWeekByDoctor = new Map<string, number>();
+  for (const a of appointments) {
+    if (a.status === 'upcoming' && a.date >= todayStr && a.date <= weekFromNowStr) {
+      upcomingThisWeekByDoctor.set(a.doctor, (upcomingThisWeekByDoctor.get(a.doctor) ?? 0) + 1);
+    }
+  }
+
+  function weeklyCapacity(d: (typeof doctors)[number]): number {
+    if (!d.startTime || !d.endTime || !d.slotMinutes || d.workingDays.length === 0) return 0;
+    const [startH, startM] = d.startTime.split(':').map(Number);
+    const [endH, endM] = d.endTime.split(':').map(Number);
+    const totalMinutes = endH * 60 + endM - (startH * 60 + startM);
+    if (totalMinutes <= 0) return 0;
+    return Math.floor(totalMinutes / d.slotMinutes) * d.workingDays.length;
+  }
+
+  const workload = doctors
+    .map((d) => {
+      const capacity = weeklyCapacity(d);
+      const booked = upcomingThisWeekByDoctor.get(d.name) ?? 0;
+      const utilization = capacity > 0 ? Math.round((booked / capacity) * 100) : null;
+      return { name: d.name, booked, capacity, utilization };
+    })
+    .sort((a, b) => (b.utilization ?? -1) - (a.utilization ?? -1));
 
   return (
     <div className="space-y-6">
@@ -107,6 +138,8 @@ export default async function AdminOverviewPage() {
         </div>
       </div>
 
+      <PatientRiskPanel flags={riskFlags} />
+
       <AppointmentAnalytics appointments={appointments} />
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -143,26 +176,43 @@ export default async function AdminOverviewPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Busiest Doctors</CardTitle>
+            <CardTitle className="text-base">Doctor Workload</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {stats.byDoctor.length === 0 && (
-              <p className="text-sm text-muted-foreground">No appointments yet.</p>
+            {workload.length === 0 && (
+              <p className="text-sm text-muted-foreground">No doctors yet.</p>
             )}
-            {stats.byDoctor.map((d) => (
-              <div key={d.doctor} className="space-y-1.5">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{d.doctor}</span>
-                  <span className="text-xs text-muted-foreground">{d.count} appts</span>
+            {workload.map((w) => {
+              const color =
+                w.utilization === null
+                  ? 'var(--muted-foreground)'
+                  : w.utilization > 100
+                  ? 'var(--status-declined)'
+                  : w.utilization >= 70
+                  ? 'var(--status-pending)'
+                  : 'var(--status-approved)';
+              return (
+                <div key={w.name} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{w.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {w.utilization === null
+                        ? 'No schedule set'
+                        : `${w.booked} / ${w.capacity} slots this week (${w.utilization}%)`}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: w.utilization === null ? '0%' : `${Math.min(100, w.utilization)}%`,
+                        backgroundColor: color,
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${(d.count / maxDoctorCount) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       </div>

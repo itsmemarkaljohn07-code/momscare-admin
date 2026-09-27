@@ -9,16 +9,21 @@ import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import { Mail, CalendarDays, Radio } from 'lucide-react';
 import type { AdminView } from '@/lib/get-admins';
 import { formatRelativeTime } from '@/lib/format-relative-time';
+import { showFriendlyError } from '@/lib/error-messages';
 
 export function AdminViewLive({ initial }: { initial: AdminView }) {
   const [createdAt, setCreatedAt] = useState(initial.createdAt);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, `admins/${initial.uid}`), (docSnap) => {
-      if (!docSnap.exists()) return;
-      const data = docSnap.data();
-      if (data.createdAt) setCreatedAt(data.createdAt);
-    });
+    const unsub = onSnapshot(
+      doc(db, `admins/${initial.uid}`),
+      (docSnap) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+        if (data.createdAt) setCreatedAt(data.createdAt);
+      },
+      (error) => showFriendlyError(error, 'live admin profile sync')
+    );
     return () => unsub();
   }, [initial.uid]);
 

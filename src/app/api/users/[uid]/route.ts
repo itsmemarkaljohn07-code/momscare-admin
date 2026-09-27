@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
+import { logAuditEvent } from '@/lib/audit-log';
 
 export async function PATCH(
   req: NextRequest,
@@ -20,7 +21,22 @@ export async function PATCH(
   }
 
   try {
+    const userDoc = await adminDb.collection('users').doc(uid).get();
+    const fullName: string = userDoc.data()?.fullName ?? uid;
+
     await adminAuth.updateUser(uid, { disabled });
+
+    await logAuditEvent({
+      actorUid: session.uid,
+      actorEmail: session.email ?? 'unknown',
+      actorRole: 'admin',
+      action: disabled ? 'user.suspend' : 'user.reactivate',
+      targetType: 'user',
+      targetId: uid,
+      targetLabel: fullName,
+      details: null,
+    });
+
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     console.error('Failed to update user status:', err);
@@ -94,6 +110,17 @@ export async function DELETE(
         { status: 500 }
       );
     }
+
+    await logAuditEvent({
+      actorUid: session.uid,
+      actorEmail: session.email ?? 'unknown',
+      actorRole: 'admin',
+      action: 'user.delete',
+      targetType: 'user',
+      targetId: uid,
+      targetLabel: realName,
+      details: null,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {

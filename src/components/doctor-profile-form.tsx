@@ -34,23 +34,27 @@ export function DoctorProfileForm({ initial }: { initial: DoctorRecord }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, `doctors/${initial.id}`), (docSnap) => {
-      if (!docSnap.exists()) return;
-      const data = docSnap.data();
-      setDoctor((prev) => ({
-        ...prev,
-        name: data.name,
-        specialty: data.specialty,
-        workingDays: data.workingDays ?? [],
-        startTime: data.startTime,
-        endTime: data.endTime,
-        slotMinutes: data.slotMinutes,
-        username: data.username ?? null,
-        loginEmail: data.loginEmail ?? null,
-        photoUrl: data.photoUrl ?? null,
-        title: data.title ?? null,
-      }));
-    });
+    const unsub = onSnapshot(
+      doc(db, `doctors/${initial.id}`),
+      (docSnap) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+        setDoctor((prev) => ({
+          ...prev,
+          name: data.name,
+          specialty: data.specialty,
+          workingDays: data.workingDays ?? [],
+          startTime: data.startTime,
+          endTime: data.endTime,
+          slotMinutes: data.slotMinutes,
+          username: data.username ?? null,
+          loginEmail: data.loginEmail ?? null,
+          photoUrl: data.photoUrl ?? null,
+          title: data.title ?? null,
+        }));
+      },
+      (error) => showFriendlyError(error, 'live profile sync')
+    );
     return () => unsub();
   }, [initial.id]);
 
@@ -113,7 +117,7 @@ export function DoctorProfileForm({ initial }: { initial: DoctorRecord }) {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="rounded-2xl shadow-soft">
         <CardContent className="flex flex-col items-center gap-4 p-6 text-center sm:flex-row sm:text-left">
           <div className="relative shrink-0">
             {doctor.photoUrl ? (
@@ -154,7 +158,7 @@ export function DoctorProfileForm({ initial }: { initial: DoctorRecord }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-2xl shadow-soft">
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Edit Profile</CardTitle>
           <span className="flex items-center gap-1 text-[0.65rem] font-medium text-muted-foreground">
@@ -171,10 +175,12 @@ export function DoctorProfileForm({ initial }: { initial: DoctorRecord }) {
                 onChange={(e) => setTitleDraft(e.target.value)}
                 placeholder="e.g. Dr."
                 maxLength={20}
+                className="rounded-xl"
               />
               <Button
                 type="button"
                 size="sm"
+                className="rounded-full"
                 disabled={!titleChanged || isSavingTitle}
                 onClick={handleSaveTitle}
               >
@@ -188,7 +194,7 @@ export function DoctorProfileForm({ initial }: { initial: DoctorRecord }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="rounded-2xl shadow-soft">
         <CardHeader>
           <CardTitle className="text-base">Account Information</CardTitle>
         </CardHeader>

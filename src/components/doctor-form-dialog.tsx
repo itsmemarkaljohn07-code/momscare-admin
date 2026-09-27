@@ -136,6 +136,7 @@ export function DoctorFormDialog({
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Dr. Maria Santos"
+              className="rounded-xl"
               required
             />
           </div>
@@ -143,7 +144,7 @@ export function DoctorFormDialog({
           <div className="space-y-1">
             <label className="text-sm font-medium">Specialty</label>
             <Select value={form.specialty} onValueChange={(value) => value && setForm((f) => ({ ...f, specialty: value }))}>
-              <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
                 {TYPE_OPTIONS.map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
@@ -174,6 +175,7 @@ export function DoctorFormDialog({
                 type="time"
                 value={form.startTime}
                 onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                className="rounded-xl"
                 required
               />
             </div>
@@ -183,6 +185,7 @@ export function DoctorFormDialog({
                 type="time"
                 value={form.endTime}
                 onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                className="rounded-xl"
                 required
               />
             </div>
@@ -196,14 +199,19 @@ export function DoctorFormDialog({
               step={5}
               value={form.slotMinutes}
               onChange={(e) => setForm((f) => ({ ...f, slotMinutes: Number(e.target.value) }))}
+              className="rounded-xl"
               required
             />
             <p className="text-xs text-muted-foreground">How long each appointment slot is.</p>
           </div>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+              {error}
+            </p>
+          )}
 
-          <Button type="submit" className="w-full" disabled={isSaving}>
+          <Button type="submit" className="h-11 w-full rounded-full" disabled={isSaving}>
             {isSaving ? 'Saving...' : editing ? 'Save Changes' : 'Add Doctor'}
           </Button>
         </form>

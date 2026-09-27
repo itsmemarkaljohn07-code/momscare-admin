@@ -65,17 +65,17 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
         <EmptyState icon={UserX} title="No doctors yet" description="Add your first doctor to start scheduling appointments." />
       ) : (
         <>
-          <div className="hidden overflow-x-auto rounded-md border md:block">
+          <div className="hidden overflow-x-auto rounded-2xl border shadow-soft md:block">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Specialty</TableHead>
-                  <TableHead>Working Days</TableHead>
-                  <TableHead>Hours</TableHead>
-                  <TableHead>Slot Length</TableHead>
-                  <TableHead>Login</TableHead>
-                  <TableHead>Last Active</TableHead>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Specialty</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Working Days</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hours</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Slot Length</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Login</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Last Active</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -131,7 +131,7 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
 
           <div className="grid gap-3 md:hidden">
             {doctors.map((d) => (
-              <Card key={d.id} className="transition-shadow hover:shadow-md">
+              <Card key={d.id} className="rounded-2xl shadow-soft transition-shadow hover:shadow-card">
                 <CardContent className="space-y-3 p-4">
                   <div className="flex min-w-0 items-center gap-2">
                     {d.photoUrl ? (

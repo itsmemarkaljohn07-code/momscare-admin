@@ -19,6 +19,10 @@ import type { AdminAppointment } from '@/lib/get-appointments';
 import type { DoctorRecord } from '@/lib/get-doctors';
 
 const ICON_OPTIONS = ['🩺', '🔬', '🩸', '🥗', '👩‍⚕️', '💊', '🫀', '🧬'];
+const ICON_NAMES: Record<string, string> = {
+  '🩺': 'Stethoscope', '🔬': 'Microscope', '🩸': 'Blood Test', '🥗': 'Nutrition',
+  '👩‍⚕️': 'Provider', '💊': 'Medication', '🫀': 'Cardiology', '🧬': 'Genetics',
+};
 const COLOR_OPTIONS = ['green', 'pink', 'purple', 'blue', 'orange'] as const;
 
 const NAME_OPTIONS = [
@@ -217,7 +221,15 @@ export function AppointmentFormDialog({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
+  // Reset the form exactly once per open/editing transition — computed
+  // during render (the same pattern already used in
+  // doctor-account-form-dialog.tsx) rather than via setState inside a
+  // useEffect.
+  const [wasOpen, setWasOpen] = useState(open);
+  const [prevEditingId, setPrevEditingId] = useState(editing?.id);
+  if (open !== wasOpen || editing?.id !== prevEditingId) {
+    setWasOpen(open);
+    setPrevEditingId(editing?.id);
     if (open) {
       if (editing) {
         setForm({
@@ -241,7 +253,7 @@ export function AppointmentFormDialog({
       setShowSuggestions(false);
       setPickerDate(null);
     }
-  }, [open, editing]);
+  }
 
   const filteredPatients = patientQuery.trim()
     ? users.filter((u) => u.fullName.toLowerCase().includes(patientQuery.trim().toLowerCase())).slice(0, 8)
@@ -350,7 +362,7 @@ export function AppointmentFormDialog({
           <div className="space-y-1" ref={searchRef}>
             <label className="text-sm font-medium">Patient</label>
             {editing ? (
-              <Input value={patientQuery} disabled />
+              <Input value={patientQuery} disabled className="rounded-xl" />
             ) : (
               <div className="relative">
                 <Input
@@ -359,9 +371,10 @@ export function AppointmentFormDialog({
                   onFocus={() => setShowSuggestions(true)}
                   placeholder="Search by patient name..."
                   autoComplete="off"
+                  className="rounded-xl"
                 />
                 {showSuggestions && patientQuery.trim() && (
-                  <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+                  <div className="absolute z-50 mt-1 w-full rounded-xl border bg-popover shadow-card">
                     {filteredPatients.length > 0 ? (
                       <ul className="max-h-56 overflow-y-auto py-1">
                         {filteredPatients.map((u) => (
@@ -387,8 +400,8 @@ export function AppointmentFormDialog({
 
           <div className="space-y-1">
             <label className="text-sm font-medium">Appointment Name</label>
-            <Select value={form.label} onValueChange={handleNameChange} disabled={nameDisabled}>
-              <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+            <Select value={form.label} onValueChange={(v) => v && handleNameChange(v)} disabled={nameDisabled}>
+              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
                 {NAME_OPTIONS.map((name) => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
@@ -400,8 +413,8 @@ export function AppointmentFormDialog({
 
           <div className="space-y-1">
             <label className="text-sm font-medium">Appointment Type</label>
-            <Select value={form.type} onValueChange={handleTypeChange} disabled={typeDisabled}>
-              <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+            <Select value={form.type} onValueChange={(v) => v && handleTypeChange(v)} disabled={typeDisabled}>
+              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
                 {availableTypes.map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
@@ -417,8 +430,8 @@ export function AppointmentFormDialog({
 
           <div className="space-y-1">
             <label className="text-sm font-medium">Doctor</label>
-            <Select value={form.doctor} onValueChange={handleDoctorChange} disabled={doctorDisabled}>
-              <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+            <Select value={form.doctor} onValueChange={(v) => v && handleDoctorChange(v)} disabled={doctorDisabled}>
+              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
                 {availableDoctors.length === 0 ? (
                   <div className="px-2 py-1.5 text-sm text-muted-foreground">
@@ -437,7 +450,7 @@ export function AppointmentFormDialog({
           </div>
 
           {isSequential && doctorPicked && (
-            <div className="space-y-3 rounded-md border p-3">
+            <div className="animate-in fade-in slide-in-from-top-1 space-y-3 rounded-2xl border p-4 shadow-soft duration-300">
               <p className="text-sm font-medium">{form.doctor}&apos;s Availability</p>
 
               {scheduleDays.length === 0 ? (
@@ -448,14 +461,14 @@ export function AppointmentFormDialog({
                     <label className="text-xs font-medium text-muted-foreground">Select Date</label>
                     <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                       <PopoverTrigger
-                        render={<Button type="button" variant="outline" className="w-full justify-start font-normal" />}
+                        render={<Button type="button" variant="outline" className="w-full justify-start rounded-xl font-normal" />}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {pickerDate
                           ? dateKeyToDate(pickerDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
                           : 'Choose a date'}
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
+                      <PopoverContent className="w-auto rounded-2xl p-0 shadow-card" align="start">
                         <Calendar
                           mode="single"
                           selected={pickerDate ? dateKeyToDate(pickerDate) : undefined}
@@ -488,11 +501,11 @@ export function AppointmentFormDialog({
                               type="button"
                               disabled={slot.booked}
                               onClick={() => selectSlot(pickerDate, slot.time)}
-                              className={`rounded-md border px-2 py-2 text-xs font-medium transition-colors ${
+                              className={`rounded-xl border px-2 py-2 text-xs font-medium transition-colors ${
                                 slot.booked
                                   ? 'cursor-not-allowed border-muted bg-muted text-muted-foreground line-through'
                                   : isSelected
-                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  ? 'border-primary bg-primary text-primary-foreground shadow-soft'
                                   : 'border-input hover:bg-muted'
                               }`}
                             >
@@ -525,6 +538,7 @@ export function AppointmentFormDialog({
                   type="date"
                   value={form.date}
                   onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+                  className="rounded-xl"
                   required
                 />
               </div>
@@ -534,6 +548,7 @@ export function AppointmentFormDialog({
                   type="time"
                   value={form.time}
                   onChange={(e) => setForm((f) => ({ ...f, time: e.target.value }))}
+                  className="rounded-xl"
                   required
                 />
               </div>
@@ -547,6 +562,7 @@ export function AppointmentFormDialog({
               onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
               placeholder="e.g. MomsCare Clinic, Room 3"
               disabled={detailsDisabled}
+              className="rounded-xl"
             />
           </div>
 
@@ -557,6 +573,7 @@ export function AppointmentFormDialog({
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
               disabled={detailsDisabled}
+              className="rounded-xl"
             />
             {detailsDisabled && <p className="text-xs text-muted-foreground">Select a date and time first.</p>}
           </div>
@@ -564,11 +581,13 @@ export function AppointmentFormDialog({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <label className="text-sm font-medium">Icon</label>
-              <Select value={form.icon} onValueChange={(value) => setForm((f) => ({ ...f, icon: value }))} disabled={detailsDisabled}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={form.icon} onValueChange={(value) => value && setForm((f) => ({ ...f, icon: value }))} disabled={detailsDisabled}>
+                <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ICON_OPTIONS.map((icon) => (
-                    <SelectItem key={icon} value={icon}>{icon}</SelectItem>
+                    <SelectItem key={icon} value={icon}>
+                      <span className="mr-1.5">{icon}</span>{ICON_NAMES[icon]}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -577,10 +596,10 @@ export function AppointmentFormDialog({
               <label className="text-sm font-medium">Color</label>
               <Select
                 value={form.accentColor}
-                onValueChange={(value) => setForm((f) => ({ ...f, accentColor: value as FormState['accentColor'] }))}
+                onValueChange={(value) => value && setForm((f) => ({ ...f, accentColor: value as FormState['accentColor'] }))}
                 disabled={detailsDisabled}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {COLOR_OPTIONS.map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
@@ -590,9 +609,13 @@ export function AppointmentFormDialog({
             </div>
           </div>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && (
+            <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
+              {error}
+            </p>
+          )}
 
-          <Button type="submit" className="w-full" disabled={isSaving}>
+          <Button type="submit" className="h-11 w-full rounded-full" disabled={isSaving}>
             {isSaving ? 'Saving...' : editing ? 'Save Changes' : 'Create Appointment'}
           </Button>
         </form>
