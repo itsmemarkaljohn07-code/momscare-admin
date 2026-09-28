@@ -180,8 +180,9 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {confirmDoctor?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes them from the roster used when creating new appointments. Existing
-              appointment records already assigned to them are not affected.
+              This removes them from the roster and permanently deletes their login account, so
+              they can no longer sign in. This cannot be undone. Appointment records already
+              assigned to them are kept as they are.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -16,7 +16,7 @@ export default async function DoctorLayout({ children }: { children: React.React
   const pendingCount = appointments.filter((a) => a.doctorApproval === 'pending').length;
 
   return (
-    <SidebarProvider style={{ '--sidebar-width-icon': '4.5rem' } as React.CSSProperties}>
+    <SidebarProvider>
       <DoctorSidebar doctorId={session.doctorId} doctorName={session.doctorName} pendingCount={pendingCount} />
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-16 items-center gap-2 border-b bg-background/80 px-4 shadow-soft backdrop-blur-sm sm:px-6">

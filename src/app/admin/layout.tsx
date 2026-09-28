@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <SidebarProvider style={{ '--sidebar-width-icon': '4.5rem' } as React.CSSProperties}>
+    <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-16 items-center gap-3 border-b bg-background/80 px-4 shadow-soft backdrop-blur-sm sm:px-6">

@@ -137,8 +137,15 @@ export function DoctorFormDialog({
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Dr. Maria Santos"
               className="rounded-xl"
+              disabled={!!editing}
               required
             />
+            {editing && (
+              <p className="text-xs text-muted-foreground">
+                A doctor&apos;s name can&apos;t be changed — their appointments, patients and login
+                are linked to it.
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">

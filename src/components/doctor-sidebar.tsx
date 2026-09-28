@@ -76,25 +76,25 @@ export function DoctorSidebar({
   }, [doctorId, doctorName]);
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-4 group-data-[collapsible=icon]:px-2">
+    <Sidebar collapsible="offcanvas">
+      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <Link href="/doctor/profile" className="flex items-center gap-2.5">
           {identity.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={identity.photoUrl}
               alt={identity.name}
-              className="h-8 w-8 shrink-0 rounded-xl object-cover shadow-soft group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9"
+              className="h-8 w-8 shrink-0 rounded-xl object-cover shadow-soft"
             />
           ) : (
             <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-semibold shadow-soft group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-semibold shadow-soft"
               style={{ backgroundColor: 'var(--accent-blue)', color: '#ffffff' }}
             >
               {getInitials(identity.name)}
             </div>
           )}
-          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+          <div className="min-w-0">
             <p className="truncate text-sm font-semibold leading-tight">
               {identity.name}
             </p>
@@ -102,14 +102,14 @@ export function DoctorSidebar({
           </div>
         </Link>
       </SidebarHeader>
-      <SidebarContent className="px-3 py-4 group-data-[collapsible=icon]:px-2">
+      <SidebarContent className="px-3 py-4">
         {navGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel className="px-3 text-[0.65rem] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
               {group.label}
             </SidebarGroupLabel>
             <SidebarGroupContent className="mt-1.5">
-              <SidebarMenu className="gap-1 group-data-[collapsible=icon]:gap-2">
+              <SidebarMenu className="gap-1">
                 {group.items.map((item) => {
                   const isActive =
                     item.url === '/doctor' ? pathname === '/doctor' : pathname.startsWith(item.url);
@@ -119,13 +119,13 @@ export function DoctorSidebar({
                         isActive={isActive}
                         tooltip={item.title}
                         render={<Link href={item.url} />}
-                        className="h-10 rounded-full px-3.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:font-semibold data-[active=true]:text-primary-foreground data-[active=true]:shadow-soft data-[active=true]:hover:bg-primary group-data-[collapsible=icon]:h-11 group-data-[collapsible=icon]:w-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-2xl group-data-[collapsible=icon]:p-0"
+                        className="h-10 rounded-full px-3.5 text-sm font-medium text-sidebar-foreground/70 transition-all hover:bg-sidebar-accent hover:text-sidebar-foreground data-[active=true]:bg-primary data-[active=true]:font-semibold data-[active=true]:text-primary-foreground data-[active=true]:shadow-soft data-[active=true]:hover:bg-primary"
                       >
-                        <item.icon className="h-[17px] w-[17px] group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
+                        <item.icon className="h-[17px] w-[17px]" />
                         <span>{item.title}</span>
                         {item.url === '/doctor/appointments' && pendingCount > 0 && (
                           <span
-                            className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold group-data-[collapsible=icon]:hidden"
+                            className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
                             style={
                               isActive
                                 ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#ffffff' }
@@ -144,7 +144,7 @@ export function DoctorSidebar({
           </SidebarGroup>
         ))}
       </SidebarContent>
-      <SidebarFooter className="gap-2 border-t border-sidebar-border px-3 py-3 group-data-[collapsible=icon]:hidden">
+      <SidebarFooter className="gap-2 border-t border-sidebar-border px-3 py-3">
         <div className="flex items-center justify-between gap-2">
           <ThemeToggle />
           <LogoutButton />
