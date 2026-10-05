@@ -94,18 +94,26 @@ export function getFriendlyError(err: unknown, context?: string): FriendlyError 
   switch (code) {
     case 'permission-denied':
       return {
-        title: 'Permission Denied',
+        title: "You Don't Have Permission",
         description: "You don't have permission to do that. Please contact the administrator.",
       };
     case 'unavailable':
     case 'deadline-exceeded':
+      // The request reached Google but the service itself didn't
+      // respond in time — different from the local-network signals
+      // below, so it gets its own message rather than being lumped
+      // in with "check your connection."
+      return {
+        title: 'Service Temporarily Unavailable',
+        description: "We're having trouble connecting to the service. Please try again in a moment.",
+      };
     case 'ETIMEDOUT':
     case 'ENOTFOUND':
     case 'app/network-timeout':
     case 'app/network-error':
       return {
-        title: 'Connection Problem',
-        description: "We couldn't connect to the server. Please check your internet connection and try again.",
+        title: 'Unstable Connection',
+        description: 'Your internet connection appears to be unstable. Please check your connection and try again.',
       };
     case 'not-found':
       return {
@@ -133,8 +141,8 @@ export function getFriendlyError(err: unknown, context?: string): FriendlyError 
   // covers plain `fetch()` failures (offline, DNS, CORS-as-opaque, etc.)
   if (/failed to fetch|network ?error|fetch failed|load failed|getaddrinfo/i.test(message)) {
     return {
-      title: 'Weak Internet Connection',
-      description: 'Please check your internet connection and try again.',
+      title: 'Unstable Connection',
+      description: 'Your internet connection appears to be unstable. Please check your connection and try again.',
     };
   }
 
@@ -147,7 +155,7 @@ export function getFriendlyError(err: unknown, context?: string): FriendlyError 
   }
   if (status === 403) {
     return {
-      title: 'Permission Denied',
+      title: "You Don't Have Permission",
       description: "You don't have permission to do that.",
     };
   }
@@ -159,8 +167,8 @@ export function getFriendlyError(err: unknown, context?: string): FriendlyError 
   }
   if (status !== undefined && status >= 500) {
     return {
-      title: 'Server Problem',
-      description: 'Something went wrong on our end. Please try again in a moment.',
+      title: 'Service Temporarily Unavailable',
+      description: "We're having trouble connecting to the service. Please try again in a moment.",
     };
   }
 

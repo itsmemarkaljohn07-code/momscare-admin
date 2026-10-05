@@ -5,6 +5,10 @@ import { DoctorSidebar } from '@/components/doctor-sidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 
+// Everything under this layout shows live, signed-in data, so it must be
+// rendered on every request — never captured once when the app is built.
+export const dynamic = 'force-dynamic';
+
 export default async function DoctorLayout({ children }: { children: React.ReactNode }) {
   const session = await getDoctorSession();
 

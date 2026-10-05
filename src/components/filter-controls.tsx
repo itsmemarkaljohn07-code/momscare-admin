@@ -1,0 +1,71 @@
+'use client';
+
+import type { ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
+
+export function FilterChip({
+  active,
+  onClick,
+  children,
+  count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  count?: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+        active
+          ? 'border-primary bg-primary text-primary-foreground shadow-soft'
+          : 'border-input text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+      }`}
+    >
+      {children}
+      {count !== undefined && (
+        <span
+          className={`rounded-full px-1.5 text-[11px] font-semibold ${
+            active ? 'bg-white/25' : 'bg-muted'
+          }`}
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+export function FilterSelect({
+  value,
+  onChange,
+  options,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  /** Read by screen readers; the visible text is the selected option. */
+  label: string;
+}) {
+  return (
+    <label className="relative block">
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 w-full appearance-none rounded-full border border-input bg-background pl-3.5 pr-9 text-sm outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring dark:[color-scheme:dark]"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    </label>
+  );
+}

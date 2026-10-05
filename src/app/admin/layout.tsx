@@ -5,6 +5,10 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/s
 import { Separator } from '@/components/ui/separator';
 import { GlobalSearch } from '@/components/global-search';
 
+// Everything under this layout shows live, signed-in data, so it must be
+// rendered on every request — never captured once when the app is built.
+export const dynamic = 'force-dynamic';
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getAdminSession();
 

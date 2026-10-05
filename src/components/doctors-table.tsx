@@ -18,6 +18,7 @@ import {
 import { DoctorFormDialog } from '@/components/doctor-form-dialog';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import type { DoctorRecord } from '@/lib/get-doctors';
+import type { DoctorStats } from '@/lib/doctor-stats';
 import { DoctorLoginDialog } from '@/components/doctor-login-dialog';
 import { showApiError } from '@/lib/error-messages';
 import { formatRelativeTime } from '@/lib/format-relative-time';
@@ -31,14 +32,82 @@ function to12Hour(time24: string): string {
   return `${hour}:${m.toString().padStart(2, '0')} ${suffix}`;
 }
 
+/** Three or more consecutive days collapse to a range ("Mon–Fri");
+ *  anything else is listed individually ("Tue, Thu, Sat"). */
 function formatDays(days: number[]): string {
-  return [...days].sort((a, b) => a - b).map((d) => DAY_LABELS[d]).join(', ');
+  const sorted = [...new Set(days)].sort((a, b) => a - b);
+  const parts: string[] = [];
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i;
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j++;
+    if (j - i + 1 >= 3) {
+      parts.push(`${DAY_LABELS[sorted[i]]}–${DAY_LABELS[sorted[j]]}`);
+    } else {
+      for (let k = i; k <= j; k++) parts.push(DAY_LABELS[sorted[k]]);
+    }
+    i = j + 1;
+  }
+  return parts.join(', ');
 }
 
-export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
+const HEAD_CLASS = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground';
+
+function LoadCell({ s }: { s?: DoctorStats }) {
+  if (!s) return <span className="text-muted-foreground">—</span>;
+  if (s.utilization === null) {
+    return <span className="text-xs text-muted-foreground">No schedule</span>;
+  }
+  const color =
+    s.utilization > 100
+      ? 'var(--status-declined)'
+      : s.utilization >= 70
+      ? 'var(--status-pending)'
+      : 'var(--status-approved)';
+  return (
+    <div
+      className="w-24 space-y-1"
+      title={`${s.bookedThisWeek} booked of ${s.weeklyCapacity} slots in the next 7 days (${s.utilization}%)`}
+    >
+      <p className="text-sm">{s.bookedThisWeek} / {s.weeklyCapacity}</p>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${Math.min(100, s.utilization)}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PendingCell({ s }: { s?: DoctorStats }) {
+  if (!s) return <span className="text-muted-foreground">—</span>;
+  if (s.pendingApprovals === 0) return <span className="text-sm text-muted-foreground">0</span>;
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-xs font-semibold"
+      style={{ backgroundColor: 'var(--status-pending-bg)', color: 'var(--status-pending)' }}
+      title="Upcoming appointments waiting for this doctor's approval"
+    >
+      {s.pendingApprovals}
+    </span>
+  );
+}
+
+export function DoctorsTable({
+  doctors,
+  stats,
+}: {
+  doctors: DoctorRecord[];
+  /** Per-doctor numbers keyed by doctor id. Optional: when missing
+   *  (e.g. they failed to load), the new columns show a dash. */
+  stats?: Record<string, DoctorStats>;
+}) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [confirmDoctor, setConfirmDoctor] = useState<DoctorRecord | null>(null);
+
+  const impact = confirmDoctor ? stats?.[confirmDoctor.id] : undefined;
 
   async function handleDelete(id: string) {
     setConfirmDoctor(null);
@@ -69,13 +138,15 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Specialty</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Working Days</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hours</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Slot Length</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Login</TableHead>
-                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Last Active</TableHead>
+                  <TableHead className={HEAD_CLASS}>Name</TableHead>
+                  <TableHead className={HEAD_CLASS}>Specialty</TableHead>
+                  <TableHead className={HEAD_CLASS}>Working Days</TableHead>
+                  <TableHead className={HEAD_CLASS}>Hours</TableHead>
+                  <TableHead className={HEAD_CLASS} title="Patients who have been booked with this doctor">Patients</TableHead>
+                  <TableHead className={HEAD_CLASS} title="Booked slots vs. capacity over the next 7 days">This Week</TableHead>
+                  <TableHead className={HEAD_CLASS} title="Upcoming appointments waiting for this doctor's approval">Pending</TableHead>
+                  <TableHead className={HEAD_CLASS}>Login</TableHead>
+                  <TableHead className={HEAD_CLASS}>Last Active</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -103,8 +174,19 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{d.specialty}</span>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatDays(d.workingDays)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{to12Hour(d.startTime)} – {to12Hour(d.endTime)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{d.slotMinutes} min</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      <p className="whitespace-nowrap">{to12Hour(d.startTime)} – {to12Hour(d.endTime)}</p>
+                      <p className="text-xs">{d.slotMinutes}-min slots</p>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {stats?.[d.id] ? stats[d.id].patients : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      <LoadCell s={stats?.[d.id]} />
+                    </TableCell>
+                    <TableCell>
+                      <PendingCell s={stats?.[d.id]} />
+                    </TableCell>
                     <TableCell>
                       <DoctorLoginDialog doctor={d} />
                     </TableCell>
@@ -130,47 +212,57 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
           </div>
 
           <div className="grid gap-3 md:hidden">
-            {doctors.map((d) => (
-              <Card key={d.id} className="rounded-2xl shadow-soft transition-shadow hover:shadow-card">
-                <CardContent className="space-y-3 p-4">
-                  <div className="flex min-w-0 items-center gap-2">
-                    {d.photoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={d.photoUrl}
-                        alt={d.name}
-                        className="h-9 w-9 shrink-0 rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${getAvatarStyle(d.id).bg} ${getAvatarStyle(d.id).text}`}>
-                        {getInitials(d.name)}
-                      </span>
-                    )}
-                    <div className="min-w-0">
-                      <p className="truncate font-medium leading-tight">{d.name}</p>
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{d.specialty}</span>
+            {doctors.map((d) => {
+              const s = stats?.[d.id];
+              return (
+                <Card key={d.id} className="rounded-2xl shadow-soft transition-shadow hover:shadow-card">
+                  <CardContent className="space-y-3 p-4">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {d.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={d.photoUrl}
+                          alt={d.name}
+                          className="h-9 w-9 shrink-0 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${getAvatarStyle(d.id).bg} ${getAvatarStyle(d.id).text}`}>
+                          {getInitials(d.name)}
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate font-medium leading-tight">{d.name}</p>
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{d.specialty}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    <p className="truncate">{formatDays(d.workingDays)}</p>
-                    <p className="truncate">{to12Hour(d.startTime)} – {to12Hour(d.endTime)} · {d.slotMinutes} min slots</p>
-                    {d.authUid && <p>Last active: {formatRelativeTime(d.lastSignInTime)}</p>}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-                    <Link
-                      href={`/admin/doctors/${d.id}`}
-                      className="text-sm font-medium text-primary hover:underline"
-                    >
-                      View
-                    </Link>
-                    <DoctorFormDialog editing={d} trigger={<Button variant="outline" size="sm">Edit</Button>} />
-                    <Button variant="ghost" size="sm" disabled={pendingId === d.id} onClick={() => setConfirmDoctor(d)}>
-                      Remove
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="text-xs text-muted-foreground">
+                      <p className="truncate">{formatDays(d.workingDays)}</p>
+                      <p className="truncate">{to12Hour(d.startTime)} – {to12Hour(d.endTime)} · {d.slotMinutes} min slots</p>
+                      {s && (
+                        <p className="truncate">
+                          {s.patients} patient{s.patients === 1 ? '' : 's'}
+                          {s.utilization !== null && ` · ${s.bookedThisWeek}/${s.weeklyCapacity} slots this week`}
+                          {s.pendingApprovals > 0 && ` · ${s.pendingApprovals} pending`}
+                        </p>
+                      )}
+                      {d.authUid && <p>Last active: {formatRelativeTime(d.lastSignInTime)}</p>}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                      <Link
+                        href={`/admin/doctors/${d.id}`}
+                        className="text-sm font-medium text-primary hover:underline"
+                      >
+                        View
+                      </Link>
+                      <DoctorFormDialog editing={d} trigger={<Button variant="outline" size="sm">Edit</Button>} />
+                      <Button variant="ghost" size="sm" disabled={pendingId === d.id} onClick={() => setConfirmDoctor(d)}>
+                        Remove
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </>
       )}
@@ -184,6 +276,15 @@ export function DoctorsTable({ doctors }: { doctors: DoctorRecord[] }) {
               they can no longer sign in. This cannot be undone. Appointment records already
               assigned to them are kept as they are.
             </AlertDialogDescription>
+            {impact && (impact.upcomingAppointments > 0 || impact.patients > 0) && (
+              <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                They currently have {impact.upcomingAppointments} upcoming appointment
+                {impact.upcomingAppointments === 1 ? '' : 's'}
+                {impact.pendingApprovals > 0 && ` (${impact.pendingApprovals} awaiting approval)`} and{' '}
+                {impact.patients} assigned patient{impact.patients === 1 ? '' : 's'}. These stay in
+                the system, but no doctor account will be able to act on them.
+              </p>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

@@ -1,6 +1,6 @@
 import { getDoctorSession } from '@/lib/get-doctor-session';
 import { getDoctorAllSnapshots } from '@/lib/get-doctor-all-snapshots';
-import { DoctorSnapshotCard } from '@/components/doctor-snapshot-card';
+import { DoctorSnapshotsBrowser } from '@/components/doctor-snapshots-browser';
 import { PageHeader } from '@/components/page-header';
 import { EmptyState } from '@/components/empty-state';
 import { Camera } from 'lucide-react';
@@ -24,26 +24,7 @@ export default async function DoctorSnapshotsPage() {
           description="Photos your patients upload will appear here."
         />
       ) : (
-        groups.map((group) => (
-          <div key={group.dateKey} className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                {group.label}
-              </span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {group.items.map((photo) => (
-                <DoctorSnapshotCard
-                  key={photo.id}
-                  photo={photo}
-                  patientUid={photo.patientUid}
-                  patientName={photo.patientName}
-                />
-              ))}
-            </div>
-          </div>
-        ))
+        <DoctorSnapshotsBrowser groups={groups} />
       )}
     </div>
   );

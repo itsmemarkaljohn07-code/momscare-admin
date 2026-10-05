@@ -12,29 +12,6 @@ export async function PATCH(
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
   }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getAdminSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
-  }
-
-  const { id } = await params;
-
-  try {
-    await adminDb.collection('insights').doc(id).delete();
-    return NextResponse.json({ success: true });
-  } catch (err: unknown) {
-    console.error('Failed to delete insight:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 }
-    );
-  }
-}
-
   const { id } = await params;
   const body = await req.json();
 
@@ -53,6 +30,29 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     console.error('Failed to update insight:', err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getAdminSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  try {
+    await adminDb.collection('insights').doc(id).delete();
+    return NextResponse.json({ success: true });
+  } catch (err: unknown) {
+    console.error('Failed to delete insight:', err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Unknown error' },
       { status: 500 }
