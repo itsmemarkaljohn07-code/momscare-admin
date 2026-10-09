@@ -32,6 +32,23 @@ export async function POST(
       return NextResponse.json({ error: 'Not your patient.' }, { status: 403 });
     }
 
+    // Optional author details shown alongside the comment. Only set
+    // when non-empty — Firestore rejects undefined values.
+    // Best-effort: a failed read just means the comment posts without them.
+    const authorExtras: { authorSpecialty?: string; authorPhotoUrl?: string } = {};
+    try {
+      const doctorDoc = await adminDb.collection('doctors').doc(session.doctorId).get();
+      const doctorData = doctorDoc.data();
+      if (typeof doctorData?.specialty === 'string' && doctorData.specialty.trim()) {
+        authorExtras.authorSpecialty = doctorData.specialty;
+      }
+      if (typeof doctorData?.photoUrl === 'string' && doctorData.photoUrl.trim()) {
+        authorExtras.authorPhotoUrl = doctorData.photoUrl;
+      }
+    } catch (doctorErr) {
+      console.error('Failed to read doctor profile for comment (non-fatal):', doctorErr);
+    }
+
     const trimmedMessage = message.trim();
     const now = Timestamp.now();
 
@@ -43,6 +60,7 @@ export async function POST(
         snapshotId: photoId,
         authorRole: 'doctor',
         authorName: session.doctorName,
+        ...authorExtras,
         message: trimmedMessage,
         parentCommentId: null,
         createdAt: now,
