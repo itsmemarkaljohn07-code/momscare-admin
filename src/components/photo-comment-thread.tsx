@@ -15,6 +15,7 @@ interface SnapshotComment {
   id: string;
   authorRole: 'admin' | 'user';
   authorName: string;
+  authorUid?: string;
   message: string;
   parentCommentId: string | null;
   createdAt?: Timestamp;
@@ -61,7 +62,7 @@ export function PhotoCommentThread({
         userId: patientUid,
         snapshotId: photoId,
         authorRole: 'admin',
-        authorName: currentAdmin.email,
+        authorName: 'MomCare Clinic',
         authorUid: currentAdmin.uid,
         message: draft.trim(),
         parentCommentId: null,
@@ -73,6 +74,17 @@ export function PhotoCommentThread({
     } finally {
       setIsSending(false);
     }
+  }
+
+  // Admin comments are stored as 'MomCare Clinic' so patients see the
+  // clinic, not a staff email. Staff should still see who wrote it: the
+  // only uid -> email mapping available in the browser is the signed-in
+  // admin's own, so other admins' comments fall back to authorName.
+  function displayName(c: SnapshotComment): string {
+    if (c.authorRole === 'admin' && currentAdmin && c.authorUid === currentAdmin.uid) {
+      return currentAdmin.email;
+    }
+    return c.authorName;
   }
 
   const threaded = comments
@@ -91,13 +103,13 @@ export function PhotoCommentThread({
           <div key={comment.id} className="space-y-2">
             <div className="flex gap-2">
               <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${getAvatarStyle(comment.authorName).bg} ${getAvatarStyle(comment.authorName).text}`}
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${getAvatarStyle(displayName(comment)).bg} ${getAvatarStyle(displayName(comment)).text}`}
               >
-                {getInitials(comment.authorName)}
+                {getInitials(displayName(comment))}
               </span>
               <div className="min-w-0 flex-1 rounded-md bg-muted/50 px-2.5 py-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold">{comment.authorName}</span>
+                  <span className="text-xs font-semibold">{displayName(comment)}</span>
                   {comment.createdAt?.toDate && (
                     <span className="text-[10px] text-muted-foreground">
                       {comment.createdAt.toDate().toLocaleString('en-US', {
@@ -114,7 +126,7 @@ export function PhotoCommentThread({
               <div key={reply.id} className="ml-8 flex gap-2">
                 <div className="min-w-0 flex-1 rounded-md bg-primary/10 px-2.5 py-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold">{reply.authorName}</span>
+                    <span className="text-xs font-semibold">{displayName(reply)}</span>
                     {reply.createdAt?.toDate && (
                       <span className="text-[10px] text-muted-foreground">
                         {reply.createdAt.toDate().toLocaleString('en-US', {
