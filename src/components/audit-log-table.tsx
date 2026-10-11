@@ -33,6 +33,7 @@ const ACTION_LABELS: Record<string, string> = {
   'user.suspend': 'Suspended patient account',
   'user.reactivate': 'Reactivated patient account',
   'user.delete': 'Permanently deleted patient account',
+  'user.delete_incomplete': 'Partly deleted patient account (retry needed)',
 };
 
 function actionLabel(action: string): string {

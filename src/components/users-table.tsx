@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { UserX, AlertTriangle, ChevronRight, Download } from 'lucide-react';
+import { UserX, AlertTriangle, ChevronRight, Download, Copy } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,35 @@ import {
 import { showApiError } from '@/lib/error-messages';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import { exportToCsv } from '@/lib/export-csv';
+import type { DeletionPreview, DeletionResult, StepName, StepStatus } from '@/lib/patient-deletion';
+
+const COLLECTION_LABELS: Record<string, string> = {
+  appointments: 'Appointments',
+  snapshots: 'Snapshot records',
+  health: 'Health tracker records',
+  healthLogs: 'Health log entries',
+  checklist: 'Checklist items',
+  notifications: 'Notifications',
+  clinicalNotes: 'Clinical notes',
+};
+
+const STEP_LABELS: Record<StepName, string> = {
+  disable_login: 'Disable sign-in and revoke sessions',
+  read_data: 'Read username and photo IDs',
+  cloudinary_images: 'Delete photos on Cloudinary',
+  firestore_data: 'Delete profile and all records',
+  username: 'Release username',
+  audit_history: 'Anonymise past audit entries',
+  login_account: 'Delete login account',
+  audit_entry: 'Record audit entry',
+};
+
+const STATUS_LABELS: Record<StepStatus, string> = {
+  done: 'Done',
+  already_gone: 'Already gone',
+  skipped: 'Skipped',
+  failed: 'Failed',
+};
 
 export function UsersTable({ users }: { users: AdminUserView[] }) {
   const router = useRouter();
@@ -37,11 +66,14 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
   const [pendingUid, setPendingUid] = useState<string | null>(null);
   const [confirmUser, setConfirmUser] = useState<AdminUserView | null>(null);
 
-  // ── Permanent delete flow (separate, two-step, typed confirmation) ──
-  const [deleteStep, setDeleteStep] = useState<1 | 2 | null>(null);
+  // ── Permanent delete flow: 1 preview → 2 typed confirmation → 3 result ──
+  const [deleteStep, setDeleteStep] = useState<1 | 2 | 3 | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUserView | null>(null);
-  const [typedName, setTypedName] = useState('');
+  const [preview, setPreview] = useState<DeletionPreview | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [typedConfirm, setTypedConfirm] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<DeletionResult | null>(null);
 
   const filtered = users.filter((u) => {
     const q = query.toLowerCase();
@@ -75,39 +107,113 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
     }
   }
 
+  async function loadPreview(uid: string): Promise<DeletionPreview | null> {
+    setPreview(null);
+    setPreviewError(null);
+    try {
+      const res = await fetch(`/api/users/${uid}`, { cache: 'no-store' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setPreviewError(data?.error ?? 'Could not load what will be deleted.');
+        return null;
+      }
+      setPreview(data as DeletionPreview);
+      return data as DeletionPreview;
+    } catch {
+      setPreviewError('Could not load what will be deleted. Check your connection and try again.');
+      return null;
+    }
+  }
+
   function startDelete(user: AdminUserView) {
     setDeleteTarget(user);
-    setTypedName('');
+    setTypedConfirm('');
+    setDeleteResult(null);
     setDeleteStep(1);
+    void loadPreview(user.uid);
   }
 
   function closeDeleteFlow() {
+    // Anything may have changed if a deletion ran, even partly.
+    if (deleteResult) router.refresh();
     setDeleteStep(null);
     setDeleteTarget(null);
-    setTypedName('');
+    setPreview(null);
+    setPreviewError(null);
+    setTypedConfirm('');
+    setDeleteResult(null);
   }
 
-  async function confirmDelete() {
-    if (!deleteTarget) return;
+  const confirmMatches =
+    !!preview?.confirmValue &&
+    typedConfirm.trim().toLowerCase() === preview.confirmValue.trim().toLowerCase();
+
+  async function runDelete(uid: string, confirmValue: string) {
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/users/${deleteTarget.uid}`, {
+      const res = await fetch(`/api/users/${uid}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirmName: typedName }),
+        body: JSON.stringify({ confirmValue }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        showApiError(res, data, undefined, 'delete account');
+      const data = await res.json().catch(() => null);
+
+      if (data && Array.isArray(data.steps)) {
+        setDeleteResult(data as DeletionResult);
+        setDeleteStep(3);
+        if (data.ok) toast.success('Patient account deleted.');
+        else toast.error('Deletion did not finish. See which steps failed and retry.');
         return;
       }
-      toast.success('Account permanently deleted.');
-      closeDeleteFlow();
-      router.refresh();
+      if (res.status === 404) {
+        toast.success('Nothing left to delete for this account.');
+        closeDeleteFlow();
+        router.refresh();
+        return;
+      }
+      showApiError(res, data, undefined, 'delete account');
     } catch (err) {
       showApiError(null, null, err, 'delete account');
     } finally {
       setIsDeleting(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || !confirmMatches) return;
+    await runDelete(deleteTarget.uid, typedConfirm);
+  }
+
+  /** Retry after a partial failure. A previous run may have removed the
+   *  username, so re-read what the patient is now confirmed by; if the
+   *  value typed earlier no longer applies, ask again. */
+  async function retryDelete() {
+    if (!deleteTarget) return;
+    const fresh = await loadPreview(deleteTarget.uid);
+    if (!fresh) {
+      setDeleteStep(1);
+      return;
+    }
+    if (!fresh.confirmValue) {
+      toast.success('Nothing left to delete for this account.');
+      closeDeleteFlow();
+      router.refresh();
+      return;
+    }
+    if (typedConfirm.trim().toLowerCase() === fresh.confirmValue.trim().toLowerCase()) {
+      await runDelete(deleteTarget.uid, typedConfirm);
+    } else {
+      setTypedConfirm('');
+      setDeleteStep(2);
+    }
+  }
+
+  async function copyPublicIds(ids: string[]) {
+    try {
+      await navigator.clipboard.writeText(ids.join('\n'));
+      toast.success('Public IDs copied.');
+    } catch {
+      toast.error('Could not copy. Select the list and copy it manually.');
     }
   }
 
@@ -336,7 +442,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmUser?.disabled
-                ? `${confirmUser?.fullName} will regain access to the MomsCare app.`
+                ? `${confirmUser?.fullName} will regain access to the MomCare app.`
                 : `${confirmUser?.fullName} will be unable to sign in until reactivated.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -361,23 +467,63 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
             </DialogTitle>
             <DialogDescription>
               This will permanently and irreversibly delete <strong>{deleteTarget?.fullName}</strong>&apos;s
-              entire account, including:
+              entire account. The following will be removed:
             </DialogDescription>
           </DialogHeader>
-          <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-            <li>Their login account (they will no longer be able to sign in)</li>
-            <li>Profile and pregnancy information</li>
-            <li>Health Tracker records and history</li>
-            <li>Snapshot photos and their metadata</li>
-            <li>All comments and replies on their photos</li>
-            <li>All appointment records</li>
-          </ul>
+
+          {previewError ? (
+            <div className="space-y-2">
+              <p className="text-sm text-red-600">{previewError}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => deleteTarget && loadPreview(deleteTarget.uid)}
+              >
+                Try again
+              </Button>
+            </div>
+          ) : !preview ? (
+            <p className="text-sm text-muted-foreground">Counting records…</p>
+          ) : (
+            <>
+              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                <li>
+                  Login account:{' '}
+                  {preview.authExists ? 'sign-in disabled, then deleted' : 'already deleted'}
+                </li>
+                <li>
+                  Profile and pregnancy information:{' '}
+                  {preview.profileExists ? '1 document' : 'already deleted'}
+                </li>
+                {preview.collections.map((c) => (
+                  <li key={c.name}>
+                    {COLLECTION_LABELS[c.name] ?? c.name}: {c.count}
+                  </li>
+                ))}
+                <li>Comments on photos: {preview.comments}</li>
+                <li>
+                  Photos on Cloudinary: {preview.photos}
+                  {preview.photos > 0 &&
+                    (preview.cloudinaryConfigured
+                      ? ' (deleted and purged from the CDN)'
+                      : ' (must be deleted manually; their IDs are listed afterwards)')}
+                </li>
+                <li>Username record: {preview.usernames.length > 0 ? preview.usernames.join(', ') : 'none'}</li>
+                <li>Past audit entries naming this patient: {preview.auditEntries} (name removed, entry kept)</li>
+              </ul>
+              {!preview.confirmBy && (
+                <p className="text-sm text-muted-foreground">Nothing identifying is left for this account.</p>
+              )}
+            </>
+          )}
+
           <p className="text-xs text-muted-foreground">
             This cannot be undone. Consider Suspend instead if you just need to block their access.
           </p>
           <Button
             variant="destructive"
             className="w-full"
+            disabled={!preview?.confirmBy}
             onClick={() => setDeleteStep(2)}
           >
             I understand, continue
@@ -385,29 +531,104 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
         </DialogContent>
       </Dialog>
 
-      {/* Permanent Delete — Step 2: typed-name confirmation */}
+      {/* Permanent Delete — Step 2: typed username (or email) confirmation */}
       <Dialog open={deleteStep === 2} onOpenChange={(open) => !open && closeDeleteFlow()}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-red-600">Final Confirmation</DialogTitle>
             <DialogDescription>
-              Type <strong>{deleteTarget?.fullName}</strong> exactly to confirm permanent deletion.
+              {preview?.confirmBy === 'email'
+                ? 'This patient has no username. Type their email address '
+                : "Type the patient's username "}
+              <strong className="break-all">{preview?.confirmValue}</strong> to confirm permanent deletion.
             </DialogDescription>
           </DialogHeader>
           <Input
-            value={typedName}
-            onChange={(e) => setTypedName(e.target.value)}
-            placeholder={deleteTarget?.fullName}
+            value={typedConfirm}
+            onChange={(e) => setTypedConfirm(e.target.value)}
+            placeholder={preview?.confirmBy === 'email' ? 'Email address' : 'Username'}
+            autoComplete="off"
             autoFocus
           />
           <Button
             variant="destructive"
             className="w-full"
-            disabled={isDeleting || typedName.trim() !== deleteTarget?.fullName.trim()}
+            disabled={isDeleting || !confirmMatches}
             onClick={confirmDelete}
           >
             {isDeleting ? 'Deleting...' : 'Permanently Delete'}
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Permanent Delete — Step 3: per-step result, retry, manual Cloudinary IDs */}
+      <Dialog open={deleteStep === 3} onOpenChange={(open) => !open && closeDeleteFlow()}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className={deleteResult?.ok ? undefined : 'text-red-600'}>
+              {deleteResult?.ok ? 'Deletion finished' : 'Deletion did not finish'}
+            </DialogTitle>
+            <DialogDescription>
+              {deleteResult?.ok
+                ? 'Every step completed or was already done.'
+                : 'Steps that finished are kept. Retry to complete the rest.'}
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="space-y-2 text-sm">
+            {deleteResult?.steps.map((s) => (
+              <li key={s.step} className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p>{STEP_LABELS[s.step] ?? s.step}</p>
+                  {s.detail && <p className="break-words text-xs text-muted-foreground">{s.detail}</p>}
+                </div>
+                <Badge
+                  variant={s.status === 'failed' ? 'destructive' : 'secondary'}
+                  className="shrink-0"
+                >
+                  {STATUS_LABELS[s.status]}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+
+          {deleteResult?.manualCloudinaryPublicIds && deleteResult.manualCloudinaryPublicIds.length > 0 && (
+            <div className="space-y-2 rounded-xl border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">
+                  Delete these {deleteResult.manualCloudinaryPublicIds.length} image(s) in the Cloudinary Media Library
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1.5"
+                  onClick={() => copyPublicIds(deleteResult.manualCloudinaryPublicIds ?? [])}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy
+                </Button>
+              </div>
+              <ul className="max-h-40 overflow-y-auto font-mono text-xs text-muted-foreground">
+                {deleteResult.manualCloudinaryPublicIds.map((id) => (
+                  <li key={id} className="break-all">{id}</li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground">
+                Save this list: once the patient&apos;s records are deleted, these IDs can&apos;t be looked up again.
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            {!deleteResult?.ok && (
+              <Button variant="destructive" className="flex-1" disabled={isDeleting} onClick={retryDelete}>
+                {isDeleting ? 'Retrying...' : 'Retry'}
+              </Button>
+            )}
+            <Button variant="outline" className="flex-1" disabled={isDeleting} onClick={closeDeleteFlow}>
+              Close
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

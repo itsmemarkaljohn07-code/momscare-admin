@@ -34,3 +34,29 @@ export async function logAuditEvent(entry: AuditLogEntry): Promise<void> {
     console.error('[audit-log] Failed to record audit event (non-fatal):', err);
   }
 }
+
+export interface MinimalAuditLogEntry {
+  actorUid: string;
+  actorRole: AuditActorRole;
+  action: string;
+}
+
+/**
+ * Records an audit entry that carries no personal data: just the
+ * action, the date and the acting user's uid — no email, no target
+ * name or id. Used where the subject's data has been erased. Same
+ * best-effort contract as logAuditEvent, but reports whether the write
+ * succeeded so the caller can surface it.
+ */
+export async function logMinimalAuditEvent(entry: MinimalAuditLogEntry): Promise<boolean> {
+  try {
+    await adminDb.collection('auditLogs').add({
+      ...entry,
+      createdAt: Timestamp.now(),
+    });
+    return true;
+  } catch (err) {
+    console.error('[audit-log] Failed to record audit event (non-fatal):', err);
+    return false;
+  }
+}

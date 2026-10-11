@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { logAuditEvent } from '@/lib/audit-log';
+import {
+  confirmationMatches,
+  deletePatient,
+  getDeletionPreview,
+  getPatientIdentity,
+  isNonPatientUid,
+} from '@/lib/patient-deletion';
 
 export async function PATCH(
   req: NextRequest,
@@ -47,82 +54,79 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ uid: string }> }
-) {
+/** Shared guard for GET and DELETE: admin session, and the uid must be a
+ *  patient — never an admin or doctor login. Returns an error response
+ *  or the acting admin's uid. */
+async function guardPatientRequest(uid: string): Promise<NextResponse | { actorUid: string }> {
   const session = await getAdminSession();
   if (!session) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
   }
+  if (await isNonPatientUid(uid)) {
+    return NextResponse.json(
+      { error: 'This account belongs to an admin or doctor and cannot be deleted here.' },
+      { status: 403 }
+    );
+  }
+  return { actorUid: session.uid };
+}
 
+/** Deletion preview: what will be removed, and what the admin must type
+ *  to confirm. Reads only. */
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ uid: string }> }
+) {
   const { uid } = await params;
-  const { confirmName } = await req.json();
+  const guard = await guardPatientRequest(uid);
+  if (guard instanceof NextResponse) return guard;
 
   try {
-    const userDoc = await adminDb.collection('users').doc(uid).get();
-    if (!userDoc.exists) {
-      return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+    const preview = await getDeletionPreview(uid);
+    return NextResponse.json(preview);
+  } catch (err: unknown) {
+    console.error('Failed to build deletion preview:', err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ uid: string }> }
+) {
+  const { uid } = await params;
+  const guard = await guardPatientRequest(uid);
+  if (guard instanceof NextResponse) return guard;
+
+  const body = await req.json().catch(() => null);
+  const confirmValue: unknown = body?.confirmValue;
+
+  try {
+    const identity = await getPatientIdentity(uid);
+    if (!identity.confirmBy) {
+      // No username, email, profile or login left to confirm against —
+      // either everything is already deleted or the uid never existed.
+      return NextResponse.json({ error: 'Nothing left to delete for this account.' }, { status: 404 });
     }
 
-    // Server-side re-verification of the typed-name confirmation — the
-    // UI already requires this, but re-checking here means a raw API
-    // call can never bypass it.
-    const realName: string = userDoc.data()?.fullName ?? '';
-    if (!confirmName || confirmName.trim() !== realName.trim()) {
+    // Server-side re-check of the typed confirmation (username, or email
+    // when the patient has no username), case-insensitive — the UI
+    // requires it too, but a raw API call can never bypass it here.
+    if (!confirmationMatches(identity, confirmValue)) {
       return NextResponse.json(
-        { error: 'Confirmation name does not match. Deletion cancelled.' },
+        {
+          error: `Confirmation ${identity.confirmBy} does not match. Deletion cancelled.`,
+          confirmBy: identity.confirmBy,
+        },
         { status: 400 }
       );
     }
 
-    // Firestore does NOT cascade-delete subcollections when a parent
-    // document is deleted — recursiveDelete() is the Admin SDK's
-    // purpose-built tool for this, and it walks every nested
-    // subcollection (appointments, health, healthLogs, notifications,
-    // checklist, snapshots, and each snapshot's own comments
-    // sub-subcollection) automatically, so nothing is left orphaned.
-    await adminDb.recursiveDelete(adminDb.collection('users').doc(uid));
-
-    // The username→email mapping is a separate top-level document,
-    // outside users/{uid}, so recursiveDelete above doesn't reach it —
-    // removed explicitly here so a deleted patient's username becomes
-    // available for reuse instead of staying permanently reserved.
-    const usernamesSnap = await adminDb
-      .collection('usernames')
-      .where('uid', '==', uid)
-      .get();
-    for (const doc of usernamesSnap.docs) {
-      await doc.ref.delete();
-    }
-
-    // Firestore deletion above never touches the actual Firebase Auth
-    // account — this removes it separately, so the person can no
-    // longer sign in at all once deleted.
-    try {
-      await adminAuth.deleteUser(uid);
-    } catch (authErr) {
-      // Firestore data is already gone at this point — report the
-      // partial failure honestly rather than claiming full success.
-      console.error('Firestore data deleted, but Auth account removal failed:', authErr);
-      return NextResponse.json(
-        { error: 'Account data was deleted, but the login account itself could not be removed. Please check manually.' },
-        { status: 500 }
-      );
-    }
-
-    await logAuditEvent({
-      actorUid: session.uid,
-      actorEmail: session.email ?? 'unknown',
-      actorRole: 'admin',
-      action: 'user.delete',
-      targetType: 'user',
-      targetId: uid,
-      targetLabel: realName,
-      details: null,
-    });
-
-    return NextResponse.json({ success: true });
+    const result = await deletePatient(uid, guard.actorUid);
+    return NextResponse.json(result, { status: result.ok ? 200 : 500 });
   } catch (err: unknown) {
     console.error('Failed to delete user:', err);
     return NextResponse.json(

@@ -21,12 +21,14 @@ export async function getAuditLogs(limitCount = 300): Promise<AuditLogView[]> {
     const data = doc.data();
     return {
       id: doc.id,
-      actorEmail: data.actorEmail,
+      // Minimal entries (logMinimalAuditEvent) carry no email or target,
+      // so fall back to the actor's uid and a dash.
+      actorEmail: data.actorEmail ?? data.actorUid ?? '—',
       actorRole: data.actorRole,
       action: data.action,
-      targetType: data.targetType,
-      targetId: data.targetId,
-      targetLabel: data.targetLabel,
+      targetType: data.targetType ?? '',
+      targetId: data.targetId ?? '',
+      targetLabel: data.targetLabel ?? '—',
       details: data.details ?? null,
       createdAt: data.createdAt?.toDate?.().toISOString() ?? null,
     };
