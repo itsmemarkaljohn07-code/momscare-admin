@@ -69,7 +69,7 @@ export function AppSidebar() {
             M
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold leading-tight">MomsCare</p>
+            <p className="truncate text-sm font-semibold leading-tight">MomCare</p>
             <p className="truncate text-[0.7rem] text-sidebar-foreground/50">Admin Panel</p>
           </div>
         </div>

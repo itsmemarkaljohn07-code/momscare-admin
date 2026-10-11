@@ -15,8 +15,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "MomsCare Admin",
-  description: "MomsCare healthcare management dashboard",
+  title: "MomCare Admin",
+  description: "MomCare healthcare management dashboard",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

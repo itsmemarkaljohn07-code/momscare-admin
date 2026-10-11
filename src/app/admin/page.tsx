@@ -101,7 +101,7 @@ export default async function AdminOverviewPage() {
     <div className="space-y-6">
       <PageHeader
         title={firstName ? `Welcome back, ${firstName}` : 'Overview'}
-        description="Here's what's happening across MomsCare today"
+        description="Here's what's happening across MomCare today"
       />
 
       <div>

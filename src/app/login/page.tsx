@@ -149,7 +149,7 @@ export default function LoginPage() {
             className={`${scriptFont.className} text-center text-6xl leading-none text-white xl:text-7xl`}
             style={{ textShadow: '0 2px 12px rgba(0,0,0,0.45)' }}
           >
-            MomsCare
+            MomCare
           </p>
         </div>
 
@@ -168,7 +168,7 @@ export default function LoginPage() {
           style={{ textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}
         >
           <p className="text-xs">
-            © {new Date().getFullYear()} MomsCare. All rights reserved.
+            © {new Date().getFullYear()} MomCare. All rights reserved.
           </p>
           <div className="flex items-center gap-1.5">
             {SLIDES.map((_, i) => (
@@ -190,7 +190,7 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="mb-8 space-y-1 text-center lg:text-left">
-            <p className={`${scriptFont.className} mb-3 text-4xl text-primary lg:hidden`}>MomsCare</p>
+            <p className={`${scriptFont.className} mb-3 text-4xl text-primary lg:hidden`}>MomCare</p>
             <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
             <p className="text-sm text-muted-foreground transition-opacity duration-300">
               {role === 'admin' ? 'Sign in to manage the dashboard' : 'Sign in to view your patients'}

@@ -600,7 +600,7 @@ export function InsightEditForm({
                   className="rounded-xl"
                 />
                 <Input
-                  placeholder="Source (e.g. MomsCare Health · Nutrition)"
+                  placeholder="Source (e.g. MomCare Health · Nutrition)"
                   value={activePanel.tip.source}
                   onChange={(e) => updatePanel({ tip: { ...activePanel.tip, source: e.target.value } })}
                   className="rounded-xl"

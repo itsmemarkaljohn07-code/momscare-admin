@@ -560,7 +560,7 @@ export function AppointmentFormDialog({
             <Input
               value={form.location}
               onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-              placeholder="e.g. MomsCare Clinic, Room 3"
+              placeholder="e.g. MomCare Clinic, Room 3"
               disabled={detailsDisabled}
               className="rounded-xl"
             />
