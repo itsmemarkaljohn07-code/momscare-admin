@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getAdminSession } from '@/lib/get-admin-session';
+import { getPendingCancellationCount } from '@/lib/get-appointments';
 import { AppSidebar } from '@/components/admin-sidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
@@ -16,9 +17,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/login');
   }
 
+  const pendingCancellations = await getPendingCancellationCount();
+
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar pendingCancellations={pendingCancellations} />
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-16 items-center gap-3 border-b bg-background/80 px-4 shadow-soft backdrop-blur-sm sm:px-6">
           <div className="flex shrink-0 items-center gap-2">

@@ -1,6 +1,7 @@
 ﻿import { redirect } from 'next/navigation';
 import { getDoctorSession } from '@/lib/get-doctor-session';
 import { getDoctorAppointments } from '@/lib/get-doctor-appointments';
+import { isPendingDoctorApproval } from '@/lib/appointment-status';
 import { DoctorSidebar } from '@/components/doctor-sidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
@@ -17,7 +18,7 @@ export default async function DoctorLayout({ children }: { children: React.React
   }
 
   const appointments = await getDoctorAppointments(session.doctorName);
-  const pendingCount = appointments.filter((a) => a.doctorApproval === 'pending').length;
+  const pendingCount = appointments.filter(isPendingDoctorApproval).length;
 
   return (
     <SidebarProvider>

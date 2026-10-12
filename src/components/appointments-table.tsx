@@ -16,9 +16,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AppointmentFormDialog } from '@/components/appointment-form-dialog';
-import { StatusBadge } from '@/components/status-badge';
+import { AppointmentStatus, StatusBadge } from '@/components/status-badge';
+import { CancellationDecision } from '@/components/cancellation-decision';
 import { showApiError } from '@/lib/error-messages';
-import { computeDisplayStatus } from '@/lib/appointment-status';
+import { isCancellationRequested } from '@/lib/appointment-cancellation';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { AdminUserView } from '@/lib/get-users';
 import type { DoctorRecord } from '@/lib/get-doctors';
@@ -37,10 +38,14 @@ export function AppointmentsTable({
   appointments,
   users,
   doctors,
+  emptyTitle = 'No appointments found',
+  emptyDescription = 'No appointments have been scheduled yet.',
 }: {
   appointments: AdminAppointment[];
   users: AdminUserView[];
   doctors: DoctorRecord[];
+  emptyTitle?: string;
+  emptyDescription?: string;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -114,8 +119,8 @@ export function AppointmentsTable({
       {filtered.length === 0 ? (
         <EmptyState
           icon={CalendarX}
-          title="No appointments found"
-          description={query ? 'Try a different search term.' : 'No appointments have been scheduled yet.'}
+          title={emptyTitle}
+          description={query ? 'Try a different search term.' : emptyDescription}
         />
       ) : (
         <>
@@ -136,7 +141,6 @@ export function AppointmentsTable({
               </TableHeader>
               <TableBody>
                 {filtered.map((a) => {
-                  const displayStatus = computeDisplayStatus(a.date, a.time, a.status);
                   const approval = a.doctorApproval ?? 'pending';
                   const rejectionReason = a.rejectionReason;
                   return (
@@ -157,7 +161,7 @@ export function AppointmentsTable({
                       <TableCell>{a.date}</TableCell>
                       <TableCell>{a.time}</TableCell>
                       <TableCell>
-                        <StatusBadge status={displayStatus} />
+                        <AppointmentStatus appointment={a} />
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={approval} />
@@ -173,6 +177,7 @@ export function AppointmentsTable({
                       <TableCell>
                         {a.status === 'upcoming' ? (
                           <div className="flex flex-wrap gap-2">
+                            {isCancellationRequested(a) && <CancellationDecision appointment={a} />}
                             <AppointmentFormDialog
                               users={users}
                               appointments={appointments}
@@ -230,7 +235,6 @@ export function AppointmentsTable({
           {/* Mobile stacked cards */}
           <div className="grid gap-3 md:hidden">
             {filtered.map((a) => {
-              const displayStatus = computeDisplayStatus(a.date, a.time, a.status);
               const approval = a.doctorApproval ?? 'pending';
               const rejectionReason = a.rejectionReason;
               return (
@@ -249,7 +253,7 @@ export function AppointmentsTable({
                           <p className="truncate text-xs text-muted-foreground">{a.patientName}</p>
                         </div>
                       </div>
-                      <StatusBadge status={displayStatus} />
+                      <AppointmentStatus appointment={a} />
                     </div>
 
                     <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -271,6 +275,7 @@ export function AppointmentsTable({
 
                     {a.status === 'upcoming' ? (
                       <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                        {isCancellationRequested(a) && <CancellationDecision appointment={a} />}
                         <AppointmentFormDialog
                           users={users}
                           appointments={appointments}

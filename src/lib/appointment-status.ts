@@ -49,6 +49,12 @@ export function computeDisplayStatus(
   return 'Completed';
 }
 
+/** Still waiting on the doctor. A cancelled appointment no longer needs
+ *  a response, so it never counts as pending. */
+export function isPendingDoctorApproval(a: { status: string; doctorApproval: string }): boolean {
+  return a.doctorApproval === 'pending' && a.status !== 'cancelled';
+}
+
 export const DISPLAY_STATUS_VARIANT: Record<DisplayStatus, 'default' | 'secondary' | 'destructive'> = {
   Upcoming: 'default',
   Ongoing: 'default',

@@ -30,6 +30,8 @@ const ACTION_LABELS: Record<string, string> = {
   'appointment.status_change': 'Changed appointment status',
   'appointment.edit': 'Edited appointment',
   'appointment.delete': 'Deleted appointment',
+  'appointment.cancel_approve': 'Approved cancellation request',
+  'appointment.cancel_decline': 'Declined cancellation request',
   'user.suspend': 'Suspended patient account',
   'user.reactivate': 'Reactivated patient account',
   'user.delete': 'Permanently deleted patient account',

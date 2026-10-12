@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { notifyPatient } from '@/lib/notify-patient';
 
 export async function POST(req: NextRequest) {
   const session = await getAdminSession();
@@ -37,6 +38,20 @@ export async function POST(req: NextRequest) {
       { assignedDoctorNames: FieldValue.arrayUnion(appt.doctor) },
       { merge: true }
     );
+
+    // Saved; tell the patient. Keyed on the new appointment's id.
+    await notifyPatient({
+      uid: patientUid,
+      type: 'appointment_created',
+      refId: docRef.id,
+      route: '/appointments',
+      icon: '📅',
+      bellTitle: 'New Appointment Scheduled',
+      bellMessage: `A new ${appt.label || 'appointment'} has been scheduled for you on ${appt.date} at ${appt.time}.`,
+      pushTitle: 'New Appointment Scheduled',
+      pushBody: 'Mommy, a new appointment has been scheduled for you. Tap to view the details.',
+      id: `appointment_created_${docRef.id}`,
+    });
 
     return NextResponse.json({ success: true, id: docRef.id });
   } catch (err: unknown) {

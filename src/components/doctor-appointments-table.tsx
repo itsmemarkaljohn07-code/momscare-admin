@@ -11,8 +11,8 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
-import { StatusBadge } from '@/components/status-badge';
-import { computeDisplayStatus } from '@/lib/appointment-status';
+import { AppointmentStatus, StatusBadge } from '@/components/status-badge';
+import { isPendingDoctorApproval } from '@/lib/appointment-status';
 import { showApiError } from '@/lib/error-messages';
 import type { DoctorAppointmentView } from '@/lib/get-doctor-appointments';
 
@@ -62,7 +62,6 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
         </TableHeader>
         <TableBody>
           {appointments.map((a) => {
-            const displayStatus = computeDisplayStatus(a.date, a.time, a.status);
             return (
               <TableRow key={a.id}>
                 <TableCell className="font-medium">{a.patientName}</TableCell>
@@ -70,7 +69,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
                 <TableCell>{a.date}</TableCell>
                 <TableCell>{a.time}</TableCell>
                 <TableCell>
-                  <StatusBadge status={displayStatus} />
+                  <AppointmentStatus appointment={a} />
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={a.doctorApproval} />
@@ -84,7 +83,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
                   )}
                 </TableCell>
                 <TableCell>
-                  {a.doctorApproval === 'pending' && (
+                  {isPendingDoctorApproval(a) && (
                     <div className="flex gap-2">
                       <Button
                         size="sm"

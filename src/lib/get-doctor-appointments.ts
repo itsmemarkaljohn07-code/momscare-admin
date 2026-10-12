@@ -1,5 +1,6 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { withRetry } from '@/lib/with-retry';
+import { mapCancellation, type AppointmentCancellation } from '@/lib/appointment-cancellation';
 
 export interface DoctorAppointmentView {
   id: string;
@@ -14,6 +15,7 @@ export interface DoctorAppointmentView {
   status: 'upcoming' | 'completed' | 'cancelled';
   doctorApproval: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
+  cancellation?: AppointmentCancellation;
 }
 
 export async function getDoctorAppointments(doctorName: string): Promise<DoctorAppointmentView[]> {
@@ -48,6 +50,7 @@ export async function getDoctorAppointments(doctorName: string): Promise<DoctorA
         status: data.status,
         doctorApproval: data.doctorApproval ?? 'pending',
         rejectionReason: data.rejectionReason,
+        cancellation: mapCancellation(data.cancellation),
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));

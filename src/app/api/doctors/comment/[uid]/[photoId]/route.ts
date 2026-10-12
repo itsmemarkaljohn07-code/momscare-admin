@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getDoctorSession } from '@/lib/get-doctor-session';
 import { Timestamp } from 'firebase-admin/firestore';
+import { notifyPatient } from '@/lib/notify-patient';
 
 export async function POST(
   req: NextRequest,
@@ -52,7 +53,7 @@ export async function POST(
     const trimmedMessage = message.trim();
     const now = Timestamp.now();
 
-    await adminDb
+    const commentRef = await adminDb
       .collection('users').doc(uid)
       .collection('snapshots').doc(photoId)
       .collection('comments').add({
@@ -66,21 +67,21 @@ export async function POST(
         createdAt: now,
       });
 
-    // Best-effort notification — the comment above has already
-    // written successfully by this point, so a failure here never
-    // affects the comment itself.
-    try {
-      await adminDb.collection('users').doc(uid).collection('notifications').add({
-        icon: '💬',
-        title: 'New Comment',
-        message: `${session.doctorName} commented on your photo.`,
-        read: false,
-        route: null,
-        createdAt: now,
-      });
-    } catch (notifyErr) {
-      console.error('Failed to create comment notification (non-fatal):', notifyErr);
-    }
+    // The comment above has already been saved; notifyPatient never
+    // throws, so a notification failure never affects it. The push
+    // carries no comment text.
+    await notifyPatient({
+      uid,
+      type: 'doctor_comment',
+      refId: photoId,
+      route: '/snapshot',
+      icon: '💬',
+      bellTitle: 'New Comment',
+      bellMessage: `${session.doctorName} commented on your photo.`,
+      pushTitle: 'Your Doctor Left a Comment',
+      pushBody: 'Mommy, your doctor has shared an update on your pregnancy Snapshot. Tap to view it.',
+      id: `comment_${commentRef.id}`,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {

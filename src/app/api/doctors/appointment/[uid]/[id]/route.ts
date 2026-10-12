@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getDoctorSession } from '@/lib/get-doctor-session';
 import { Timestamp } from 'firebase-admin/firestore';
 import { logAuditEvent } from '@/lib/audit-log';
+import { notifyPatient } from '@/lib/notify-patient';
 
 export async function PATCH(
   req: NextRequest,
@@ -22,25 +23,39 @@ export async function PATCH(
 
   try {
     const docRef = adminDb.collection('users').doc(uid).collection('appointments').doc(id);
-    const snap = await docRef.get();
-    if (!snap.exists) {
+
+    // Compare and write in one transaction, so only a real change of
+    // doctorApproval (not a repeat or a double-click) notifies the
+    // patient. doctorApprovalAt is stored only on such a change.
+    const outcome = await adminDb.runTransaction(async (tx) => {
+      const snap = await tx.get(docRef);
+      if (!snap.exists) return { kind: 'not_found' as const };
+      // Security: a doctor can only act on appointments actually
+      // assigned to them — verified against the doctor field stored on
+      // the appointment itself, not just trusted from the request.
+      const storedDoctor = (snap.data()?.doctor ?? '').trim().toLowerCase();
+      const sessionDoctor = (session.doctorName ?? '').trim().toLowerCase();
+      if (!storedDoctor || storedDoctor !== sessionDoctor) return { kind: 'forbidden' as const };
+
+      const data = snap.data() ?? {};
+      const changed = (data.doctorApproval ?? 'pending') !== doctorApproval;
+      const changedAt = Timestamp.now();
+      tx.update(docRef, {
+        doctorApproval,
+        rejectionReason: doctorApproval === 'rejected' ? (rejectionReason ?? '') : null,
+        ...(changed ? { doctorApprovalAt: changedAt } : {}),
+      });
+      return { kind: 'saved' as const, data, changed, changedAt };
+    });
+
+    if (outcome.kind === 'not_found') {
       return NextResponse.json({ error: 'Appointment not found.' }, { status: 404 });
     }
-    // Security: a doctor can only act on appointments actually
-    // assigned to them — verified against the doctor field stored on
-    // the appointment itself, not just trusted from the request.
-    const storedDoctor = (snap.data()?.doctor ?? '').trim().toLowerCase();
-    const sessionDoctor = (session.doctorName ?? '').trim().toLowerCase();
-    if (!storedDoctor || storedDoctor !== sessionDoctor) {
+    if (outcome.kind === 'forbidden') {
       return NextResponse.json({ error: 'Not your appointment.' }, { status: 403 });
     }
 
-    await docRef.update({
-      doctorApproval,
-      rejectionReason: doctorApproval === 'rejected' ? (rejectionReason ?? '') : null,
-    });
-
-    const apptData = snap.data() ?? {};
+    const apptData = outcome.data;
 
     await logAuditEvent({
       actorUid: session.uid,
@@ -53,27 +68,28 @@ export async function PATCH(
       details: doctorApproval === 'rejected' ? (rejectionReason || null) : null,
     });
 
-    // Best-effort in-app notification for the patient — uses the
-    // Admin SDK, so this bypasses rules entirely (unlike the doctor
-    // comment thread's client-side write, which needed a rules
-    // change). If this fails for any reason, the approval/decline
-    // above already succeeded and is not rolled back — the
-    // notification is a nice-to-have, not the actual action.
-    try {
+    // Bell + push only on a real change; never throws, so the saved
+    // approval/decline above is never affected. The decline reason
+    // stays in the in-app bell only, never in the push.
+    if (outcome.changed) {
       const label = apptData.label || 'appointment';
       const isApproved = doctorApproval === 'approved';
-      await adminDb.collection('users').doc(uid).collection('notifications').add({
+      await notifyPatient({
+        uid,
+        type: isApproved ? 'appointment_approved' : 'appointment_declined',
+        refId: id,
+        route: '/appointments',
         icon: isApproved ? '✅' : '❌',
-        title: isApproved ? 'Appointment Approved' : 'Appointment Declined',
-        message: isApproved
+        bellTitle: isApproved ? 'Appointment Approved' : 'Appointment Declined',
+        bellMessage: isApproved
           ? `${session.doctorName} approved your ${label} appointment on ${apptData.date} at ${apptData.time}.`
           : `${session.doctorName} declined your ${label} appointment.${rejectionReason ? ` Reason: ${rejectionReason}` : ''}`,
-        read: false,
-        route: null,
-        createdAt: Timestamp.now(),
+        pushTitle: isApproved ? 'Appointment Approved' : 'Appointment Update',
+        pushBody: isApproved
+          ? 'Good news, Mommy! Your doctor has approved your appointment. Tap to view the details.'
+          : 'Mommy, your doctor has updated your appointment. Open MomCare to view the details.',
+        id: `appointment_${id}_${doctorApproval}_${outcome.changedAt.toMillis()}`,
       });
-    } catch (notifyErr) {
-      console.error('Failed to create appointment notification (non-fatal):', notifyErr);
     }
 
     return NextResponse.json({ success: true });

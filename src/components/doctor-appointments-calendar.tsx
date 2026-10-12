@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/status-badge';
+import { AppointmentStatus, StatusBadge } from '@/components/status-badge';
 import type { DoctorAppointmentView } from '@/lib/get-doctor-appointments';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -107,8 +107,11 @@ export function DoctorAppointmentsCalendar({ appointments }: { appointments: Doc
                       <p className="font-medium leading-tight">{a.time}</p>
                       <p className="truncate leading-tight">{a.patientName}</p>
                       <p className="truncate text-[10px] leading-tight text-muted-foreground">{a.label}</p>
-                      <div className="mt-1">
+                      <div className="mt-1 flex flex-wrap gap-1">
                         <StatusBadge status={a.doctorApproval} />
+                        {(a.status === 'cancelled' ||
+                          a.cancellation?.state === 'requested' ||
+                          a.cancellation?.state === 'declined') && <AppointmentStatus appointment={a} />}
                       </div>
                     </div>
                   ))

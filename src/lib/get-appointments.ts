@@ -1,5 +1,6 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { getUsers } from '@/lib/get-users';
+import { mapCancellation, type AppointmentCancellation } from '@/lib/appointment-cancellation';
 
 export interface AdminAppointment {
   id: string;
@@ -18,6 +19,7 @@ export interface AdminAppointment {
   doctorApproval: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
   createdAt?: string | null;
+  cancellation?: AppointmentCancellation;
 }
 
 /** Uses a Firestore collection-group query to read appointments across
@@ -53,8 +55,44 @@ export async function getAppointments(): Promise<AdminAppointment[]> {
       doctorApproval: data.doctorApproval ?? 'pending',
       rejectionReason: data.rejectionReason,
       createdAt: data.createdAt?.toDate?.().toISOString() ?? null,
+      cancellation: mapCancellation(data.cancellation),
     };
   });
 
   return appointments.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+const PENDING_COUNT_TTL_MS = 60_000;
+
+// Per server instance. Keeps the admin layout from re-reading every
+// appointment on each render; a failed read is not cached.
+let pendingCountCache: { value: number; at: number } | null = null;
+
+/** Call after a cancellation decision is saved. */
+export function clearPendingCancellationCountCache(): void {
+  pendingCountCache = null;
+}
+
+/** Open cancellation requests, for the admin sidebar badge. Reads only
+ *  the two fields it needs and filters in JS (a filtered collection-group
+ *  query would need its own index), cached for 60 seconds. Never throws:
+ *  a failed count must not break every admin page. */
+export async function getPendingCancellationCount(): Promise<number> {
+  if (pendingCountCache && Date.now() - pendingCountCache.at < PENDING_COUNT_TTL_MS) {
+    return pendingCountCache.value;
+  }
+  try {
+    const snapshot = await withRetry(() =>
+      adminDb.collectionGroup('appointments').select('status', 'cancellation').get()
+    );
+    const value = snapshot.docs.filter((doc) => {
+      const data = doc.data();
+      return data.status === 'upcoming' && data.cancellation?.state === 'requested';
+    }).length;
+    pendingCountCache = { value, at: Date.now() };
+    return value;
+  } catch (err) {
+    console.error('Failed to count cancellation requests (non-fatal):', err);
+    return 0;
+  }
 }

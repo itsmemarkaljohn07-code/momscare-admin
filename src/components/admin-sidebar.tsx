@@ -58,7 +58,7 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ pendingCancellations = 0 }: { pendingCancellations?: number }) {
   const pathname = usePathname();
 
   return (
@@ -95,6 +95,19 @@ export function AppSidebar() {
                       >
                         <item.icon className="h-[17px] w-[17px]" />
                         <span>{item.title}</span>
+                        {item.url === '/admin/appointments' && pendingCancellations > 0 && (
+                          <span
+                            className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
+                            title={`${pendingCancellations} cancellation request${pendingCancellations === 1 ? '' : 's'}`}
+                            style={
+                              isActive
+                                ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#ffffff' }
+                                : { backgroundColor: 'var(--status-pending-bg)', color: 'var(--status-pending)' }
+                            }
+                          >
+                            {pendingCancellations}
+                          </span>
+                        )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );

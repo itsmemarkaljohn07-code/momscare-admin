@@ -5,7 +5,8 @@ import { getDoctorAppointments } from '@/lib/get-doctor-appointments';
 import { getDoctorRecentSnapshots } from '@/lib/get-doctor-recent-snapshots';
 import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
-import { StatusBadge } from '@/components/status-badge';
+import { AppointmentStatus, StatusBadge } from '@/components/status-badge';
+import { isPendingDoctorApproval } from '@/lib/appointment-status';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, CalendarClock, Clock, Camera, ChevronRight } from 'lucide-react';
 
@@ -28,7 +29,7 @@ export default async function DoctorOverviewPage() {
 
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = appointments.filter((a) => a.status === 'upcoming' && a.date >= today);
-  const pendingRequests = appointments.filter((a) => a.doctorApproval === 'pending');
+  const pendingRequests = appointments.filter(isPendingDoctorApproval);
   const nextAppointments = upcoming.slice(0, 5);
 
   return (
@@ -120,7 +121,12 @@ export default async function DoctorOverviewPage() {
                         {a.label} · {a.date} · {a.time}
                       </p>
                     </div>
-                    <StatusBadge status={a.doctorApproval} />
+                    <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                      <StatusBadge status={a.doctorApproval} />
+                      {(a.cancellation?.state === 'requested' || a.cancellation?.state === 'declined') && (
+                        <AppointmentStatus appointment={a} />
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
