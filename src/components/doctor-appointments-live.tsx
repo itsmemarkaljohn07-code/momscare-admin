@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { DoctorAppointmentsTable } from '@/components/doctor-appointments-table';
 import { DoctorAppointmentsCalendar } from '@/components/doctor-appointments-calendar';
 import { useLiveAppointments } from '@/hooks/use-live-appointments';
+import { useMarkMissed } from '@/hooks/use-mark-missed';
 import { mapCancellation } from '@/lib/appointment-cancellation';
 import type { DoctorAppointmentView } from '@/lib/get-doctor-appointments';
 
@@ -42,6 +43,9 @@ export function DoctorAppointmentsLive({
   // (Admin SDK, already filtered to this doctor) and each known document
   // gets its own listener. See useLiveAppointments.
   const list = useLiveAppointments(initial, toDoctorView);
+  // Past their 30 minutes, appointments are stored as missed and the
+  // patient is notified; the badges re-check every minute.
+  useMarkMissed(list);
   const [view, setView] = useState<View>('list');
 
   return (

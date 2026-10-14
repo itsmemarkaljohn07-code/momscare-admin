@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { AppointmentsTable } from '@/components/appointments-table';
 import { AppointmentHistoryTable } from '@/components/appointment-history-table';
 import { useLiveAppointments } from '@/hooks/use-live-appointments';
+import { useMarkMissed } from '@/hooks/use-mark-missed';
+import { isMissedAppointment } from '@/lib/appointment-status';
 import { isCancellationRequested, mapCancellation } from '@/lib/appointment-cancellation';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { AdminUserView } from '@/lib/get-users';
@@ -48,12 +50,18 @@ export function AdminAppointmentsLive({
   // Per-document listeners over the server list; see useLiveAppointments.
   const list = useLiveAppointments(initial, toAdminView);
   const [tab, setTab] = useState<Tab>('active');
+  // Re-checked every minute; past their 30 minutes, appointments are
+  // stored as missed and the patient is notified (useMarkMissed).
+  const now = useMarkMissed(list);
 
-  const activeList = useMemo(() => list.filter((a) => a.status === 'upcoming'), [list]);
+  const activeList = useMemo(
+    () => list.filter((a) => a.status === 'upcoming' && !isMissedAppointment(a, now)),
+    [list, now]
+  );
   const requestsList = useMemo(() => list.filter(isCancellationRequested), [list]);
   const historyList = useMemo(
-    () => list.filter((a) => a.status === 'completed' || a.status === 'cancelled'),
-    [list]
+    () => list.filter((a) => a.status === 'completed' || a.status === 'cancelled' || isMissedAppointment(a, now)),
+    [list, now]
   );
 
   return (

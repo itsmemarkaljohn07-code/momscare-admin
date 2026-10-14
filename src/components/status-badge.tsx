@@ -9,6 +9,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
   ongoing:   { label: 'Ongoing',                 color: 'var(--status-approved)',  bg: 'var(--status-approved-bg)' },
   completed: { label: 'Completed',               color: 'var(--status-completed)', bg: 'var(--status-completed-bg)' },
   cancelled: { label: 'Cancelled',                color: 'var(--status-cancelled)', bg: 'var(--status-cancelled-bg)' },
+  missed:    { label: 'Missed',                   color: 'var(--status-declined)',  bg: 'var(--status-declined-bg)' },
   cancellation_requested: { label: 'Cancellation requested', color: 'var(--status-pending)', bg: 'var(--status-pending-bg)' },
 };
 

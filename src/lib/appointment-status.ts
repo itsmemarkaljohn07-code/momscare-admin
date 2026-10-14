@@ -1,30 +1,50 @@
-export type DisplayStatus = 'Upcoming' | 'Ongoing' | 'Completed' | 'Cancelled';
+export type DisplayStatus = 'Upcoming' | 'Ongoing' | 'Completed' | 'Cancelled' | 'Missed';
 
 /** Computes the appointment's real, current status live from its
  *  actual date/time vs. right now — never relies on a stored value
- *  going stale. An explicit admin action (Cancel, or manually marking
- *  Complete) always takes priority over the time-based computation;
- *  otherwise, status is derived purely from whether the scheduled
- *  time is in the future, currently happening, or has passed.
+ *  going stale. An explicit action (Cancel, or marking it Complete)
+ *  always takes priority over the time-based computation; otherwise
+ *  the status follows the clock:
  *
- *  "Ongoing" uses a 60-minute window from the scheduled start time —
- *  a reasonable default since appointment duration isn't stored on
- *  the appointment itself (only on the doctor's own schedule
- *  settings). Adjust ONGOING_WINDOW_MINUTES if you'd like this tied
- *  to each doctor's actual slot length instead. */
-const ONGOING_WINDOW_MINUTES = 60;
+ *  Upcoming before the start time, Ongoing for MISSED_GRACE_MINUTES
+ *  after it, then Missed. Same rule as the patient app
+ *  (MomsCare-app src/app/shared/appointment-status.ts). An appointment
+ *  the patient attended is marked Completed by the clinic. */
+export const MISSED_GRACE_MINUTES = 30;
 
-function parseApptDateTime(date: string, time12: string): Date | null {
+/** Appointment times are entered and shown in Philippine time. Parsing
+ *  them with this fixed offset gives the same moment on any server or
+ *  browser, whatever its own time zone. (The Philippines has no DST.) */
+const CLINIC_UTC_OFFSET = '+08:00';
+
+/** "2026-09-15" + "9:30 AM" -> that moment, in Philippine time. */
+export function parseApptDateTime(date: string, time12: string): Date | null {
   const match = time12.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!match) return null;
+  if (!match || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   const [, hStr, mStr, suffix] = match;
   let hour = parseInt(hStr, 10);
   const minute = parseInt(mStr, 10);
   if (suffix.toUpperCase() === 'PM' && hour !== 12) hour += 12;
   if (suffix.toUpperCase() === 'AM' && hour === 12) hour = 0;
-  const d = new Date(date + 'T00:00:00');
-  d.setHours(hour, minute, 0, 0);
-  return d;
+  const d = new Date(
+    `${date}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00${CLINIC_UTC_OFFSET}`
+  );
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** True when the appointment is Missed: stored as missed, or still
+ *  upcoming more than MISSED_GRACE_MINUTES after it started. Without a
+ *  readable time, it is missed once its day (Philippine time) has passed. */
+export function isMissedAppointment(
+  a: { date: string; time: string; status: string },
+  now: Date = new Date()
+): boolean {
+  if (a.status === 'missed') return true;
+  if (a.status !== 'upcoming') return false;
+  const start = parseApptDateTime(a.date, a.time ?? '');
+  if (start) return now.getTime() > start.getTime() + MISSED_GRACE_MINUTES * 60 * 1000;
+  const dayStart = parseApptDateTime(a.date, '12:00 AM');
+  return !!dayStart && now.getTime() >= dayStart.getTime() + 24 * 60 * 60 * 1000;
 }
 
 export function computeDisplayStatus(
@@ -33,20 +53,16 @@ export function computeDisplayStatus(
   storedStatus: string
 ): DisplayStatus {
   if (storedStatus === 'cancelled') return 'Cancelled';
-
-  const start = parseApptDateTime(date, time);
-  if (!start) return storedStatus === 'completed' ? 'Completed' : 'Upcoming';
-
   // An admin/doctor explicitly marking it Completed always wins, even
   // if the scheduled time technically hasn't passed yet.
   if (storedStatus === 'completed') return 'Completed';
 
   const now = new Date();
-  const end = new Date(start.getTime() + ONGOING_WINDOW_MINUTES * 60 * 1000);
+  if (isMissedAppointment({ date, time, status: storedStatus }, now)) return 'Missed';
 
-  if (now < start) return 'Upcoming';
-  if (now >= start && now < end) return 'Ongoing';
-  return 'Completed';
+  const start = parseApptDateTime(date, time);
+  if (!start || now < start) return 'Upcoming';
+  return 'Ongoing';
 }
 
 /** Still waiting on the doctor. A cancelled appointment no longer needs
@@ -60,4 +76,5 @@ export const DISPLAY_STATUS_VARIANT: Record<DisplayStatus, 'default' | 'secondar
   Ongoing: 'default',
   Completed: 'secondary',
   Cancelled: 'destructive',
+  Missed: 'destructive',
 };

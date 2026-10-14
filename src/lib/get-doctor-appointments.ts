@@ -12,7 +12,7 @@ export interface DoctorAppointmentView {
   time: string;
   location?: string;
   notes?: string;
-  status: 'upcoming' | 'completed' | 'cancelled';
+  status: 'upcoming' | 'completed' | 'cancelled' | 'missed';
   doctorApproval: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
   cancellation?: AppointmentCancellation;

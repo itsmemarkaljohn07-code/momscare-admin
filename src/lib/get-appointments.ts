@@ -15,7 +15,7 @@ export interface AdminAppointment {
   notes?: string;
   icon: string;
   accentColor: 'green' | 'pink' | 'purple' | 'blue' | 'orange';
-    status: 'upcoming' | 'completed' | 'cancelled';
+    status: 'upcoming' | 'completed' | 'cancelled' | 'missed';
   doctorApproval: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
   createdAt?: string | null;
