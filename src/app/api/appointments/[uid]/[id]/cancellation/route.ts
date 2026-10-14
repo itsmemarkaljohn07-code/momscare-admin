@@ -6,6 +6,7 @@ import { logAuditEvent } from '@/lib/audit-log';
 import { DECLINE_REASON_MAX } from '@/lib/appointment-cancellation';
 import { clearPendingCancellationCountCache } from '@/lib/get-appointments';
 import { notifyPatient } from '@/lib/notify-patient';
+import { appointmentName } from '@/lib/appointment-status';
 
 type Decision = 'approve' | 'decline';
 
@@ -113,7 +114,6 @@ export async function POST(
 
     const { data, decidedAt } = result;
     const isApprove = decision === 'approve';
-    const label = data.label || 'appointment';
     const when = `${data.date ?? ''} at ${data.time ?? ''}`.trim();
 
     await logAuditEvent({
@@ -139,8 +139,8 @@ export async function POST(
       icon: isApprove ? '✅' : '❌',
       bellTitle: isApprove ? 'Cancellation Approved' : 'Cancellation Declined',
       bellMessage: isApprove
-        ? `Your request to cancel your ${label} appointment on ${when} was approved. The appointment is now cancelled.`
-        : `Your request to cancel your ${label} appointment on ${when} was declined, so the appointment is still scheduled.${declineReason ? ` Reason: ${declineReason}` : ''}`,
+        ? `Your request to cancel your ${appointmentName(data.label)} on ${when} was approved. The appointment is now cancelled.`
+        : `Your request to cancel your ${appointmentName(data.label)} on ${when} was declined, so the appointment is still scheduled.${declineReason ? ` Reason: ${declineReason}` : ''}`,
       pushTitle: 'Cancellation Update',
       pushBody: 'Mommy, there is an update on your cancellation request. Open MomCare to view the details.',
       id: `cancellation_${id}_${isApprove ? 'approved' : 'declined'}_${decidedAt.toMillis()}`,

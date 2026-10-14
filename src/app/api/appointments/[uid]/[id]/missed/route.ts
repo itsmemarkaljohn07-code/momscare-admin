@@ -3,7 +3,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { getDoctorSession } from '@/lib/get-doctor-session';
-import { isMissedAppointment } from '@/lib/appointment-status';
+import { appointmentName, isMissedAppointment } from '@/lib/appointment-status';
 import { clearPendingCancellationCountCache } from '@/lib/get-appointments';
 import { notifyPatient } from '@/lib/notify-patient';
 
@@ -66,7 +66,6 @@ export async function POST(
     clearPendingCancellationCountCache();
 
     const { data } = outcome;
-    const label = data.label || 'appointment';
     const withDoctor = data.doctor ? ` with ${data.doctor}` : '';
     const when = `${data.date ?? ''} at ${data.time ?? ''}`.trim();
 
@@ -79,7 +78,7 @@ export async function POST(
       route: '/appointments',
       icon: '⏰',
       bellTitle: 'Missed Appointment',
-      bellMessage: `You missed your ${label} appointment${withDoctor} on ${when}. Please contact the clinic to rebook.`,
+      bellMessage: `You missed your ${appointmentName(data.label)}${withDoctor} on ${when}. Please contact the clinic to rebook.`,
       pushTitle: 'Missed Appointment',
       pushBody: 'Mommy, it looks like you missed an appointment. Open MomCare to view the details.',
       id: `missed_${id}`,

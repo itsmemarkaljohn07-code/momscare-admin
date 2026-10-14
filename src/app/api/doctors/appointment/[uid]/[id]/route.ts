@@ -4,6 +4,7 @@ import { getDoctorSession } from '@/lib/get-doctor-session';
 import { Timestamp } from 'firebase-admin/firestore';
 import { logAuditEvent } from '@/lib/audit-log';
 import { notifyPatient } from '@/lib/notify-patient';
+import { appointmentName } from '@/lib/appointment-status';
 
 export async function PATCH(
   req: NextRequest,
@@ -72,7 +73,6 @@ export async function PATCH(
     // approval/decline above is never affected. The decline reason
     // stays in the in-app bell only, never in the push.
     if (outcome.changed) {
-      const label = apptData.label || 'appointment';
       const isApproved = doctorApproval === 'approved';
       await notifyPatient({
         uid,
@@ -82,8 +82,8 @@ export async function PATCH(
         icon: isApproved ? '✅' : '❌',
         bellTitle: isApproved ? 'Appointment Approved' : 'Appointment Declined',
         bellMessage: isApproved
-          ? `${session.doctorName} approved your ${label} appointment on ${apptData.date} at ${apptData.time}.`
-          : `${session.doctorName} declined your ${label} appointment.${rejectionReason ? ` Reason: ${rejectionReason}` : ''}`,
+          ? `${session.doctorName} approved your ${appointmentName(apptData.label)} on ${apptData.date} at ${apptData.time}.`
+          : `${session.doctorName} declined your ${appointmentName(apptData.label)}.${rejectionReason ? ` Reason: ${rejectionReason}` : ''}`,
         pushTitle: isApproved ? 'Appointment Approved' : 'Appointment Update',
         pushBody: isApproved
           ? 'Good news, Mommy! Your doctor has approved your appointment. Tap to view the details.'

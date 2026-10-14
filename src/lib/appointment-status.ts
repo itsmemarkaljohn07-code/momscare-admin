@@ -47,6 +47,15 @@ export function isMissedAppointment(
   return !!dayStart && now.getTime() >= dayStart.getTime() + 24 * 60 * 60 * 1000;
 }
 
+/** How an appointment is named in a sentence: "Ultrasound" -> "Ultrasound
+ *  appointment", while "Booking Appointment" stays as it is (no
+ *  "Booking Appointment appointment"). */
+export function appointmentName(label?: string | null): string {
+  const name = (label ?? '').trim();
+  if (!name) return 'appointment';
+  return /appointment$/i.test(name) ? name : `${name} appointment`;
+}
+
 export function computeDisplayStatus(
   date: string,
   time: string,
