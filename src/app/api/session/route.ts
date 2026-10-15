@@ -43,7 +43,20 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
+  // Revoke the account's sessions on the server so a copied cookie stops
+  // working too. Verified without checkRevoked, so a missing, expired or
+  // invalid cookie still logs out cleanly; failures are never reported.
+  const sessionCookie = req.cookies.get('session')?.value;
+  if (sessionCookie) {
+    try {
+      const decoded = await adminAuth.verifySessionCookie(sessionCookie, false);
+      await adminAuth.revokeRefreshTokens(decoded.uid);
+    } catch {
+      // Nothing to revoke; the cookie is removed below either way.
+    }
+  }
+
   const response = NextResponse.json({ success: true });
   response.cookies.delete('session');
   return response;

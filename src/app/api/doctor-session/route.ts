@@ -42,6 +42,20 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   const cookieStore = await cookies();
+
+  // Revoke the doctor's sessions on the server so a copied cookie stops
+  // working too. Verified without checkRevoked, so a missing, expired or
+  // invalid cookie still logs out cleanly; failures are never reported.
+  const sessionCookie = cookieStore.get('doctor_session')?.value;
+  if (sessionCookie) {
+    try {
+      const decoded = await adminAuth.verifySessionCookie(sessionCookie, false);
+      await adminAuth.revokeRefreshTokens(decoded.uid);
+    } catch {
+      // Nothing to revoke; the cookie is removed below either way.
+    }
+  }
+
   cookieStore.delete('doctor_session');
   return NextResponse.json({ success: true });
 }
