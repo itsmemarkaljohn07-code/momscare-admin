@@ -6,11 +6,14 @@ export type DisplayStatus = 'Upcoming' | 'Ongoing' | 'Completed' | 'Cancelled' |
  *  always takes priority over the time-based computation; otherwise
  *  the status follows the clock:
  *
- *  Upcoming before the start time, Ongoing for MISSED_GRACE_MINUTES
- *  after it, then Missed. Same rule as the patient app
- *  (MomsCare-app src/app/shared/appointment-status.ts). An appointment
- *  the patient attended is marked Completed by the clinic. */
-export const MISSED_GRACE_MINUTES = 30;
+ *  Upcoming before the start time, Ongoing until MISSED_AFTER_MS after
+ *  it, then Missed. An appointment the patient attended is marked
+ *  Completed by the clinic.
+ *
+ *  Note: the patient app has its own copy of this rule
+ *  (MomsCare-app src/app/shared/appointment-status.ts), still set to 30
+ *  minutes; it is not changed by this constant. */
+export const MISSED_AFTER_MS = 3 * 60 * 60 * 1000; // 3 hours
 
 /** Appointment times are entered and shown in Philippine time. Parsing
  *  them with this fixed offset gives the same moment on any server or
@@ -33,7 +36,7 @@ export function parseApptDateTime(date: string, time12: string): Date | null {
 }
 
 /** True when the appointment is Missed: stored as missed, or still
- *  upcoming more than MISSED_GRACE_MINUTES after it started. Without a
+ *  upcoming at least MISSED_AFTER_MS after it started. Without a
  *  readable time, it is missed once its day (Philippine time) has passed. */
 export function isMissedAppointment(
   a: { date: string; time: string; status: string },
@@ -42,7 +45,7 @@ export function isMissedAppointment(
   if (a.status === 'missed') return true;
   if (a.status !== 'upcoming') return false;
   const start = parseApptDateTime(a.date, a.time ?? '');
-  if (start) return now.getTime() > start.getTime() + MISSED_GRACE_MINUTES * 60 * 1000;
+  if (start) return now.getTime() >= start.getTime() + MISSED_AFTER_MS;
   const dayStart = parseApptDateTime(a.date, '12:00 AM');
   return !!dayStart && now.getTime() >= dayStart.getTime() + 24 * 60 * 60 * 1000;
 }

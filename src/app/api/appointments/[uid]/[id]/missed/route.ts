@@ -8,9 +8,9 @@ import { clearPendingCancellationCountCache } from '@/lib/get-appointments';
 import { notifyPatient } from '@/lib/notify-patient';
 
 /**
- * Stores status "missed" on an appointment that is still upcoming more
- * than 30 minutes after its start time, then notifies the patient (bell
- * entry + push, once). Called by the dashboard pages (useMarkMissed) while
+ * Stores status "missed" on an appointment that is still upcoming
+ * MISSED_AFTER_MS (3 hours) or more after its start time, then notifies
+ * the patient (bell entry + push, once). Called by the dashboard pages (useMarkMissed) while
  * an admin or doctor has one open. Everything is checked again here, so a
  * repeated or early request changes nothing.
  */

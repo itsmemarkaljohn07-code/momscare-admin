@@ -50,7 +50,7 @@ export function AdminAppointmentsLive({
   // Per-document listeners over the server list; see useLiveAppointments.
   const list = useLiveAppointments(initial, toAdminView);
   const [tab, setTab] = useState<Tab>('active');
-  // Re-checked every minute; past their 30 minutes, appointments are
+  // Re-checked every minute; 3 hours after their start, appointments are
   // stored as missed and the patient is notified (useMarkMissed).
   const now = useMarkMissed(list);
 

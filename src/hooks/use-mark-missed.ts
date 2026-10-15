@@ -11,7 +11,7 @@ type Row = { id: string; patientUid: string; date: string; time: string; status:
  * Keeps a list of appointments honest about the time: returns "now",
  * refreshed every minute so time-based badges and tabs move on their own,
  * and asks the server to store "missed" (and notify the patient) for any
- * appointment still upcoming more than 30 minutes after it started.
+ * appointment still upcoming 3 hours (MISSED_AFTER_MS) after it started.
  *
  * There is no scheduled server job (that would need a paid plan), so this
  * only runs while an admin or doctor has a dashboard page open; the

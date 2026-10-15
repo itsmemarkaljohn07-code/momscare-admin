@@ -43,7 +43,7 @@ export function DoctorAppointmentsLive({
   // (Admin SDK, already filtered to this doctor) and each known document
   // gets its own listener. See useLiveAppointments.
   const list = useLiveAppointments(initial, toDoctorView);
-  // Past their 30 minutes, appointments are stored as missed and the
+  // 3 hours after their start, appointments are stored as missed and the
   // patient is notified; the badges re-check every minute.
   useMarkMissed(list);
   const [view, setView] = useState<View>('list');
