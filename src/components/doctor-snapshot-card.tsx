@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Maximize2 } from 'lucide-react';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import { formatClinicDate } from '@/lib/pregnancy-display';
@@ -30,6 +31,24 @@ export function DoctorSnapshotCard({
   const typeLabel = SNAPSHOT_TYPE_LABELS[photo.type] ?? photo.type;
   const avatar = getAvatarStyle(patientUid);
 
+  // ?photo={id} (from the doctor's notification bell) opens this card's
+  // own viewer, which holds the comment thread. Cards whose viewer is
+  // owned by a parent (onOpen) ignore it.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const linked = !onOpen && searchParams.get('photo') === photo.id;
+  const cardRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (linked) cardRef.current?.scrollIntoView({ block: 'center' });
+  }, [linked]);
+
+  function handleViewerChange(next: boolean) {
+    setOpen(next);
+    if (!next && linked) router.replace(pathname, { scroll: false });
+  }
+
   function handleOpen() {
     if (onOpen) onOpen();
     else setOpen(true);
@@ -37,7 +56,7 @@ export function DoctorSnapshotCard({
 
   return (
     <>
-      <article className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-shadow hover:shadow-card">
+      <article ref={cardRef} className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-card shadow-soft transition-shadow hover:shadow-card">
         <button
           type="button"
           onClick={handleOpen}
@@ -89,8 +108,8 @@ export function DoctorSnapshotCard({
           photo={photo}
           patientUid={patientUid}
           patientName={patientName}
-          open={open}
-          onOpenChange={setOpen}
+          open={open || linked}
+          onOpenChange={handleViewerChange}
         />
       )}
     </>

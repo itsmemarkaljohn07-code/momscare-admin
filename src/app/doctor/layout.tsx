@@ -3,6 +3,7 @@ import { getDoctorSession } from '@/lib/get-doctor-session';
 import { getDoctorAppointments } from '@/lib/get-doctor-appointments';
 import { isPendingDoctorApproval } from '@/lib/appointment-status';
 import { DoctorSidebar } from '@/components/doctor-sidebar';
+import { DoctorNotificationBell } from '@/components/doctor-notification-bell';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 
@@ -28,6 +29,9 @@ export default async function DoctorLayout({ children }: { children: React.React
           <SidebarTrigger />
           <Separator orientation="vertical" className="h-5" />
           <span className="text-sm text-muted-foreground">Signed in as {session.email}</span>
+          <div className="ml-auto">
+            <DoctorNotificationBell />
+          </div>
         </header>
         <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </SidebarInset>
