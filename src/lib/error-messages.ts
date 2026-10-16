@@ -1,4 +1,6 @@
 import { toast } from 'sonner';
+import { auth } from '@/lib/firebase-client';
+import { justSignedOut } from '@/lib/sign-out-state';
 
 export interface FriendlyError {
   title: string;
@@ -211,6 +213,13 @@ export function getApiErrorMessage(
  *  a page needs the {title, description} for its own inline UI
  *  (e.g. the login form's own error banner) instead of a toast. */
 export function showFriendlyError(err: unknown, context?: string): void {
+  // A listener refused because the user just logged out is expected, not
+  // a problem to report. Only then: a signed-in user's permission errors
+  // are still shown.
+  if (extractCode(err) === 'permission-denied' && !auth.currentUser && justSignedOut()) {
+    console.info(`[${context ?? 'firestore'}] stopped after logout`);
+    return;
+  }
   const { title, description } = getFriendlyError(err, context);
   toast.error(title, { description });
 }

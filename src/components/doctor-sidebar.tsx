@@ -147,7 +147,7 @@ export function DoctorSidebar({
       <SidebarFooter className="gap-2 border-t border-sidebar-border px-3 py-3">
         <div className="flex items-center justify-between gap-2">
           <ThemeToggle />
-          <LogoutButton />
+          <LogoutButton sessionEndpoint="/api/doctor-session" />
         </div>
       </SidebarFooter>
     </Sidebar>
