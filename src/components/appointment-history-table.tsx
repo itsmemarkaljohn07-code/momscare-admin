@@ -14,16 +14,17 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/status-badge';
 import { exportToCsv } from '@/lib/export-csv';
+import { isMissedAppointment } from '@/lib/appointment-status';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { DoctorRecord } from '@/lib/get-doctors';
 
-type StatusFilter = 'all' | 'completed' | 'cancelled';
+type StatusFilter = 'all' | 'completed' | 'cancelled' | 'missed';
 
 export function AppointmentHistoryTable({
   appointments,
   doctors,
 }: {
-  appointments: AdminAppointment[]; // pre-filtered to completed/cancelled by the caller
+  appointments: AdminAppointment[]; // pre-filtered to completed/cancelled/missed by the caller
   doctors: DoctorRecord[];
 }) {
   const [query, setQuery] = useState('');
@@ -33,7 +34,13 @@ export function AppointmentHistoryTable({
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return appointments
-      .filter((a) => statusFilter === 'all' || a.status === statusFilter)
+      .filter((a) => {
+        if (statusFilter === 'all') return true;
+        // Missed also covers an overdue appointment whose stored status
+        // hasn't been switched to "missed" yet.
+        if (statusFilter === 'missed') return isMissedAppointment(a);
+        return a.status === statusFilter;
+      })
       .filter((a) => doctorFilter === 'all' || a.doctor === doctorFilter)
       .filter(
         (a) =>
@@ -72,6 +79,7 @@ export function AppointmentHistoryTable({
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="missed">Missed</SelectItem>
             </SelectContent>
           </Select>
           <Select value={doctorFilter} onValueChange={(v) => setDoctorFilter(v ?? 'all')}>

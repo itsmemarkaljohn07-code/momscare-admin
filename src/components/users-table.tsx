@@ -449,6 +449,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              variant={confirmUser?.disabled ? 'default' : 'destructive-solid'}
               onClick={() => confirmUser && toggleDisabled(confirmUser.uid, confirmUser.disabled)}
             >
               {confirmUser?.disabled ? 'Reactivate' : 'Suspend'}
@@ -551,7 +552,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
             autoFocus
           />
           <Button
-            variant="destructive"
+            variant="destructive-solid"
             className="w-full"
             disabled={isDeleting || !confirmMatches}
             onClick={confirmDelete}

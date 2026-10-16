@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -65,8 +66,17 @@ export function AppSidebar({ pendingCancellations = 0 }: { pendingCancellations?
     <Sidebar collapsible="offcanvas">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-soft">
-            M
+          {/* The logo PNG is transparent with wide margins: a white tile keeps
+              it legible in both themes, and the scale crops the margins. */}
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-soft ring-1 ring-sidebar-border">
+            <Image
+              src="/momcare-logo.png"
+              alt="MomCare logo"
+              width={32}
+              height={32}
+              sizes="56px"
+              className="scale-[1.7]"
+            />
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold leading-tight">MomCare</p>

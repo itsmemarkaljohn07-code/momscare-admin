@@ -1,14 +1,28 @@
+import Link from 'next/link';
+import { ChevronLeft } from 'lucide-react';
 import { InsightEditForm } from '@/components/insight-edit-form';
+import { PageHeader } from '@/components/page-header';
+import { getInsightTags } from '@/lib/get-insights';
 
-export default function NewInsightPage() {
+export default async function NewInsightPage() {
+  const tagSuggestions = await getInsightTags().catch(() => []);
+
   return (
-    <div className="max-w-3xl space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">New Article</h1>
-        <p className="text-sm text-muted-foreground">Create a new Insights article</p>
-      </div>
+    <div className="max-w-3xl space-y-5">
+      <Link
+        href="/admin/insights"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Insights
+      </Link>
+      <PageHeader
+        title="New article"
+        description="Fill in the three steps below. The article goes live in the app when you publish."
+      />
       <InsightEditForm
         mode="create"
+        tagSuggestions={tagSuggestions}
         initialData={{
           title: '',
           heroTag: '',

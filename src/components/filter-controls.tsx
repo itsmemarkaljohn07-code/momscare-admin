@@ -19,9 +19,9 @@ export function FilterChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-[var(--action-ring)] ${
         active
-          ? 'border-primary bg-primary text-primary-foreground shadow-soft'
+          ? 'border-[var(--action)] bg-[var(--action-soft)] text-[var(--action-soft-foreground)]'
           : 'border-input text-muted-foreground hover:bg-muted/60 hover:text-foreground'
       }`}
     >
@@ -29,7 +29,7 @@ export function FilterChip({
       {count !== undefined && (
         <span
           className={`rounded-full px-1.5 text-[11px] font-semibold ${
-            active ? 'bg-white/25' : 'bg-muted'
+            active ? 'bg-background/70' : 'bg-muted'
           }`}
         >
           {count}

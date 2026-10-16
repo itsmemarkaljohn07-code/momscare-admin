@@ -144,7 +144,7 @@ export default function LoginPage() {
 
         {/* Everything below is layered above the slides/overlay via
             z-10, and never moves or fades with the background. */}
-        <div className="relative z-10 flex flex-1 items-center justify-center">
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-4">
           <p
             className={`${scriptFont.className} text-center text-6xl leading-none text-white xl:text-7xl`}
             style={{ textShadow: '0 2px 12px rgba(0,0,0,0.45)' }}

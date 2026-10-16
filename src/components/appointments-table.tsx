@@ -176,7 +176,10 @@ export function AppointmentsTable({
                       </TableCell>
                       <TableCell>
                         {a.status === 'upcoming' ? (
-                          <div className="flex flex-wrap gap-2">
+                          // One row that never wraps (the table scrolls
+                          // instead); Cancel appears on hovering the chevron,
+                          // same as the Patients table.
+                          <div className="flex items-center gap-2">
                             {isCancellationRequested(a) && <CancellationDecision appointment={a} />}
                             <AppointmentFormDialog
                               users={users}
@@ -193,14 +196,19 @@ export function AppointmentsTable({
                             >
                               Complete
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={pendingId === a.id}
-                              onClick={() => setStatus(a, 'cancelled')}
-                            >
-                              Cancel
-                            </Button>
+                            <div className="group/expand flex items-center gap-1">
+                              <ChevronRight className="h-4 w-4 shrink-0 cursor-default text-muted-foreground transition-transform duration-200 group-hover/expand:translate-x-0.5" />
+                              <div className="max-w-0 overflow-hidden opacity-0 transition-all duration-300 ease-out group-hover/expand:max-w-[90px] group-hover/expand:opacity-100">
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  disabled={pendingId === a.id}
+                                  onClick={() => setStatus(a, 'cancelled')}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         ) : (
                           <div className="group flex items-center gap-1">
@@ -341,7 +349,7 @@ export function AppointmentsTable({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => confirmDelete && handleDelete(confirmDelete)}>
+            <AlertDialogAction variant="destructive-solid" onClick={() => confirmDelete && handleDelete(confirmDelete)}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

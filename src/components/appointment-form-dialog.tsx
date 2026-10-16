@@ -501,11 +501,11 @@ export function AppointmentFormDialog({
                               type="button"
                               disabled={slot.booked}
                               onClick={() => selectSlot(pickerDate, slot.time)}
-                              className={`rounded-xl border px-2 py-2 text-xs font-medium transition-colors ${
+                              className={`rounded-xl border px-2 py-2 text-xs font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-[var(--action-ring)] ${
                                 slot.booked
                                   ? 'cursor-not-allowed border-muted bg-muted text-muted-foreground line-through'
                                   : isSelected
-                                  ? 'border-primary bg-primary text-primary-foreground shadow-soft'
+                                  ? 'border-[var(--action)] bg-[var(--action)] text-[var(--action-foreground)] shadow-soft'
                                   : 'border-input hover:bg-muted'
                               }`}
                             >

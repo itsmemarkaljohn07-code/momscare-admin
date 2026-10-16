@@ -4,8 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ShieldOff } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { ShieldOff, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,15 +13,13 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog';
-import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { AddAdminDialog } from '@/components/add-admin-dialog';
 import type { AdminView } from '@/lib/get-admins';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
-import { getApiErrorMessage, showApiError } from '@/lib/error-messages';
+import { showApiError } from '@/lib/error-messages';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 
 export function AdminsTable({
@@ -33,50 +30,14 @@ export function AdminsTable({
   currentUid: string;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const [pendingUid, setPendingUid] = useState<string | null>(null);
   const [confirmUid, setConfirmUid] = useState<string | null>(null);
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setIsSaving(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/admins', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setError(getApiErrorMessage(res, data, undefined, 'create admin').description);
-        setIsSaving(false);
-        return;
-      }
-
-      toast.success('Admin created.');
-      setOpen(false);
-      setEmail('');
-      setPassword('');
-      router.refresh();
-    } catch (err: unknown) {
-      setError(getApiErrorMessage(null, null, err, 'create admin').description);
-    } finally {
-      setIsSaving(false);
-    }
-  }
 
   async function handleRemove(uid: string) {
     setConfirmUid(null);
     setPendingUid(uid);
     try {
-      const res = await fetch(`/api/admins/${uid}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/${uid}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         showApiError(res, data, undefined, 'remove admin access');
@@ -94,49 +55,7 @@ export function AdminsTable({
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger render={<Button className="rounded-full">+ Add Admin</Button>} />
-          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Add New Admin</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Email</label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-xl"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Temporary Password</label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="rounded-xl"
-                  minLength={6}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  At least 6 characters. Share this with them securely — they can change it
-                  after signing in.
-                </p>
-              </div>
-              {error && (
-                <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
-                  {error}
-                </p>
-              )}
-              <Button type="submit" className="h-11 w-full rounded-full" disabled={isSaving}>
-                {isSaving ? 'Creating...' : 'Create Admin'}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <AddAdminDialog />
       </div>
 
       {admins.length === 0 ? (
@@ -188,15 +107,23 @@ export function AdminsTable({
                         >
                           View
                         </Link>
+                        {/* Destructive action revealed on hovering the
+                            chevron, same as the Patients table. */}
                         {a.uid !== currentUid && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={pendingUid === a.uid}
-                            onClick={() => setConfirmUid(a.uid)}
-                          >
-                            Remove Access
-                          </Button>
+                          <div className="group/expand flex items-center gap-1">
+                            <ChevronRight className="h-4 w-4 shrink-0 cursor-default text-muted-foreground transition-transform duration-200 group-hover/expand:translate-x-0.5" />
+                            <div className="max-w-0 overflow-hidden opacity-0 transition-all duration-300 ease-out group-hover/expand:max-w-[140px] group-hover/expand:opacity-100">
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                disabled={pendingUid === a.uid}
+                                onClick={() => setConfirmUid(a.uid)}
+                              >
+                                Remove Access
+                              </Button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     </TableCell>
@@ -271,7 +198,7 @@ export function AdminsTable({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => confirmUid && handleRemove(confirmUid)}>
+            <AlertDialogAction variant="destructive-solid" onClick={() => confirmUid && handleRemove(confirmUid)}>
               Remove Access
             </AlertDialogAction>
           </AlertDialogFooter>

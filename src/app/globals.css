@@ -129,20 +129,36 @@
   --accent-orange: #d98e5f;
   --accent-orange-bg: #fdede0;
 
-  /* Solid, saturated stat-card palette — for a bold card whose ENTIRE
-     background is this color with white text/icon on top (the
-     Medicare-reference stat card style), distinct from the pastel
-     accent-*-bg tokens above (used for a small icon circle on a
-     white card). Reuses MomsCare's own rose/purple as stat-1/3
-     rather than adopting a foreign palette. */
-  --stat-1: #d9527f;
-  --stat-1-foreground: #ffffff;
-  --stat-2: #2f9c88;
-  --stat-2-foreground: #ffffff;
-  --stat-3: #7a5fc4;
-  --stat-3-foreground: #ffffff;
-  --stat-4: #c9791a;
-  --stat-4-foreground: #ffffff;
+  /* Stat-card palette (stat-card.tsx): a soft tint of each color as the
+     card background, with the number, label and icon in a deeper shade
+     of the same color. Easier on the eyes than solid fills while each
+     card keeps its own hue. Foregrounds meet WCAG AA on their tint. */
+  --stat-1: #fce8f0;
+  --stat-1-foreground: #b03a66;
+  --stat-2: #e1f4ef;
+  --stat-2-foreground: #1f7a68;
+  --stat-3: #efe9fb;
+  --stat-3-foreground: #5f45a8;
+  --stat-4: #fcf0de;
+  --stat-4-foreground: #9a5a0e;
+
+  /* Button palette (components/ui/button.tsx), kept separate from
+     --primary so links, chips and the active sidebar item keep the
+     MomCare rose while actions use a calm blue. Text on each fill
+     meets WCAG AA. */
+  --action: #2f6fb1;
+  --action-hover: #285f98;
+  --action-foreground: #ffffff;
+  --action-ring: rgba(47, 111, 177, 0.35);
+  --action-soft: #e6eef8;
+  --action-soft-hover: #d7e4f4;
+  --action-soft-foreground: #22507f;
+  --action-success: #1f7a64;
+  --action-success-hover: #19654f;
+  --action-success-foreground: #ffffff;
+  --action-danger: #c4364b;
+  --action-danger-hover: #a92d40;
+  --action-danger-foreground: #ffffff;
 }
 
 .dark {
@@ -206,14 +222,28 @@
   --accent-orange: #e3a26f;
   --accent-orange-bg: rgba(227, 162, 111, 0.14);
 
-  --stat-1: #e0658f;
-  --stat-1-foreground: #ffffff;
-  --stat-2: #3aab95;
-  --stat-2-foreground: #ffffff;
-  --stat-3: #8a6fd4;
-  --stat-3-foreground: #ffffff;
-  --stat-4: #d1902f;
-  --stat-4-foreground: #ffffff;
+  --stat-1: rgba(224, 101, 143, 0.14);
+  --stat-1-foreground: #f08fb0;
+  --stat-2: rgba(58, 171, 149, 0.14);
+  --stat-2-foreground: #6fd1bc;
+  --stat-3: rgba(138, 111, 212, 0.16);
+  --stat-3-foreground: #b8a3ef;
+  --stat-4: rgba(209, 144, 47, 0.14);
+  --stat-4-foreground: #e8b569;
+
+  --action: #8db4ef;
+  --action-hover: #a6c4f3;
+  --action-foreground: #0c1a2e;
+  --action-ring: rgba(141, 180, 239, 0.45);
+  --action-soft: rgba(125, 166, 245, 0.16);
+  --action-soft-hover: rgba(125, 166, 245, 0.26);
+  --action-soft-foreground: #b9cff7;
+  --action-success: #6fc7b4;
+  --action-success-hover: #86d2c1;
+  --action-success-foreground: #0b2420;
+  --action-danger: #e8748a;
+  --action-danger-hover: #ee8b9e;
+  --action-danger-foreground: #2a0d14;
 }
 
 @layer base {

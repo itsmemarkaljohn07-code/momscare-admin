@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { UserX } from 'lucide-react';
+import { UserX, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
@@ -193,17 +193,34 @@ export function DoctorsTable({
                     <TableCell className="text-sm text-muted-foreground">
                       {d.authUid ? formatRelativeTime(d.lastSignInTime) : '—'}
                     </TableCell>
-                    <TableCell className="flex flex-wrap gap-2">
-                      <Link
-                        href={`/admin/doctors/${d.id}`}
-                        className="inline-flex items-center text-sm font-medium text-primary hover:underline"
-                      >
-                        View
-                      </Link>
-                      <DoctorFormDialog editing={d} trigger={<Button variant="outline" size="sm">Edit</Button>} />
-                      <Button variant="ghost" size="sm" disabled={pendingId === d.id} onClick={() => setConfirmDoctor(d)}>
-                        Remove
-                      </Button>
+                    <TableCell>
+                      {/* Same layout as the Patients table: one row that
+                          never wraps (the table scrolls instead), and the
+                          destructive action only appears on hovering the
+                          chevron. */}
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/admin/doctors/${d.id}`}
+                          className="text-sm font-medium text-primary hover:underline"
+                        >
+                          View
+                        </Link>
+                        <DoctorFormDialog editing={d} trigger={<Button variant="outline" size="sm">Edit</Button>} />
+                        <div className="group/expand flex items-center gap-1">
+                          <ChevronRight className="h-4 w-4 shrink-0 cursor-default text-muted-foreground transition-transform duration-200 group-hover/expand:translate-x-0.5" />
+                          <div className="max-w-0 overflow-hidden opacity-0 transition-all duration-300 ease-out group-hover/expand:max-w-[90px] group-hover/expand:opacity-100">
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              disabled={pendingId === d.id}
+                              onClick={() => setConfirmDoctor(d)}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -288,7 +305,7 @@ export function DoctorsTable({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => confirmDoctor && handleDelete(confirmDoctor.id)}>
+            <AlertDialogAction variant="destructive-solid" onClick={() => confirmDoctor && handleDelete(confirmDoctor.id)}>
               Remove
             </AlertDialogAction>
           </AlertDialogFooter>

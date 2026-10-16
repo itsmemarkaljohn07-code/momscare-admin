@@ -8,7 +8,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
   }
 
-  const { email, password } = await req.json();
+  const body = await req.json().catch(() => null);
+  const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+  const password = typeof body?.password === 'string' ? body.password : '';
 
   if (!email || !password || password.length < 6) {
     return NextResponse.json(
@@ -27,10 +29,18 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, uid: newUser.uid });
   } catch (err: unknown) {
-    console.error('Failed to create admin:', err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Unknown error' },
-      { status: 500 }
-    );
+    // Clear messages for the cases an admin can fix; nothing internal leaks.
+    const code = (err as { code?: string })?.code;
+    if (code === 'auth/email-already-exists') {
+      return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 409 });
+    }
+    if (code === 'auth/invalid-email') {
+      return NextResponse.json({ error: 'That email address is not valid.' }, { status: 400 });
+    }
+    if (code === 'auth/invalid-password') {
+      return NextResponse.json({ error: 'The password must be at least 6 characters.' }, { status: 400 });
+    }
+    console.error('Failed to create admin:', code ?? err);
+    return NextResponse.json({ error: 'Could not create the admin. Please try again.' }, { status: 500 });
   }
 }

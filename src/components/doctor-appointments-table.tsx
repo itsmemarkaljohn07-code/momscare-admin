@@ -87,6 +87,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
                     <div className="flex gap-2">
                       <Button
                         size="sm"
+                        variant="success"
                         disabled={pendingId === a.id}
                         onClick={() => updateApproval(a, 'approved')}
                       >
