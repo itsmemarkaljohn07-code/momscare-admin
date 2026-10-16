@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { notifyPatient } from '@/lib/notify-patient';
+import { notifyDoctorOfNewAppointment } from '@/lib/doctor-notifications';
 
 export async function POST(req: NextRequest) {
   const session = await getAdminSession();
@@ -52,6 +53,20 @@ export async function POST(req: NextRequest) {
       pushBody: 'Mommy, a new appointment has been scheduled for you. Tap to view the details.',
       id: `appointment_created_${docRef.id}`,
     });
+
+    // Tell the assigned doctor on their dashboard bell. Runs after the
+    // response is sent, so it can never fail or slow the create.
+    const appointmentId = docRef.id;
+    after(() =>
+      notifyDoctorOfNewAppointment({
+        appointmentId,
+        patientUid,
+        doctorName: appt.doctor,
+        doctorId: typeof appt.doctorId === 'string' ? appt.doctorId : null,
+        date: appt.date,
+        time: appt.time,
+      })
+    );
 
     return NextResponse.json({ success: true, id: docRef.id });
   } catch (err: unknown) {

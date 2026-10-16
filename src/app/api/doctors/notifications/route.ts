@@ -16,12 +16,17 @@ const ID_PATTERN = /^[A-Za-z0-9_-]{1,200}$/;
 
 /** Dashboard load: full check, then the bell list and the threads the
  *  browser should watch live. */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getDoctorSession();
   if (!session) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
   }
   try {
+    // ?refresh=1 (the bell, when the doctor returns to the tab) only
+    // re-reads the list; the reply scan already ran on page load.
+    if (req.nextUrl.searchParams.get('refresh') === '1') {
+      return NextResponse.json(await listDoctorNotifications(session.doctorId));
+    }
     const watch = await syncDoctorReplyNotifications(session.doctorId, session.doctorName);
     return NextResponse.json({ ...(await listDoctorNotifications(session.doctorId)), watch });
   } catch (err: unknown) {

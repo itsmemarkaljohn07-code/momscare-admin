@@ -17,6 +17,9 @@ type NotificationList = { notifications: DoctorNotificationView[]; unreadCount: 
  *  comments already there when listening starts are ignored. */
 const LISTEN_WINDOW_MS = 60 * 60 * 1000;
 
+/** At most one list refresh per this long when the tab becomes visible. */
+const VISIBLE_REFRESH_MS = 30_000;
+
 /** Doctor-dashboard bell: patient replies to the doctor's Snapshot
  *  comments. Loading it runs the full server-side check; while the page
  *  is open, new patient comments on the doctor's threads are picked up
@@ -46,6 +49,29 @@ export function DoctorNotificationBell() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // New entries that aren't replies (e.g. a new appointment to review)
+  // have no live listener: re-read the list when the doctor comes back
+  // to the tab, at most every 30 seconds. No timer runs in between.
+  useEffect(() => {
+    let last = Date.now();
+    function onVisible() {
+      if (document.visibilityState !== 'visible' || Date.now() - last < VISIBLE_REFRESH_MS) return;
+      last = Date.now();
+      fetch('/api/doctors/notifications?refresh=1')
+        .then(async (res) => {
+          if (!res.ok) return;
+          const data: NotificationList = await res.json();
+          setItems(data.notifications);
+          setUnread(data.unreadCount);
+        })
+        .catch(() => {
+          // Keep the current list; the next visit or page load tries again.
+        });
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
   // One listener per watched thread, for comments from the last hour

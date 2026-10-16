@@ -5,6 +5,14 @@ import {
   replyNotificationId,
   type ReplyCommentLike,
 } from '@/lib/doctor-reply-detection';
+import {
+  APPOINTMENT_NOTICE_LINK,
+  APPOINTMENT_NOTICE_TITLE,
+  appointmentNoticeId,
+  appointmentNoticeMessage,
+  resolveAppointmentDoctor,
+  type DoctorRef,
+} from '@/lib/doctor-appointment-notice';
 
 // Doctor bell records live at doctors/{doctorId}/notifications/{id}. Only
 // the server reads or writes them (Admin SDK, behind getDoctorSession), so
@@ -184,6 +192,59 @@ export async function checkDoctorReplyThread(
     if (created > 0) console.log(`[doctor-notifications] created=${created}`);
   } catch (err) {
     console.error(`[doctor-notifications] thread check failed (non-fatal): ${errorCode(err)}`);
+  }
+}
+
+/**
+ * One "New appointment to review" entry for the doctor on an appointment
+ * an admin just created. The doctor is found by id if given, otherwise by
+ * exact name; nothing is created unless exactly one doctor matches. The
+ * fixed id appointment-{appointmentId} means a repeat never adds a second
+ * entry. Never throws (the appointment is already saved); logs a short
+ * code only.
+ */
+export async function notifyDoctorOfNewAppointment(input: {
+  appointmentId: string;
+  patientUid: string;
+  doctorName?: string | null;
+  doctorId?: string | null;
+  date: string;
+  time: string;
+}): Promise<'created' | 'duplicate' | 'no_doctor' | 'failed'> {
+  try {
+    let candidates: DoctorRef[];
+    if (input.doctorId) {
+      const snap = await adminDb.collection('doctors').doc(input.doctorId).get();
+      candidates = snap.exists ? [{ id: snap.id, name: String(snap.get('name') ?? '') }] : [];
+    } else {
+      const snap = await adminDb.collection('doctors').select('name').get();
+      candidates = snap.docs.map((d) => ({ id: d.id, name: String(d.get('name') ?? '') }));
+    }
+    const doctor = resolveAppointmentDoctor(candidates, input);
+    if (!doctor) return 'no_doctor';
+
+    const patient = await adminDb.collection('users').doc(input.patientUid).get();
+    const patientName = String(patient.get('fullName') ?? '').trim() || 'A patient';
+
+    try {
+      await notificationsCol(doctor.id).doc(appointmentNoticeId(input.appointmentId)).create({
+        type: 'appointment_created',
+        title: APPOINTMENT_NOTICE_TITLE,
+        message: appointmentNoticeMessage(patientName, input.date, input.time),
+        link: APPOINTMENT_NOTICE_LINK,
+        appointmentId: input.appointmentId,
+        patientUid: input.patientUid,
+        read: false,
+        createdAt: Timestamp.now(),
+      });
+      return 'created';
+    } catch (err) {
+      if (isAlreadyExists(err)) return 'duplicate';
+      throw err;
+    }
+  } catch (err) {
+    console.error(`[doctor-notifications] appointment notice failed (non-fatal): ${errorCode(err)}`);
+    return 'failed';
   }
 }
 
