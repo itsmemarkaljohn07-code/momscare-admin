@@ -37,9 +37,11 @@ export interface NotifyPatientResult {
 /** FCM errors that mean the token itself is dead, so the device doc can go. */
 const DEAD_TOKEN_CODES = ['registration-token-not-registered', 'invalid-registration-token'];
 
+// A duplicate create() reports ALREADY_EXISTS as gRPC code 6, or as HTTP
+// 409 over the REST transport this project uses (preferRest).
 function isAlreadyExists(err: unknown): boolean {
   const code = (err as { code?: unknown })?.code;
-  return code === 6 || code === 'already-exists';
+  return code === 6 || code === 409 || code === 'already-exists';
 }
 
 function errorCode(err: unknown): string {

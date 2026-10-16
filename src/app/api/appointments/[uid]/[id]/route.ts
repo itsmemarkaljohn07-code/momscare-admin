@@ -19,12 +19,30 @@ export async function PATCH(
   try {
     const docRef = adminDb.collection('users').doc(uid).collection('appointments').doc(id);
 
-    // Fetched before the update so the log entry describes the
-    // appointment even if the edit itself changes its label/date/time.
-    const beforeSnap = await docRef.get();
-    const beforeData = beforeSnap.data() ?? {};
+    // Read and write in one transaction so a change made a moment ago
+    // (cancelled, completed or marked missed by someone else) can't be
+    // overwritten. Only an upcoming appointment can be edited, completed
+    // or cancelled. beforeData describes the appointment in the audit log
+    // even if the edit itself changes its label/date/time.
+    const outcome = await adminDb.runTransaction(async (tx) => {
+      const snap = await tx.get(docRef);
+      if (!snap.exists) return { kind: 'not_found' as const };
+      const beforeData = snap.data() ?? {};
+      if (beforeData.status !== 'upcoming') return { kind: 'closed' as const };
+      tx.update(docRef, { ...body, updatedAt: Timestamp.now() });
+      return { kind: 'saved' as const, beforeData };
+    });
 
-    await docRef.update({ ...body, updatedAt: Timestamp.now() });
+    if (outcome.kind === 'not_found') {
+      return NextResponse.json({ error: 'Appointment not found.' }, { status: 404 });
+    }
+    if (outcome.kind === 'closed') {
+      return NextResponse.json(
+        { error: "This appointment is already missed, cancelled or completed and can't be changed." },
+        { status: 409 }
+      );
+    }
+    const { beforeData } = outcome;
 
     const isStatusOnly = 'status' in body && Object.keys(body).length === 1;
 

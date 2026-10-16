@@ -39,6 +39,11 @@ export async function PATCH(
       if (!storedDoctor || storedDoctor !== sessionDoctor) return { kind: 'forbidden' as const };
 
       const data = snap.data() ?? {};
+      // Only an upcoming appointment can be approved or declined: once it
+      // is cancelled, completed or missed (possibly a moment ago, by an
+      // admin or the sweep) nothing is written and nobody is notified.
+      if (data.status !== 'upcoming') return { kind: 'closed' as const };
+
       const changed = (data.doctorApproval ?? 'pending') !== doctorApproval;
       const changedAt = Timestamp.now();
       tx.update(docRef, {
@@ -54,6 +59,12 @@ export async function PATCH(
     }
     if (outcome.kind === 'forbidden') {
       return NextResponse.json({ error: 'Not your appointment.' }, { status: 403 });
+    }
+    if (outcome.kind === 'closed') {
+      return NextResponse.json(
+        { error: 'This appointment is already cancelled, completed or missed.' },
+        { status: 409 }
+      );
     }
 
     const apptData = outcome.data;
