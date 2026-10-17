@@ -7,6 +7,9 @@
 
 export const NOTIFICATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** The dashboard's Appointment Requests page. */
+export const REQUESTS_LINK = '/admin/requests';
+
 export type AdminNotificationType =
   | 'appointment_request'
   | 'doctor_approved'
@@ -52,7 +55,7 @@ export function appointmentRequestNotification(input: {
     type: 'appointment_request',
     title: 'New appointment request',
     message: `${input.patientName} requested a ${input.type || 'appointment'}${when}.`,
-    link: `/admin/users/${input.patientUid}`,
+    link: REQUESTS_LINK,
     appointmentId: input.requestId,
     patientUid: input.patientUid,
   };

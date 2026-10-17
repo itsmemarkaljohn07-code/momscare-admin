@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 const SOUND_URL = '/sounds/notify.wav';
 const STORAGE_KEY = 'momcare:notification-sound';
@@ -18,9 +19,13 @@ function readEnabled(): boolean {
  * Notification sound for a bell, shared by the admin and doctor bells.
  * Plays only for unread entries that appear after the list first loaded,
  * once per id, at most once every 3 seconds. The on/off choice is kept in
- * this browser's localStorage. If the browser blocks audio until the user
- * interacts, `blocked` turns on so the bell can offer a click to allow it.
- * A missing or unplayable file means no sound and no error.
+ * this browser's localStorage.
+ *
+ * Browsers refuse to play sound on a page the user hasn't clicked or typed
+ * on since it loaded. So the first click or key press anywhere unlocks the
+ * sound silently, and if a sound is still refused the user is told once
+ * (toast) that a click turns it on. A missing or unplayable file means no
+ * sound and no error.
  */
 export function useNotificationSound(items: { id: string; read: boolean }[], loaded: boolean) {
   const [enabled, setEnabled] = useState(readEnabled);
@@ -29,25 +34,71 @@ export function useNotificationSound(items: { id: string; read: boolean }[], loa
   const lastPlayed = useRef(0);
   const audio = useRef<HTMLAudioElement | null>(null);
   const unavailable = useRef(false);
+  const warned = useRef(false);
 
-  const play = useCallback(async (): Promise<void> => {
-    if (unavailable.current || typeof Audio === 'undefined') return;
+  const getAudio = useCallback((): HTMLAudioElement | null => {
+    if (unavailable.current || typeof Audio === 'undefined') return null;
     if (!audio.current) {
       audio.current = new Audio(SOUND_URL);
+      audio.current.preload = 'auto';
       audio.current.addEventListener('error', () => {
         unavailable.current = true;
       });
     }
+    return audio.current;
+  }, []);
+
+  const play = useCallback(async (): Promise<void> => {
+    const el = getAudio();
+    if (!el) return;
     try {
-      audio.current.currentTime = 0;
-      await audio.current.play();
+      el.muted = false;
+      el.currentTime = 0;
+      await el.play();
       setBlocked(false);
     } catch (err) {
-      // NotAllowedError: autoplay blocked until the user clicks the page.
-      // Anything else (missing or unsupported file) stays silent.
-      if ((err as { name?: string })?.name === 'NotAllowedError') setBlocked(true);
+      // NotAllowedError: the page hasn't been clicked yet. Anything else
+      // (missing or unsupported file) stays silent.
+      if ((err as { name?: string })?.name !== 'NotAllowedError') return;
+      setBlocked(true);
+      if (!warned.current) {
+        warned.current = true;
+        console.warn('[notifications] sound blocked by the browser until the page is clicked');
+        toast.info('New notification', {
+          description: 'Your browser blocked the notification sound. Click anywhere on the page to turn it on.',
+        });
+      }
     }
-  }, []);
+  }, [getAudio]);
+
+  // The first click or key press unlocks audio for this page: a silent,
+  // muted play right inside the user's gesture.
+  useEffect(() => {
+    function unlock() {
+      const el = getAudio();
+      if (!el) return;
+      el.muted = true;
+      el.play()
+        .then(() => {
+          el.pause();
+          el.currentTime = 0;
+          el.muted = false;
+          setBlocked(false);
+          remove();
+        })
+        .catch(() => {
+          el.muted = false;
+          // Still refused: keep listening for the next gesture.
+        });
+    }
+    function remove() {
+      document.removeEventListener('pointerdown', unlock, true);
+      document.removeEventListener('keydown', unlock, true);
+    }
+    document.addEventListener('pointerdown', unlock, true);
+    document.addEventListener('keydown', unlock, true);
+    return remove;
+  }, [getAudio]);
 
   useEffect(() => {
     if (!loaded) return;

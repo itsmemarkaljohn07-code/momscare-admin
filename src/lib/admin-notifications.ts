@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { appointmentName } from '@/lib/appointment-status';
 import {
   NOTIFICATION_TTL_MS,
+  REQUESTS_LINK,
   appointmentRequestNotification,
   cancellationRequestNotification,
   doctorDecisionNotification,
@@ -236,7 +237,9 @@ export async function listAdminNotifications(
       id: d.id,
       title: data.title,
       message: data.message,
-      link: data.link,
+      // Request records stored before the Requests page existed point at
+      // the patient page; every request opens the Requests page now.
+      link: data.type === 'appointment_request' ? REQUESTS_LINK : data.link,
       read: data.readBy?.[adminUid] === true,
       createdAt: data.createdAt?.toDate?.().toISOString() ?? null,
     };

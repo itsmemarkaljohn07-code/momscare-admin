@@ -19,7 +19,7 @@ test('request: fixed id, type, first slot, no reason or notes', () => {
   assert.equal(n.id, 'req_uid1_r1');
   assert.equal(n.type, 'appointment_request');
   assert.equal(n.message, 'Ana Cruz requested a Ultrasound for 2026-10-21, 09:00–09:30.');
-  assert.equal(n.link, '/admin/users/uid1');
+  assert.equal(n.link, '/admin/requests');
 });
 
 test('request without a usable slot still reads well', () => {
