@@ -20,8 +20,10 @@ import type { DoctorRecord } from '@/lib/get-doctors';
 import { formatRequestOption, type AppointmentRequestView } from '@/lib/appointment-requests';
 import { NAME_TO_TYPES } from '@/lib/appointment-types';
 
+// Names the admin can choose. "Booking Appointment" is no longer offered
+// for new appointments; one that already has it keeps it (see nameOptions).
 const NAME_OPTIONS = [
-  'Prenatal Checkup', 'Booking Appointment', 'Nuchal Scan', 'Anomaly Scan',
+  'Prenatal Checkup', 'Nuchal Scan', 'Anomaly Scan',
   'Glucose Tolerance Test', 'Group B Strep Test', 'Ultrasound', 'Blood Test',
   'Postpartum Checkup', 'Other',
 ];
@@ -132,6 +134,10 @@ export function AppointmentFormDialog({
     : !typeChosen;
   const detailsDisabled = isSequential && !dateTimeChosen;
 
+  // Editing an appointment whose name is no longer offered (e.g. "Booking
+  // Appointment"): keep it selectable so it still shows and can be kept.
+  const nameOptions =
+    editing?.label && !NAME_OPTIONS.includes(editing.label) ? [...NAME_OPTIONS, editing.label] : NAME_OPTIONS;
   const availableTypes = nameChosen ? (NAME_TO_TYPES[form.label] ?? []) : [];
   const availableDoctors = typeChosen ? doctors.filter((d) => d.specialty === form.type) : [];
 
@@ -390,7 +396,7 @@ export function AppointmentFormDialog({
             <Select value={form.label} onValueChange={(v) => v && handleNameChange(v)} disabled={nameDisabled}>
               <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
-                {NAME_OPTIONS.map((name) => (
+                {nameOptions.map((name) => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
               </SelectContent>
