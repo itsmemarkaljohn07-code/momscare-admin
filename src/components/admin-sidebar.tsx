@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LogoutButton } from '@/components/logout-button';
+import { useLiveAppointmentRequests } from '@/hooks/use-live-appointment-requests';
 
 interface NavItem {
   title: string;
@@ -61,6 +62,17 @@ const navGroups: NavGroup[] = [
 
 export function AppSidebar({ pendingCancellations = 0 }: { pendingCancellations?: number }) {
   const pathname = usePathname();
+  // Live, so a new request adds to the Appointments badge without
+  // reloading, and a scheduled or declined one drops out.
+  const { requests } = useLiveAppointmentRequests();
+  const pendingRequests = requests.filter((r) => r.status === 'pending').length;
+  const appointmentsBadge = pendingRequests + pendingCancellations;
+  const appointmentsBadgeLabel = [
+    pendingRequests > 0 && `${pendingRequests} pending appointment request${pendingRequests === 1 ? '' : 's'}`,
+    pendingCancellations > 0 && `${pendingCancellations} cancellation request${pendingCancellations === 1 ? '' : 's'}`,
+  ]
+    .filter(Boolean)
+    .join(' and ');
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -105,17 +117,18 @@ export function AppSidebar({ pendingCancellations = 0 }: { pendingCancellations?
                       >
                         <item.icon className="h-[17px] w-[17px]" />
                         <span>{item.title}</span>
-                        {item.url === '/admin/appointments' && pendingCancellations > 0 && (
+                        {item.url === '/admin/appointments' && appointmentsBadge > 0 && (
                           <span
                             className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
-                            title={`${pendingCancellations} cancellation request${pendingCancellations === 1 ? '' : 's'}`}
+                            title={appointmentsBadgeLabel}
+                            aria-label={appointmentsBadgeLabel}
                             style={
                               isActive
                                 ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#ffffff' }
                                 : { backgroundColor: 'var(--status-pending-bg)', color: 'var(--status-pending)' }
                             }
                           >
-                            {pendingCancellations}
+                            {appointmentsBadge > 99 ? '99+' : appointmentsBadge}
                           </span>
                         )}
                       </SidebarMenuButton>
