@@ -2,18 +2,67 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Eye, EyeOff, User, Mail, Lock } from 'lucide-react';
-import { getFriendlyError, getApiErrorMessage } from '@/lib/error-messages';
+import { Eye, EyeOff, User, Lock, Loader2 } from 'lucide-react';
 import { Petit_Formal_Script } from 'next/font/google';
 
 const scriptFont = Petit_Formal_Script({ weight: '400', subsets: ['latin'], display: 'swap' });
 
-type Role = 'admin' | 'doctor';
+// The only messages the form ever shows: no server text, no stack traces.
+const MESSAGES = {
+  credentials: 'Incorrect email, username or password.',
+  network: 'No internet connection. Check your connection and try again.',
+  disabled: 'This account has been disabled. Please contact the clinic administrator.',
+  noAccess: "This account doesn't have access to the dashboard.",
+  tooMany: 'Too many attempts. Please wait a few minutes and try again.',
+  unknown: 'Something went wrong. Please try again.',
+};
+
+/** Thrown inside the sign-in flow to end it with one of MESSAGES. */
+class LoginError extends Error {
+  constructor(readonly userMessage: string) {
+    super(userMessage);
+  }
+}
+
+function messageFor(err: unknown): string {
+  if (err instanceof LoginError) return err.userMessage;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return MESSAGES.network;
+  const code = (err as { code?: unknown })?.code;
+  switch (code) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+    case 'auth/invalid-email':
+      return MESSAGES.credentials;
+    case 'auth/user-disabled':
+      return MESSAGES.disabled;
+    case 'auth/too-many-requests':
+      return MESSAGES.tooMany;
+    case 'auth/network-request-failed':
+      return MESSAGES.network;
+  }
+  // fetch() rejects with a TypeError when the network is down.
+  if (err instanceof TypeError) return MESSAGES.network;
+  return MESSAGES.unknown;
+}
+
+/** Asks one session route to accept the signed-in user. Returns true on
+ *  success, false when the route says this account isn't that role. */
+async function tryCreateSession(endpoint: string, idToken: string): Promise<boolean> {
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  });
+  if (res.ok) return true;
+  if (res.status === 403) return false;
+  throw new LoginError(MESSAGES.unknown);
+}
 
 // Real photography — served from /public/login-slides/. Swap these
 // paths any time; nothing else below needs to change.
@@ -28,8 +77,7 @@ const SLIDE_INTERVAL_MS = 5000;
 
 export default function LoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<Role>('admin');
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -43,66 +91,52 @@ export default function LoginPage() {
     return () => clearInterval(id);
   }, []);
 
-  function switchRole(next: Role) {
-    if (next === role) return;
-    setRole(next);
-    setError('');
+  /** An email if the input has "@", otherwise a doctor username that the
+   *  server resolves to the doctor's login email. */
+  async function resolveEmail(input: string): Promise<string> {
+    if (input.includes('@')) return input;
+
+    const res = await fetch('/api/doctor-username-lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: input }),
+    });
+    if (res.status === 404 || res.status === 400) throw new LoginError(MESSAGES.credentials);
+    if (res.status === 429) throw new LoginError(MESSAGES.tooMany);
+    if (!res.ok) throw new LoginError(MESSAGES.unknown);
+    const data = (await res.json()) as { email?: string };
+    if (!data.email) throw new LoginError(MESSAGES.credentials);
+    return data.email;
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isLoading) return;
     setError('');
     setIsLoading(true);
 
+    let signedIn = false;
     try {
-      let loginEmail = email;
-
-      if (role === 'doctor') {
-        const lookupRes = await fetch('/api/doctor-username-lookup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: email }),
-        });
-        if (!lookupRes.ok) {
-          // A failed username lookup means no such account — same
-          // "Account Not Found" wording as a failed sign-in would get,
-          // for consistency between the two login paths.
-          setError(getFriendlyError({ code: 'auth/user-not-found' }, 'doctor username lookup').description);
-          setIsLoading(false);
-          return;
-        }
-        const lookupData = await lookupRes.json();
-        loginEmail = lookupData.email;
-      }
-
+      const loginEmail = await resolveEmail(identifier.trim());
       const cred = await signInWithEmailAndPassword(auth, loginEmail, password);
+      signedIn = true;
       const idToken = await cred.user.getIdToken();
 
-      const endpoint = role === 'admin' ? '/api/session' : '/api/doctor-session';
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        // A 403 here specifically means the sign-in itself succeeded,
-        // but this Firebase account isn't provisioned for the role
-        // being requested — that's a clear, correct explanation on
-        // its own, not an unexpected failure to genericize away.
-        if (res.status === 403 && data?.error) {
-          setError(data.error);
-        } else {
-          setError(getApiErrorMessage(res, data, undefined, 'create session').description);
-        }
-        setIsLoading(false);
+      // The server decides the role: admin first (admins collection),
+      // then doctor (custom claim). Each route clears the other role's
+      // cookie when it accepts.
+      if (await tryCreateSession('/api/session', idToken)) {
+        router.push('/admin');
         return;
       }
-
-      router.push(role === 'admin' ? '/admin' : '/doctor');
+      if (await tryCreateSession('/api/doctor-session', idToken)) {
+        router.push('/doctor');
+        return;
+      }
+      throw new LoginError(MESSAGES.noAccess);
     } catch (err: unknown) {
-      setError(getFriendlyError(err, 'login').description);
+      if (signedIn) await signOut(auth).catch(() => {});
+      setError(messageFor(err));
       setIsLoading(false);
     }
   }
@@ -187,97 +221,107 @@ export default function LoginPage() {
       </div>
 
       {/* Form panel */}
-      <div className="flex flex-1 items-center justify-center p-6 sm:p-10">
+      <div className="flex flex-1 items-center justify-center px-4 py-10 sm:p-10">
         <div className="w-full max-w-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="mb-8 space-y-1 text-center lg:text-left">
             <p className={`${scriptFont.className} mb-3 text-4xl text-primary lg:hidden`}>MomCare</p>
             <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
-            <p className="text-sm text-muted-foreground transition-opacity duration-300">
-              {role === 'admin' ? 'Sign in to manage the dashboard' : 'Sign in to view your patients'}
+            <p className="text-sm text-muted-foreground">
+              Sign in to the MomCare clinic dashboard
             </p>
-          </div>
-
-          <div className="relative mb-6 flex w-full rounded-full border bg-muted/50 p-1">
-            <div
-              className="absolute inset-y-1 w-[calc(50%-4px)] rounded-full bg-background shadow-sm transition-transform duration-300 ease-out"
-              style={{ transform: role === 'doctor' ? 'translateX(calc(100% + 4px))' : 'translateX(0%)' }}
-            />
-            <button
-              type="button"
-              onClick={() => switchRole('admin')}
-              className={`relative z-10 flex-1 rounded-full py-2 text-sm font-medium transition-colors duration-300 ${
-                role === 'admin' ? 'text-primary' : 'text-muted-foreground'
-              }`}
-            >
-              Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => switchRole('doctor')}
-              className={`relative z-10 flex-1 rounded-full py-2 text-sm font-medium transition-colors duration-300 ${
-                role === 'doctor' ? 'text-primary' : 'text-muted-foreground'
-              }`}
-            >
-              Doctor
-            </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">{role === 'admin' ? 'Email' : 'Username'}</label>
+              <label htmlFor="login-identifier" className="text-sm font-medium">
+                Email or username
+              </label>
               <div className="relative">
-                {role === 'admin' ? (
-                  <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                ) : (
-                  <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                )}
+                <User
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                />
                 <Input
-                  type={role === 'admin' ? 'email' : 'text'}
-                  placeholder={role === 'admin' ? 'you@example.com' : 'yourusername'}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="h-11 rounded-full pl-10 transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30"
+                  id="login-identifier"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="you@example.com or username"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? 'login-error' : undefined}
+                  disabled={isLoading}
+                  className="h-11 rounded-full pl-10 text-base focus-visible:ring-2 focus-visible:ring-primary/50"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Password</label>
+              <label htmlFor="login-password" className="text-sm font-medium">
+                Password
+              </label>
               <div className="relative">
-                <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Lock
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                />
                 <Input
+                  id="login-password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  placeholder="Your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="h-11 rounded-full pl-10 pr-11 transition-shadow focus-visible:ring-2 focus-visible:ring-primary/30"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? 'login-error' : undefined}
+                  disabled={isLoading}
+                  className="h-11 rounded-full pl-10 pr-12 text-base focus-visible:ring-2 focus-visible:ring-primary/50"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                  className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  tabIndex={-1}
+                  aria-pressed={showPassword}
+                  aria-controls="login-password"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            {error && (
-              <p className="animate-in fade-in slide-in-from-top-1 rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600 duration-200 dark:bg-red-950/30 dark:text-red-400">
-                {error}
-              </p>
-            )}
+            <div aria-live="polite" role="status">
+              {error && (
+                <p
+                  id="login-error"
+                  className="animate-in fade-in slide-in-from-top-1 rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-700 duration-200 dark:bg-red-950/30 dark:text-red-300"
+                >
+                  {error}
+                </p>
+              )}
+            </div>
 
             <Button
               type="submit"
-              className="h-11 w-full rounded-full text-base transition-transform active:scale-[0.98]"
+              className="h-11 w-full rounded-full text-base transition-transform focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 active:scale-[0.98]"
               disabled={isLoading}
+              aria-busy={isLoading}
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {isLoading ? (
+                <>
+                  <Loader2 aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in…
+                </>
+              ) : (
+                'Sign in'
+              )}
             </Button>
           </form>
         </div>
