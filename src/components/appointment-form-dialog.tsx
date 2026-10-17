@@ -17,13 +17,7 @@ import { CalendarIcon } from 'lucide-react';
 import type { AdminUserView } from '@/lib/get-users';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { DoctorRecord } from '@/lib/get-doctors';
-
-const ICON_OPTIONS = ['🩺', '🔬', '🩸', '🥗', '👩‍⚕️', '💊', '🫀', '🧬'];
-const ICON_NAMES: Record<string, string> = {
-  '🩺': 'Stethoscope', '🔬': 'Microscope', '🩸': 'Blood Test', '🥗': 'Nutrition',
-  '👩‍⚕️': 'Provider', '💊': 'Medication', '🫀': 'Cardiology', '🧬': 'Genetics',
-};
-const COLOR_OPTIONS = ['green', 'pink', 'purple', 'blue', 'orange'] as const;
+import { formatRequestOption, type AppointmentRequestView } from '@/lib/appointment-requests';
 
 const NAME_OPTIONS = [
   'Prenatal Checkup', 'Booking Appointment', 'Nuchal Scan', 'Anomaly Scan',
@@ -103,14 +97,11 @@ interface FormState {
   time: string;
   location: string;
   notes: string;
-  icon: string;
-  accentColor: (typeof COLOR_OPTIONS)[number];
 }
 
 const BLANK: FormState = {
   patientUid: '', label: '', type: '', doctor: '',
   date: '', time: '', location: '', notes: '',
-  icon: '🩺', accentColor: 'green',
 };
 
 export function AppointmentFormDialog({
@@ -118,12 +109,16 @@ export function AppointmentFormDialog({
   appointments,
   doctors,
   editing,
+  request,
   trigger,
 }: {
   users: AdminUserView[];
   appointments: AdminAppointment[];
   doctors: DoctorRecord[];
   editing?: AdminAppointment;
+  /** Scheduling a patient's request: the form starts from it, shows her
+   *  preferred times, and the create marks the request scheduled. */
+  request?: AppointmentRequestView & { patientName: string };
   trigger: React.ReactElement;
 }) {
   const router = useRouter();
@@ -241,10 +236,16 @@ export function AppointmentFormDialog({
           time: to24Hour(editing.time),
           location: editing.location ?? '',
           notes: editing.notes ?? '',
-          icon: editing.icon,
-          accentColor: editing.accentColor,
         });
         setPatientQuery(editing.patientName);
+      } else if (request) {
+        setForm({
+          ...BLANK,
+          patientUid: request.patientUid,
+          label: NAME_OPTIONS.includes(request.type) ? request.type : 'Other',
+          notes: request.reason,
+        });
+        setPatientQuery(request.patientName);
       } else {
         setForm(BLANK);
         setPatientQuery('');
@@ -317,8 +318,6 @@ export function AppointmentFormDialog({
       time: to12Hour(form.time),
       location: form.location || undefined,
       notes: form.notes || undefined,
-      icon: form.icon,
-      accentColor: form.accentColor,
     };
 
     try {
@@ -331,7 +330,11 @@ export function AppointmentFormDialog({
         : await fetch('/api/appointments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ patientUid: form.patientUid, ...payload }),
+            body: JSON.stringify({
+              patientUid: form.patientUid,
+              ...(request ? { requestId: request.id } : {}),
+              ...payload,
+            }),
           });
 
       if (!res.ok) {
@@ -361,7 +364,7 @@ export function AppointmentFormDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1" ref={searchRef}>
             <label className="text-sm font-medium">Patient</label>
-            {editing ? (
+            {editing || request ? (
               <Input value={patientQuery} disabled className="rounded-xl" />
             ) : (
               <div className="relative">
@@ -449,6 +452,19 @@ export function AppointmentFormDialog({
             )}
           </div>
 
+          {request && request.options.length > 0 && (
+            <div className="space-y-1 rounded-2xl border border-dashed p-3">
+              <p className="text-xs font-medium text-muted-foreground">Patient&apos;s preferred times</p>
+              <ul className="space-y-0.5 text-sm">
+                {request.options.map((o) => (
+                  <li key={`${o.date}-${o.from}`}>{formatRequestOption(o)}</li>
+                ))}
+              </ul>
+              {request.notes && (
+                <p className="pt-1 text-xs text-muted-foreground">Patient&apos;s notes: {request.notes}</p>
+              )}
+            </div>
+          )}
           {isSequential && doctorPicked && (
             <div className="animate-in fade-in slide-in-from-top-1 space-y-3 rounded-2xl border p-4 shadow-soft duration-300">
               <p className="text-sm font-medium">{form.doctor}&apos;s Availability</p>
@@ -576,37 +592,6 @@ export function AppointmentFormDialog({
               className="rounded-xl"
             />
             {detailsDisabled && <p className="text-xs text-muted-foreground">Select a date and time first.</p>}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Icon</label>
-              <Select value={form.icon} onValueChange={(value) => value && setForm((f) => ({ ...f, icon: value }))} disabled={detailsDisabled}>
-                <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {ICON_OPTIONS.map((icon) => (
-                    <SelectItem key={icon} value={icon}>
-                      <span className="mr-1.5">{icon}</span>{ICON_NAMES[icon]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Color</label>
-              <Select
-                value={form.accentColor}
-                onValueChange={(value) => value && setForm((f) => ({ ...f, accentColor: value as FormState['accentColor'] }))}
-                disabled={detailsDisabled}
-              >
-                <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {COLOR_OPTIONS.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           {error && (
