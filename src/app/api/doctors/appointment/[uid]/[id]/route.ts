@@ -79,7 +79,9 @@ export async function PATCH(
       targetType: 'appointment',
       targetId: id,
       targetLabel: `${apptData.label || 'Appointment'} — ${apptData.date ?? ''} ${apptData.time ?? ''}`.trim(),
-      details: doctorApproval === 'rejected' ? (rejectionReason || null) : null,
+      // The doctor's free-text reason stays out of the audit log: it can
+      // name health details. The patient still sees it in her bell.
+      details: doctorApproval === 'rejected' ? (rejectionReason ? 'Declined with a reason' : 'Declined without a reason') : null,
     });
 
     // Bell + push only on a real change; never throws, so the saved

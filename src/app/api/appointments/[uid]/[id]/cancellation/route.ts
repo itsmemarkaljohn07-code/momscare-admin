@@ -125,7 +125,8 @@ export async function POST(
       targetId: id,
       targetLabel: `${data.label ?? 'Appointment'} — ${data.date ?? ''} ${data.time ?? ''}`.trim(),
       // The patient's own reason is not copied into the audit log.
-      details: isApprove ? null : (declineReason || null),
+      // Nor the clinic's free-text reason: it can name health details.
+      details: isApprove ? null : declineReason ? 'Declined with a reason' : 'Declined without a reason',
     });
 
     // The decision above has already been saved; notifyPatient never
