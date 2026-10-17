@@ -5,6 +5,8 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { logAuditEvent } from '@/lib/audit-log';
 import { notifyPatient } from '@/lib/notify-patient';
 import { appointmentName } from '@/lib/appointment-status';
+import { createAdminNotification } from '@/lib/admin-notifications';
+import { doctorDecisionNotification } from '@/lib/admin-notification-rules';
 
 export async function PATCH(
   req: NextRequest,
@@ -101,6 +103,23 @@ export async function PATCH(
           : 'Mommy, your doctor has updated your appointment. Open MomCare to view the details.',
         id: `appointment_${id}_${doctorApproval}_${outcome.changedAt.toMillis()}`,
       });
+
+      // Admin bell: one record per real change. Never throws; the sweep
+      // creates it later if this write is lost.
+      const patient = await adminDb.collection('users').doc(uid).get().catch(() => null);
+      await createAdminNotification(
+        doctorDecisionNotification({
+          patientUid: uid,
+          appointmentId: id,
+          decision: isApproved ? 'approved' : 'rejected',
+          decidedAtMs: outcome.changedAt.toMillis(),
+          doctorName: session.doctorName,
+          patientName: String(patient?.get('fullName') ?? '').trim() || 'A patient',
+          appointmentLabel: appointmentName(apptData.label),
+          date: String(apptData.date ?? ''),
+          time: String(apptData.time ?? ''),
+        })
+      );
     }
 
     return NextResponse.json({ success: true });

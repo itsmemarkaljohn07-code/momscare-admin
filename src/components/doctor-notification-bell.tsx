@@ -3,11 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
-import { Bell } from 'lucide-react';
 import { auth, db } from '@/lib/firebase-client';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { formatRelativeTime } from '@/lib/format-relative-time';
+import { NotificationBellPanel } from '@/components/notification-bell-panel';
+import { useNotificationSound } from '@/hooks/use-notification-sound';
 import type { DoctorNotificationView, WatchedThread } from '@/lib/doctor-notifications';
 
 type NotificationList = { notifications: DoctorNotificationView[]; unreadCount: number };
@@ -32,6 +30,7 @@ export function DoctorNotificationBell() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [watch, setWatch] = useState<WatchedThread[]>([]);
+  const sound = useNotificationSound(items, !loading && !failed);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,13 +154,16 @@ export function DoctorNotificationBell() {
     return res.ok;
   }
 
-  async function openItem(item: DoctorNotificationView) {
+  function markOne(item: DoctorNotificationView) {
+    if (item.read) return;
+    setItems((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)));
+    setUnread((u) => Math.max(0, u - 1));
+    void markRead({ ids: [item.id] });
+  }
+
+  function openItem(item: DoctorNotificationView) {
     setOpen(false);
-    if (!item.read) {
-      setItems((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)));
-      setUnread((u) => Math.max(0, u - 1));
-      void markRead({ ids: [item.id] });
-    }
+    markOne(item);
     router.push(item.link);
   }
 
@@ -176,69 +178,17 @@ export function DoctorNotificationBell() {
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="relative rounded-full"
-            aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
-          />
-        }
-      >
-        <Bell className="h-[18px] w-[18px]" />
-        {unread > 0 && (
-          <span
-            className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold"
-            style={{ backgroundColor: 'var(--status-pending)', color: '#ffffff' }}
-          >
-            {unread > 99 ? '99+' : unread}
-          </span>
-        )}
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 rounded-2xl p-0 shadow-card">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <p className="text-sm font-semibold">Notifications</p>
-          {unread > 0 && (
-            <button type="button" onClick={markAllRead} className="text-xs font-medium text-primary hover:underline">
-              Mark all read
-            </button>
-          )}
-        </div>
-        <div className="max-h-96 overflow-y-auto">
-          {loading ? (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">Loading…</p>
-          ) : failed ? (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">Couldn&apos;t load notifications.</p>
-          ) : items.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">No notifications yet.</p>
-          ) : (
-            <ul className="divide-y">
-              {items.map((n) => (
-                <li key={n.id}>
-                  <button
-                    type="button"
-                    onClick={() => openItem(n)}
-                    className={`flex w-full gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60 ${n.read ? '' : 'bg-primary/5'}`}
-                  >
-                    <span
-                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? 'bg-transparent' : 'bg-primary'}`}
-                      aria-hidden
-                    />
-                    <span className="min-w-0 space-y-0.5">
-                      <span className={`block text-sm ${n.read ? '' : 'font-semibold'}`}>{n.title}</span>
-                      <span className="block text-xs text-muted-foreground">{n.message}</span>
-                      <span className="block text-[11px] text-muted-foreground">{formatRelativeTime(n.createdAt)}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <NotificationBellPanel
+      open={open}
+      onOpenChange={setOpen}
+      items={items}
+      unread={unread}
+      loading={loading}
+      failed={failed}
+      onOpenItem={openItem}
+      onMarkOne={markOne}
+      onMarkAll={markAllRead}
+      sound={sound}
+    />
   );
 }

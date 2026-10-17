@@ -2,6 +2,12 @@ import { adminDb } from '@/lib/firebase-admin';
 import { isMissedAppointment } from '@/lib/appointment-status';
 import { markAppointmentMissed } from '@/lib/mark-missed';
 import { syncDoctorReplyNotifications } from '@/lib/doctor-notifications';
+import {
+  purgeOldNotifications,
+  syncAdminNotifications,
+  type AdminNotificationSyncResult,
+  type PurgeResult,
+} from '@/lib/admin-notifications';
 
 /** Appointments marked per run, so one run stays well inside the
  *  serverless time limit; the next run picks up the rest. */
@@ -20,6 +26,10 @@ export interface SweepResult {
   missedSample: { id: string; date: string }[];
   doctorsChecked: number;
   doctorsTotal: number;
+  /** Admin bell: events of the last 7 days and records created for them. */
+  adminNotifications: AdminNotificationSyncResult | null;
+  /** Bell records older than 7 days (admin + doctor); never the audit log. */
+  retention: PurgeResult | null;
   stoppedEarly: boolean;
   durationMs: number;
 }
@@ -30,11 +40,16 @@ export interface SweepResult {
  *  1. marks appointments missed 3 hours after their start (and notifies
  *     the patient once), via the same markAppointmentMissed as the page;
  *  2. runs the patient-reply check for every doctor, so their bell entries
- *     are waiting the next time they open the dashboard.
+ *     are waiting the next time they open the dashboard;
+ *  3. creates the admin bell records the phone can't trigger itself
+ *     (appointment requests, cancellation requests) plus any missed
+ *     doctor approve/decline record;
+ *  4. deletes bell records older than 7 days (admin and doctor bells only).
  *
  * Reads appointments with one plain collection-group get of three fields
- * (no index needed). With dryRun nothing is written and step 2 is skipped,
- * since the reply check creates records as it goes.
+ * (no index needed). With dryRun nothing is written: step 2 is skipped,
+ * since the reply check creates records as it goes, and steps 3 and 4
+ * only count.
  */
 export async function runScheduledSweep({ dryRun }: { dryRun: boolean }): Promise<SweepResult> {
   const startedAt = Date.now();
@@ -49,6 +64,8 @@ export async function runScheduledSweep({ dryRun }: { dryRun: boolean }): Promis
     missedSample: [],
     doctorsChecked: 0,
     doctorsTotal: 0,
+    adminNotifications: null,
+    retention: null,
     stoppedEarly: false,
     durationMs: 0,
   };
@@ -99,6 +116,28 @@ export async function runScheduledSweep({ dryRun }: { dryRun: boolean }): Promis
       if (typeof name !== 'string' || !name.trim()) continue;
       await syncDoctorReplyNotifications(d.id, name); // never throws
       result.doctorsChecked++;
+    }
+  }
+
+  // 3. Admin bell records (a failure never stops the sweep).
+  if (outOfTime()) {
+    result.stoppedEarly = true;
+  } else {
+    try {
+      result.adminNotifications = await syncAdminNotifications({ dryRun });
+    } catch (err) {
+      console.error('[sweep] admin notifications failed:', (err as { code?: unknown })?.code ?? 'unknown');
+    }
+  }
+
+  // 4. Retention: bell records older than 7 days.
+  if (outOfTime()) {
+    result.stoppedEarly = true;
+  } else {
+    try {
+      result.retention = await purgeOldNotifications({ dryRun });
+    } catch (err) {
+      console.error('[sweep] notification cleanup failed:', (err as { code?: unknown })?.code ?? 'unknown');
     }
   }
 
