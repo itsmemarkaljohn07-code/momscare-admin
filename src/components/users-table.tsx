@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { UserX, AlertTriangle, ChevronRight, Download, Copy } from 'lucide-react';
+import { UserX, AlertTriangle, Download, Copy } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -87,6 +87,9 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
   });
   // 20 rows at a time; a new search starts from the first 20.
   const page = useLoadMore(filtered, 20, query.trim().toLowerCase());
+
+  /** This patient is being suspended/reactivated or deleted right now. */
+  const busyUid = (uid: string) => pendingUid === uid || (isDeleting && deleteTarget?.uid === uid);
 
   async function toggleDisabled(uid: string, currentlyDisabled: boolean) {
     setConfirmUser(null);
@@ -337,22 +340,21 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
                           {u.disabled ? 'Reactivate' : 'Suspend'}
                         </Button>
 
-                        {/* Delete only reveals when hovering THIS control
-                            (the chevron/expand affordance), not the row —
-                            a separate named group scoped to just this pair. */}
-                        <div className="group/expand flex items-center gap-1">
-                          <ChevronRight className="h-4 w-4 shrink-0 cursor-default text-muted-foreground transition-transform duration-200 group-hover/expand:translate-x-0.5" />
-                          <div className="max-w-0 overflow-hidden opacity-0 transition-all duration-300 ease-out group-hover/expand:max-w-[80px] group-hover/expand:opacity-100">
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => startDelete(u)}
-                            >
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
+                        {/* Always visible, its own hit area. (It used to sit
+                            in a zero-width, transparent box that only opened
+                            while hovering a small arrow, so a click on the
+                            arrow did nothing and the keyboard could reach an
+                            invisible button.) */}
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          disabled={busyUid(u.uid)}
+                          onClick={() => startDelete(u)}
+                          aria-label={`Delete ${u.fullName}`}
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -421,10 +423,11 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
                       </Button>
                       <Button
                         type="button"
-                        variant="ghost"
+                        variant="destructive"
                         size="sm"
-                        className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
+                        disabled={busyUid(u.uid)}
                         onClick={() => startDelete(u)}
+                        aria-label={`Delete ${u.fullName}`}
                       >
                         Delete
                       </Button>
