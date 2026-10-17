@@ -15,9 +15,12 @@ import { ADMIN_NOTE_MAX, type AppointmentRequestView } from '@/lib/appointment-r
 export function RequestDecline({
   request,
   patientName,
+  onDeclined,
 }: {
   request: AppointmentRequestView;
   patientName: string;
+  /** Called after a successful decline (e.g. to close a parent dialog). */
+  onDeclined?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
@@ -39,6 +42,7 @@ export function RequestDecline({
       toast.success('Request declined. The patient has been notified.');
       setOpen(false);
       setNote('');
+      onDeclined?.();
     } catch (err) {
       showApiError(null, null, err, 'decline appointment request');
     } finally {

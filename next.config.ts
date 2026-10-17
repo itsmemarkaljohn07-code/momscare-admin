@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Requests moved to a tab of the Appointments page; old links keep working.
+  async redirects() {
+    return [{ source: "/admin/requests", destination: "/admin/appointments?tab=requests", permanent: false }];
+  },
 };
 
 export default nextConfig;

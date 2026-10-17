@@ -18,29 +18,13 @@ import type { AdminUserView } from '@/lib/get-users';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { DoctorRecord } from '@/lib/get-doctors';
 import { formatRequestOption, type AppointmentRequestView } from '@/lib/appointment-requests';
+import { NAME_TO_TYPES } from '@/lib/appointment-types';
 
 const NAME_OPTIONS = [
   'Prenatal Checkup', 'Booking Appointment', 'Nuchal Scan', 'Anomaly Scan',
   'Glucose Tolerance Test', 'Group B Strep Test', 'Ultrasound', 'Blood Test',
   'Postpartum Checkup', 'Other',
 ];
-const TYPE_OPTIONS = [
-  'Obstetrics', 'OB-GYN', 'Radiology', 'Laboratory',
-  'Dietitian', 'Cardiology', 'Pediatrics', 'General Physician', 'Other',
-];
-
-const NAME_TO_TYPES: Record<string, string[]> = {
-  'Prenatal Checkup': ['Obstetrics', 'OB-GYN', 'General Physician'],
-  'Booking Appointment': ['Obstetrics', 'OB-GYN'],
-  'Nuchal Scan': ['Radiology', 'OB-GYN'],
-  'Anomaly Scan': ['Radiology', 'OB-GYN'],
-  'Glucose Tolerance Test': ['Laboratory', 'Dietitian'],
-  'Group B Strep Test': ['Laboratory'],
-  'Ultrasound': ['Radiology', 'OB-GYN'],
-  'Blood Test': ['Laboratory'],
-  'Postpartum Checkup': ['Obstetrics', 'OB-GYN', 'General Physician'],
-  'Other': TYPE_OPTIONS,
-};
 
 const DAYS_AHEAD = 21;
 

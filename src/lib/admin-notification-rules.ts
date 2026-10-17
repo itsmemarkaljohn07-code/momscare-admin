@@ -7,8 +7,8 @@
 
 export const NOTIFICATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** The dashboard's Appointment Requests page. */
-export const REQUESTS_LINK = '/admin/requests';
+/** The Requests tab of the Appointments page. */
+export const REQUESTS_LINK = '/admin/appointments?tab=requests';
 
 export type AdminNotificationType =
   | 'appointment_request'

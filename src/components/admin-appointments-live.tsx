@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { AppointmentsTable } from '@/components/appointments-table';
 import { AppointmentHistoryTable } from '@/components/appointment-history-table';
 import { useLiveAppointments } from '@/hooks/use-live-appointments';
+import { useLiveAppointmentRequests } from '@/hooks/use-live-appointment-requests';
+import { AppointmentRequestsTable } from '@/components/appointment-requests-table';
 import { useMarkMissed } from '@/hooks/use-mark-missed';
 import { isMissedAppointment } from '@/lib/appointment-status';
 import { isCancellationRequested, mapCancellation } from '@/lib/appointment-cancellation';
@@ -38,17 +40,26 @@ function toAdminView(base: AdminAppointment, data: DocumentData): AdminAppointme
   };
 }
 
+export type AppointmentsView = 'requests' | 'scheduled';
+
 export function AdminAppointmentsLive({
   users,
   doctors,
   initial,
+  initialView = 'scheduled',
 }: {
   users: AdminUserView[];
   doctors: DoctorRecord[];
   initial: AdminAppointment[];
+  /** Which top tab opens first (?tab=requests). */
+  initialView?: AppointmentsView;
 }) {
   // Per-document listeners over the server list; see useLiveAppointments.
   const list = useLiveAppointments(initial, toAdminView);
+  // Patients' appointment requests, live.
+  const { requests, loaded: requestsLoaded } = useLiveAppointmentRequests();
+  const pendingRequests = requests.filter((r) => r.status === 'pending').length;
+  const [view, setView] = useState<AppointmentsView>(initialView);
   const [tab, setTab] = useState<Tab>('active');
   // Re-checked every minute; 3 hours after their start, appointments are
   // stored as missed and the patient is notified (useMarkMissed).
@@ -64,7 +75,55 @@ export function AdminAppointmentsLive({
     [list, now]
   );
 
+  function switchView(next: AppointmentsView) {
+    setView(next);
+    // Keep the address in step, so a reload or shared link opens this tab.
+    const url = new URL(window.location.href);
+    if (next === 'requests') url.searchParams.set('tab', 'requests');
+    else url.searchParams.delete('tab');
+    window.history.replaceState(null, '', url);
+  }
+
   return (
+    <div className="space-y-5">
+      <div role="tablist" aria-label="Appointments" className="flex gap-6 border-b">
+        {(['requests', 'scheduled'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={view === v}
+            onClick={() => switchView(v)}
+            className={`-mb-px flex items-center gap-2 border-b-2 px-1 pb-2.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+              view === v ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {v === 'requests' ? 'Requests' : 'Scheduled'}
+            {v === 'requests' && (
+              <span
+                className="rounded-full px-2 py-0.5 text-xs font-medium"
+                style={
+                  pendingRequests > 0
+                    ? { backgroundColor: 'var(--status-pending-bg)', color: 'var(--status-pending)' }
+                    : undefined
+                }
+              >
+                {pendingRequests} pending
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {view === 'requests' ? (
+        <AppointmentRequestsTable
+          requests={requests}
+          loaded={requestsLoaded}
+          users={users}
+          doctors={doctors}
+          appointments={list}
+        />
+      ) : (
     <div className="space-y-4">
       <div className="inline-flex rounded-lg border bg-muted/40 p-1">
         <Button
@@ -127,6 +186,8 @@ export function AdminAppointmentsLive({
         />
       ) : (
         <AppointmentHistoryTable appointments={historyList} doctors={doctors} />
+      )}
+    </div>
       )}
     </div>
   );

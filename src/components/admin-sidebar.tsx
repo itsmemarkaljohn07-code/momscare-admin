@@ -42,7 +42,7 @@ const navGroups: NavGroup[] = [
     label: 'Management',
     items: [
       { title: 'Appointments', url: '/admin/appointments', icon: CalendarDays },
-      { title: 'Requests', url: '/admin/requests', icon: Inbox },
+      { title: 'Requests', url: '/admin/appointments?tab=requests', icon: Inbox },
       { title: 'Reports', url: '/admin/reports', icon: BarChart3 },
       { title: 'Doctors', url: '/admin/doctors', icon: Stethoscope },
       { title: 'Patients', url: '/admin/users', icon: Users },
@@ -123,7 +123,7 @@ export function AppSidebar({ pendingCancellations = 0 }: { pendingCancellations?
                             {pendingCancellations}
                           </span>
                         )}
-                        {item.url === '/admin/requests' && pendingRequests > 0 && (
+                        {item.url === '/admin/appointments?tab=requests' && pendingRequests > 0 && (
                           <span
                             className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
                             title={`${pendingRequests} pending appointment request${pendingRequests === 1 ? '' : 's'}`}
