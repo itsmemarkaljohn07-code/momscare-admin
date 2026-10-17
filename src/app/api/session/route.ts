@@ -32,6 +32,8 @@ export async function POST(req: NextRequest) {
       path: '/',
       maxAge: SESSION_EXPIRES_IN_MS / 1000,
     });
+    // One role per browser: an admin login ends any doctor session here.
+    response.cookies.delete('doctor_session');
 
     return response;
   } catch (err: unknown) {

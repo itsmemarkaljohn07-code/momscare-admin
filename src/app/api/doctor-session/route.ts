@@ -32,6 +32,8 @@ export async function POST(req: NextRequest) {
       path: '/',
       sameSite: 'lax',
     });
+    // One role per browser: a doctor login ends any admin session here.
+    cookieStore.delete('session');
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
