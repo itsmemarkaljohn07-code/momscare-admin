@@ -27,7 +27,6 @@ const STATUS_STYLE: Record<AppointmentRequestStatus, { label: string; color: str
 
 const HEAD = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground';
 
-type Filter = 'pending' | 'all';
 
 function submitted(ms: number): string {
   if (!ms) return '—';
@@ -58,13 +57,12 @@ export function AppointmentRequestsTable({
   doctors: DoctorRecord[];
   appointments: AdminAppointment[];
 }) {
-  const [filter, setFilter] = useState<Filter>('pending');
   const [openKey, setOpenKey] = useState<string | null>(null);
 
   const names = useMemo(() => new Map(users.map((u) => [u.uid, u.fullName])), [users]);
   const doctorOf = useMemo(() => new Map(appointments.map((a) => [`${a.patientUid}/${a.id}`, a.doctor])), [appointments]);
-  const pendingCount = requests.filter((r) => r.status === 'pending').length;
-  const shown = filter === 'pending' ? requests.filter((r) => r.status === 'pending') : requests;
+  // Every request, newest first (the live hook already sorts them).
+  const shown = requests;
   const keyOf = (r: AppointmentRequestView) => `${r.patientUid}/${r.id}`;
   const selected = requests.find((r) => keyOf(r) === openKey) ?? null;
   const doctorFor = (r: AppointmentRequestView) =>
@@ -72,21 +70,12 @@ export function AppointmentRequestsTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2" role="group" aria-label="Show requests">
-        <Button size="sm" variant={filter === 'pending' ? 'default' : 'outline'} className="rounded-full" aria-pressed={filter === 'pending'} onClick={() => setFilter('pending')}>
-          Pending ({pendingCount})
-        </Button>
-        <Button size="sm" variant={filter === 'all' ? 'default' : 'outline'} className="rounded-full" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
-          All ({requests.length})
-        </Button>
-      </div>
-
       {!loaded ? (
         <p className="text-sm text-muted-foreground">Loading requests…</p>
       ) : shown.length === 0 ? (
         <EmptyState
           icon={Inbox}
-          title={filter === 'pending' ? 'No pending requests' : 'No requests yet'}
+          title="No requests yet"
           description="Appointment requests from patients appear here as soon as they are sent."
         />
       ) : (
