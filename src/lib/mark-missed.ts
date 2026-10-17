@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { appointmentName, isMissedAppointment } from '@/lib/appointment-status';
 import { clearPendingCancellationCountCache } from '@/lib/get-appointments';
 import { notifyPatient } from '@/lib/notify-patient';
+import { readOwnedSlotLock, releaseSlotLock } from '@/lib/slot-locks';
 
 export type MarkMissedOutcome = 'marked' | 'not_missed' | 'not_found' | 'forbidden';
 
@@ -39,8 +40,10 @@ export async function markAppointmentMissed(
       return { kind: 'not_missed' as const };
     }
 
+    // A missed appointment frees the doctor's slot.
+    const ownedLock = await readOwnedSlotLock(tx, docRef, data);
     const now = Timestamp.now();
-    tx.update(docRef, { status: 'missed', missedAt: now, updatedAt: now });
+    tx.update(docRef, { ...releaseSlotLock(tx, ownedLock), status: 'missed', missedAt: now, updatedAt: now });
     return { kind: 'marked' as const, data };
   });
 

@@ -7,6 +7,7 @@ import { DECLINE_REASON_MAX } from '@/lib/appointment-cancellation';
 import { clearPendingCancellationCountCache } from '@/lib/get-appointments';
 import { notifyPatient } from '@/lib/notify-patient';
 import { appointmentName } from '@/lib/appointment-status';
+import { readOwnedSlotLock, releaseSlotLock } from '@/lib/slot-locks';
 
 type Decision = 'approve' | 'decline';
 
@@ -72,9 +73,14 @@ export async function POST(
         return { kind: 'conflict', message: conflictMessage(data.status, data.cancellation?.state) };
       }
 
+      // Read before any write (Firestore transaction rule).
+      const ownedLock = decision === 'approve' ? await readOwnedSlotLock(tx, docRef, data) : null;
+
       const now = Timestamp.now();
       if (decision === 'approve') {
         tx.update(docRef, {
+          // The doctor's slot is free again.
+          ...releaseSlotLock(tx, ownedLock),
           status: 'cancelled',
           'cancellation.state': 'approved',
           'cancellation.decidedAt': now,

@@ -12,6 +12,9 @@ import {
   requestNotificationId,
   requestScheduledBellMessage,
 } from '@/lib/appointment-requests';
+import { clinicNow, daySlots, minutesToHHmm, slotLockId, timeToMinutes } from '@/lib/doctor-availability';
+import { getAvailableSlots, getDoctorForSlots, getDoctorForSlotsByName } from '@/lib/doctor-slots';
+import { readSlotLock, SLOT_TAKEN_MESSAGE, writeSlotLock } from '@/lib/slot-locks';
 
 export async function POST(req: NextRequest) {
   const session = await getAdminSession();
@@ -20,9 +23,10 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  // requestId (scheduling a patient's request) is never stored on the
-  // appointment; icon and accentColor are filled in below.
-  const { patientUid, requestId, icon, accentColor, ...appt } = body;
+  // requestId (scheduling a patient's request) and doctorId (which doctor
+  // the slot belongs to) are never stored on the appointment; icon and
+  // accentColor are filled in below.
+  const { patientUid, requestId, doctorId, icon, accentColor, ...appt } = body;
 
   if (!patientUid) {
     return NextResponse.json({ error: 'A patient must be selected.' }, { status: 400 });
@@ -31,31 +35,69 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
   }
 
+  // Booking guard, part 1: the slot must be one of the doctor's free slots
+  // (this also covers appointments booked before slot locks existed).
+  const slotMinutes = typeof appt.time === 'string' ? timeToMinutes(appt.time) : null;
+  if (typeof appt.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(appt.date) || slotMinutes === null) {
+    return NextResponse.json({ error: 'Choose a date and time.' }, { status: 400 });
+  }
+  const hhmm = minutesToHHmm(slotMinutes);
+
   try {
+    const doctor =
+      typeof doctorId === 'string' && doctorId
+        ? await getDoctorForSlots(doctorId)
+        : await getDoctorForSlotsByName(String(appt.doctor ?? ''));
+    if (!doctor || (appt.doctor && String(appt.doctor).trim() !== doctor.name.trim())) {
+      return NextResponse.json({ error: 'Choose a doctor from the list.' }, { status: 400 });
+    }
+    const grid = daySlots(doctor.schedule) ?? [];
+    if (!grid.includes(slotMinutes)) {
+      return NextResponse.json({ error: "That time isn't one of the doctor's appointment times." }, { status: 400 });
+    }
+    const free = await getAvailableSlots(doctor, appt.date);
+    if (!free.slots.includes(hhmm)) {
+      const now = clinicNow(new Date());
+      const past = appt.date < now.date || (appt.date === now.date && slotMinutes <= now.minutes);
+      return past
+        ? NextResponse.json({ error: 'That time has already passed.' }, { status: 400 })
+        : NextResponse.json({ error: SLOT_TAKEN_MESSAGE }, { status: 409 });
+    }
+
     const patientRef = adminDb.collection('users').doc(patientUid);
     const docRef = patientRef.collection('appointments').doc();
+    const lockId = slotLockId(doctor.id, appt.date, hhmm);
     const fields = {
       ...appt,
+      doctor: doctor.name,
       userId: patientUid,
       status: 'upcoming',
       doctorApproval: 'pending',
+      slotLockId: lockId,
       createdAt: Timestamp.now(),
     };
+    const slot = { doctorId: doctor.id, date: appt.date, time: hhmm };
 
     // Set by the transaction only when it really moves the request from
     // pending to scheduled.
     let requestType: unknown = undefined;
 
-    if (requestId) {
-      // Scheduling a request: create the appointment and mark the request
-      // scheduled together, and only while it is still pending, so the
-      // same request can never become two appointments.
-      const requestRef = patientRef.collection('appointmentRequests').doc(requestId);
-      const outcome = await adminDb.runTransaction(async (tx) => {
+    // Booking guard, part 2: the slot lock is taken in the same
+    // transaction as the appointment, so two bookings of one slot can't
+    // both succeed (the second sees the lock and gets 409).
+    const outcome = await adminDb.runTransaction(async (tx) => {
+      if (requestId) {
+        // Scheduling a request: create the appointment and mark the request
+        // scheduled together, and only while it is still pending, so the
+        // same request can never become two appointments.
+        const requestRef = patientRef.collection('appointmentRequests').doc(requestId);
         const snap = await tx.get(requestRef);
         if (!snap.exists) return 'not_found' as const;
         const request = snap.data() ?? {};
         if (request.status !== 'pending') return 'closed' as const;
+        const lock = await readSlotLock(tx, lockId);
+        if (!lock.free) return 'taken' as const;
+        writeSlotLock(tx, lock.ref, docRef, slot);
         tx.create(docRef, { ...fields, ...appearanceFor(appt.label, request) });
         tx.update(requestRef, {
           status: 'scheduled',
@@ -65,19 +107,26 @@ export async function POST(req: NextRequest) {
         });
         requestType = request.type;
         return 'scheduled' as const;
-      });
-      if (outcome === 'not_found') {
-        return NextResponse.json({ error: 'Request not found.' }, { status: 404 });
       }
-      if (outcome === 'closed') {
-        return NextResponse.json(
-          { error: 'This request was already scheduled, declined or withdrawn.' },
-          { status: 409 }
-        );
-      }
-    } else {
-      await docRef.set({ ...fields, ...appearanceFor(appt.label, { icon, accentColor }) });
+      const lock = await readSlotLock(tx, lockId);
+      if (!lock.free) return 'taken' as const;
+      writeSlotLock(tx, lock.ref, docRef, slot);
+      tx.create(docRef, { ...fields, ...appearanceFor(appt.label, { icon, accentColor }) });
+      return 'created' as const;
+    });
+    if (outcome === 'not_found') {
+      return NextResponse.json({ error: 'Request not found.' }, { status: 404 });
     }
+    if (outcome === 'closed') {
+      return NextResponse.json(
+        { error: 'This request was already scheduled, declined or withdrawn.' },
+        { status: 409 }
+      );
+    }
+    if (outcome === 'taken') {
+      return NextResponse.json({ error: SLOT_TAKEN_MESSAGE }, { status: 409 });
+    }
+    appt.doctor = doctor.name;
 
     // Denormalized onto the patient's own doc so Firestore security
     // rules can cheaply verify "is this doctor allowed to see this
@@ -142,7 +191,7 @@ export async function POST(req: NextRequest) {
         appointmentId,
         patientUid,
         doctorName: appt.doctor,
-        doctorId: typeof appt.doctorId === 'string' ? appt.doctorId : null,
+        doctorId: doctor.id,
         date: appt.date,
         time: appt.time,
       })
