@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
+import { LoadMoreButton } from '@/components/load-more';
+import { useLoadMore } from '@/hooks/use-load-more';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -60,6 +62,8 @@ export function AppointmentsTable({
       a.doctor.toLowerCase().includes(q)
     );
   });
+  // 20 rows at a time; a new search starts from the first 20.
+  const page = useLoadMore(filtered, 20, query.trim().toLowerCase());
 
   async function setStatus(appt: AdminAppointment, status: string) {
     setPendingId(appt.id);
@@ -140,7 +144,7 @@ export function AppointmentsTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((a) => {
+                {page.visible.map((a) => {
                   const approval = a.doctorApproval ?? 'pending';
                   const rejectionReason = a.rejectionReason;
                   return (
@@ -242,7 +246,7 @@ export function AppointmentsTable({
 
           {/* Mobile stacked cards */}
           <div className="grid gap-3 md:hidden">
-            {filtered.map((a) => {
+            {page.visible.map((a) => {
               const approval = a.doctorApproval ?? 'pending';
               const rejectionReason = a.rejectionReason;
               return (
@@ -335,6 +339,8 @@ export function AppointmentsTable({
               );
             })}
           </div>
+
+          <LoadMoreButton hasMore={page.hasMore} onClick={page.loadMore} shown={page.shown} total={page.total} />
         </>
       )}
 

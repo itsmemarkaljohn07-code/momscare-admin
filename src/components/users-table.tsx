@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
 import { EmptyState } from '@/components/empty-state';
+import { LoadMoreButton } from '@/components/load-more';
+import { useLoadMore } from '@/hooks/use-load-more';
 import {
   Table,
   TableBody,
@@ -83,6 +85,8 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
       (u.username ?? '').toLowerCase().includes(q)
     );
   });
+  // 20 rows at a time; a new search starts from the first 20.
+  const page = useLoadMore(filtered, 20, query.trim().toLowerCase());
 
   async function toggleDisabled(uid: string, currentlyDisabled: boolean) {
     setConfirmUser(null);
@@ -280,7 +284,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((u) => (
+                {page.visible.map((u) => (
                   <TableRow key={u.uid} className="transition-colors hover:bg-muted/50">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
@@ -360,7 +364,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
           {/* Mobile stacked cards — Delete is already an explicit,
               always-visible button here, so no hover interaction to fix. */}
           <div className="grid gap-3 md:hidden">
-            {filtered.map((u) => (
+            {page.visible.map((u) => (
               <Card key={u.uid} className="rounded-2xl shadow-soft transition-shadow hover:shadow-card">
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-2">
@@ -430,6 +434,8 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
               </Card>
             ))}
           </div>
+
+          <LoadMoreButton hasMore={page.hasMore} onClick={page.loadMore} shown={page.shown} total={page.total} />
         </>
       )}
 
