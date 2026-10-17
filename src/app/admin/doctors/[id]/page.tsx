@@ -17,7 +17,7 @@ export default async function DoctorDetailPage({
   }
 
   return (
-    <div className="max-w-xl space-y-5">
+    <div className="max-w-2xl space-y-5">
       <Link
         href="/admin/doctors"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"

@@ -5,13 +5,18 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { getAvatarStyle, getInitials } from '@/lib/avatar-color';
-import { Stethoscope, Clock, Timer, Mail, AtSign, CalendarDays, Radio } from 'lucide-react';
+import {
+  Stethoscope, Clock, Timer, Mail, AtSign, CalendarDays, Radio, BadgeCheck, KeyRound, CalendarPlus, Image as ImageIcon, User,
+} from 'lucide-react';
 import type { DoctorRecord } from '@/lib/get-doctors';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import { showFriendlyError } from '@/lib/error-messages';
+import { DoctorFormDialog } from '@/components/doctor-form-dialog';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const NOT_SET = 'Not set';
 
 function to12Hour(time24: string): string {
   const [h, m] = time24.split(':').map(Number);
@@ -22,6 +27,27 @@ function to12Hour(time24: string): string {
 
 function formatDays(days: number[]): string {
   return [...days].sort((a, b) => a - b).map((d) => DAY_LABELS[d]).join(', ');
+}
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return NOT_SET;
+  return new Date(iso).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Manila' });
+}
+
+/** One read-only row; an empty value shows "Not set". */
+function Row({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
+  const empty = value === null || value === undefined || value === '';
+  return (
+    <div className="flex flex-col gap-0.5 border-b py-2.5 text-sm last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <dt className="flex shrink-0 items-center gap-2 text-muted-foreground">
+        <Icon className="h-4 w-4" aria-hidden="true" />
+        {label}
+      </dt>
+      <dd className={`min-w-0 break-words sm:text-right ${empty ? 'italic text-muted-foreground' : 'font-medium'}`}>
+        {empty ? NOT_SET : value}
+      </dd>
+    </div>
+  );
 }
 
 export function DoctorViewLive({ initial }: { initial: DoctorRecord }) {
@@ -63,69 +89,52 @@ export function DoctorViewLive({ initial }: { initial: DoctorRecord }) {
         <div className="flex min-w-0 items-center gap-3">
           {doctor.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={doctor.photoUrl}
-              alt={doctor.name}
-              className="h-14 w-14 shrink-0 rounded-2xl object-cover"
-            />
+            <img src={doctor.photoUrl} alt={doctor.name} className="h-14 w-14 shrink-0 rounded-2xl object-cover" />
           ) : (
             <span
               className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-bold ${avatarStyle.bg} ${avatarStyle.text}`}
             >
-              {getInitials(doctor.name)}
+              {getInitials(doctor.name ?? '')}
             </span>
           )}
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold tracking-tight">{doctor.name}</h1>
-            <p className="truncate text-sm text-muted-foreground">{doctor.specialty}</p>
+            <h1 className="break-words text-2xl font-bold tracking-tight">{doctor.name || NOT_SET}</h1>
+            <p className="truncate text-sm text-muted-foreground">
+              {[doctor.title, doctor.specialty].filter(Boolean).join(' · ') || 'Specialty not set'}
+            </p>
           </div>
         </div>
-        <Badge variant={doctor.authUid ? 'secondary' : 'outline'} className="w-fit shrink-0">
-          {doctor.authUid ? 'Login Enabled' : 'No Login Yet'}
-        </Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant={doctor.authUid ? 'secondary' : 'outline'} className="w-fit">
+            {doctor.authUid ? 'Login Enabled' : 'No Login Yet'}
+          </Badge>
+          <DoctorFormDialog editing={doctor} trigger={<Button variant="outline" size="sm">Edit</Button>} />
+        </div>
       </div>
 
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Schedule</CardTitle>
+          <CardTitle className="text-base">Profile &amp; Schedule</CardTitle>
           <span className="flex items-center gap-1 text-[0.65rem] font-medium text-muted-foreground">
             <Radio className="h-3 w-3 animate-pulse" style={{ color: 'var(--status-approved)' }} />
             Live
           </span>
         </CardHeader>
-        <CardContent className="space-y-1">
-          <div className="flex items-center justify-between border-b py-2.5 text-sm">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <Stethoscope className="h-4 w-4" />
-              Specialty
-            </span>
-            <span className="font-medium">{doctor.specialty}</span>
-          </div>
-          <div className="flex items-center justify-between border-b py-2.5 text-sm">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <CalendarDays className="h-4 w-4" />
-              Working Days
-            </span>
-            <span className="font-medium">{formatDays(doctor.workingDays) || '—'}</span>
-          </div>
-          <div className="flex items-center justify-between border-b py-2.5 text-sm">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              Hours
-            </span>
-            <span className="font-medium">
-              {doctor.startTime && doctor.endTime
-                ? `${to12Hour(doctor.startTime)} – ${to12Hour(doctor.endTime)}`
-                : '—'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between py-2.5 text-sm">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <Timer className="h-4 w-4" />
-              Slot Length
-            </span>
-            <span className="font-medium">{doctor.slotMinutes ? `${doctor.slotMinutes} min` : '—'}</span>
-          </div>
+        <CardContent>
+          <dl>
+            <Row icon={User} label="Full Name" value={doctor.name} />
+            <Row icon={BadgeCheck} label="Title" value={doctor.title} />
+            <Row icon={Stethoscope} label="Specialty" value={doctor.specialty} />
+            <Row icon={CalendarDays} label="Working Days" value={formatDays(doctor.workingDays ?? [])} />
+            <Row
+              icon={Clock}
+              label="Hours"
+              value={doctor.startTime && doctor.endTime ? `${to12Hour(doctor.startTime)} – ${to12Hour(doctor.endTime)}` : null}
+            />
+            <Row icon={Timer} label="Slot Length" value={doctor.slotMinutes ? `${doctor.slotMinutes} min` : null} />
+            <Row icon={ImageIcon} label="Profile Photo" value={doctor.photoUrl ? 'Uploaded' : null} />
+            <Row icon={CalendarPlus} label="Added" value={doctor.createdAt ? formatDate(doctor.createdAt) : null} />
+          </dl>
         </CardContent>
       </Card>
 
@@ -133,30 +142,17 @@ export function DoctorViewLive({ initial }: { initial: DoctorRecord }) {
         <CardHeader>
           <CardTitle className="text-base">Login Access</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-1">
-          <div className="flex items-center justify-between border-b py-2.5 text-sm">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <AtSign className="h-4 w-4" />
-              Username
-            </span>
-            <span className="font-medium">{doctor.username ?? '—'}</span>
-          </div>
-          <div className="flex items-center justify-between py-2.5 text-sm">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <Mail className="h-4 w-4" />
-              Recovery Email
-            </span>
-            <span className="font-medium">{doctor.loginEmail ?? '—'}</span>
-          </div>
-          {doctor.authUid && (
-            <div className="flex items-center justify-between border-t py-2.5 text-sm">
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <Radio className="h-4 w-4" />
-                Last Active
-              </span>
-              <span className="font-medium">{formatRelativeTime(doctor.lastSignInTime)}</span>
-            </div>
-          )}
+        <CardContent>
+          <dl>
+            <Row icon={KeyRound} label="Login Account" value={doctor.authUid ? 'Enabled' : null} />
+            <Row icon={AtSign} label="Username" value={doctor.username} />
+            <Row icon={Mail} label="Login Email" value={doctor.loginEmail} />
+            <Row
+              icon={Radio}
+              label="Last Active"
+              value={doctor.authUid && doctor.lastSignInTime ? formatRelativeTime(doctor.lastSignInTime) : null}
+            />
+          </dl>
         </CardContent>
       </Card>
     </>

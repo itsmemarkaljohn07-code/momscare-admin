@@ -1,228 +1,242 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import type { DoctorRecord } from '@/lib/get-doctors';
 import { getApiErrorMessage } from '@/lib/error-messages';
+import {
+  DoctorScheduleFields,
+  validateSchedule,
+  type ScheduleErrors,
+  type ScheduleFields,
+} from '@/components/doctor-schedule-fields';
 
-const TYPE_OPTIONS = [
-  'Obstetrics', 'OB-GYN', 'Radiology', 'Laboratory',
-  'Dietitian', 'Cardiology', 'Pediatrics', 'General Physician', 'Other',
-];
-
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-interface FormState {
-  name: string;
-  specialty: string;
-  workingDays: number[];
-  startTime: string;
-  endTime: string;
-  slotMinutes: number;
+function fromRecord(d: DoctorRecord): ScheduleFields {
+  return {
+    name: d.name ?? '',
+    specialty: d.specialty ?? '',
+    workingDays: [...(d.workingDays ?? [])].sort((a, b) => a - b),
+    startTime: d.startTime ?? '',
+    endTime: d.endTime ?? '',
+    slotMinutes: typeof d.slotMinutes === 'number' ? d.slotMinutes : NaN,
+  };
 }
 
-const BLANK: FormState = {
-  name: '', specialty: '', workingDays: [], startTime: '09:00', endTime: '17:00', slotMinutes: 30,
-};
+function sameSchedule(a: ScheduleFields, b: ScheduleFields): boolean {
+  return (
+    a.specialty === b.specialty &&
+    a.startTime === b.startTime &&
+    a.endTime === b.endTime &&
+    (a.slotMinutes === b.slotMinutes || (Number.isNaN(a.slotMinutes) && Number.isNaN(b.slotMinutes))) &&
+    a.workingDays.length === b.workingDays.length &&
+    a.workingDays.every((d, i) => d === b.workingDays[i])
+  );
+}
 
+/**
+ * Edit Doctor: the same schedule controls as Add Doctor Account,
+ * prefilled from the saved record and saved with a PATCH to that same
+ * doctors/{id} document (it never creates an account). The name stays
+ * locked (the server refuses a change too); login details are shown
+ * read-only and there is no password field.
+ */
 export function DoctorFormDialog({
   editing,
   trigger,
 }: {
-  editing?: DoctorRecord;
+  editing: DoctorRecord;
   trigger: React.ReactElement;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<FormState>(BLANK);
+  const [form, setForm] = useState<ScheduleFields>(() => fromRecord(editing));
+  const [initial, setInitial] = useState<ScheduleFields>(() => fromRecord(editing));
+  const [submitted, setSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const inFlight = useRef(false);
 
-  const [prevOpen, setPrevOpen] = useState(open);
-  if (open !== prevOpen) {
-    setPrevOpen(open);
-    if (open) {
-      setForm(
-        editing
-          ? {
-              name: editing.name,
-              specialty: editing.specialty,
-              workingDays: editing.workingDays,
-              startTime: editing.startTime,
-              endTime: editing.endTime,
-              slotMinutes: editing.slotMinutes,
-            }
-          : BLANK
-      );
+  const dirty = !sameSchedule(form, initial);
+  const errors: ScheduleErrors = submitted ? validateSchedule(form) : {};
+
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      // Prefill from the latest saved record every time it opens.
+      const saved = fromRecord(editing);
+      setForm(saved);
+      setInitial(saved);
+      setSubmitted(false);
       setError('');
+      setOpen(true);
+      return;
     }
-  }
-
-  function toggleDay(day: number, checked: boolean) {
-    setForm((f) => ({
-      ...f,
-      workingDays: checked
-        ? [...f.workingDays, day].sort((a, b) => a - b)
-        : f.workingDays.filter((d) => d !== day),
-    }));
+    if (inFlight.current) return;
+    if (dirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    setOpen(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name || !form.specialty || form.workingDays.length === 0 || !form.startTime || !form.endTime) {
-      setError('Please complete all required fields.');
-      return;
-    }
-    if (form.startTime >= form.endTime) {
-      setError('End time must be after start time.');
-      return;
-    }
-
-    setIsSaving(true);
+    if (inFlight.current) return;
+    setSubmitted(true);
     setError('');
+    if (Object.keys(validateSchedule(form)).length > 0) {
+      setError('Please fix the highlighted fields.');
+      return;
+    }
+    if (!dirty) {
+      setOpen(false);
+      return;
+    }
 
+    inFlight.current = true;
+    setIsSaving(true);
     try {
-      const res = editing
-        ? await fetch(`/api/doctors/${editing.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(form),
-          })
-        : await fetch('/api/doctors', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(form),
-          });
+      // Same document, same fields as before: the stored name is sent
+      // unchanged (the route checks it), and no username or password.
+      const res = await fetch(`/api/doctors/${editing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editing.name,
+          specialty: form.specialty,
+          workingDays: form.workingDays,
+          startTime: form.startTime,
+          endTime: form.endTime,
+          slotMinutes: form.slotMinutes,
+        }),
+      });
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         setError(getApiErrorMessage(res, data, undefined, 'save doctor').description);
-        setIsSaving(false);
         return;
       }
 
-      toast.success(editing ? 'Doctor updated.' : 'Doctor added.');
+      toast.success('Doctor updated.');
+      setInitial(form);
+      inFlight.current = false;
       setOpen(false);
       router.refresh();
     } catch (err: unknown) {
       setError(getApiErrorMessage(null, null, err, 'save doctor').description);
     } finally {
+      inFlight.current = false;
       setIsSaving(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger} />
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{editing ? 'Edit Doctor' : 'Add New Doctor'}</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger render={trigger} />
+        <DialogContent className="max-h-[92vh] overflow-y-auto p-5 sm:max-w-3xl sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Edit Doctor</DialogTitle>
+            <DialogDescription className="truncate">{editing.name}</DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Full Name</label>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="e.g. Dr. Maria Santos"
-              className="rounded-xl"
-              disabled={!!editing}
-              required
-            />
-            {editing && (
-              <p className="text-xs text-muted-foreground">
-                A doctor&apos;s name can&apos;t be changed — their appointments, patients and login
-                are linked to it.
-              </p>
-            )}
-          </div>
+          <form onSubmit={handleSubmit} noValidate className="space-y-5">
+            <fieldset disabled={isSaving} className="grid gap-5 md:grid-cols-2">
+              <section className="space-y-4 rounded-2xl border p-4" aria-labelledby="edit-doctor-details">
+                <h3 id="edit-doctor-details" className="text-sm font-semibold">Doctor Details</h3>
+                <DoctorScheduleFields
+                  idPrefix={`edit-doctor-${editing.id}`}
+                  value={form}
+                  onChange={setForm}
+                  errors={errors}
+                  nameLocked
+                />
+              </section>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Specialty</label>
-            <Select value={form.specialty} onValueChange={(value) => value && setForm((f) => ({ ...f, specialty: value }))}>
-              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select…" /></SelectTrigger>
-              <SelectContent>
-                {TYPE_OPTIONS.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <section className="space-y-3 rounded-2xl border p-4 md:self-start" aria-labelledby="edit-doctor-login">
+                <h3 id="edit-doctor-login" className="text-sm font-semibold">Login Credentials</h3>
+                <dl className="space-y-3 text-sm">
+                  <div className="space-y-0.5">
+                    <dt className="text-muted-foreground">Username</dt>
+                    <dd className="break-all font-medium">{editing.username || 'Not set'}</dd>
+                  </div>
+                  <div className="space-y-0.5">
+                    <dt className="text-muted-foreground">Email</dt>
+                    <dd className="break-all font-medium">{editing.loginEmail || 'Not set'}</dd>
+                  </div>
+                </dl>
+                <p className="text-xs text-muted-foreground">
+                  Login details can&apos;t be edited here, and passwords are never shown. Use the Login
+                  button in the doctors list to manage access.
+                </p>
+              </section>
+            </fieldset>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Working Days</label>
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-              {DAY_LABELS.map((label, i) => (
-                <label key={i} className="flex items-center gap-1.5 text-sm">
-                  <Checkbox
-                    checked={form.workingDays.includes(i)}
-                    onCheckedChange={(checked) => toggleDay(i, checked === true)}
-                  />
-                  {label}
-                </label>
-              ))}
+            <div aria-live="polite">
+              {error && (
+                <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                  {error}
+                </p>
+              )}
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Start Time</label>
-              <Input
-                type="time"
-                value={form.startTime}
-                onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
-                className="rounded-xl"
-                required
-              />
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-full"
+                disabled={isSaving}
+                onClick={() => handleOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="h-10 rounded-full sm:min-w-40" disabled={isSaving} aria-busy={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                    Saving…
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">End Time</label>
-              <Input
-                type="time"
-                value={form.endTime}
-                onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
-                className="rounded-xl"
-                required
-              />
-            </div>
-          </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Slot Length (minutes)</label>
-            <Input
-              type="number"
-              min={5}
-              step={5}
-              value={form.slotMinutes}
-              onChange={(e) => setForm((f) => ({ ...f, slotMinutes: Number(e.target.value) }))}
-              className="rounded-xl"
-              required
-            />
-            <p className="text-xs text-muted-foreground">How long each appointment slot is.</p>
-          </div>
-
-          {error && (
-            <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
-              {error}
-            </p>
-          )}
-
-          <Button type="submit" className="h-11 w-full rounded-full" disabled={isSaving}>
-            {isSaving ? 'Saving...' : editing ? 'Save Changes' : 'Add Doctor'}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your changes to {editing.name}&apos;s schedule haven&apos;t been saved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive-solid"
+              onClick={() => {
+                setConfirmDiscard(false);
+                setOpen(false);
+              }}
+            >
+              Discard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

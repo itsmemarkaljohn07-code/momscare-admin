@@ -4,8 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { UserX, ChevronRight } from 'lucide-react';
+import { UserX, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
 import {
@@ -51,7 +52,11 @@ function formatDays(days: number[]): string {
   return parts.join(', ');
 }
 
-const HEAD_CLASS = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground';
+function formatHours(d: Pick<DoctorRecord, 'startTime' | 'endTime'>): string {
+  return d.startTime && d.endTime ? `${to12Hour(d.startTime)} – ${to12Hour(d.endTime)}` : 'Hours not set';
+}
+
+const HEAD_CLASS ='text-xs font-semibold uppercase tracking-wide text-muted-foreground';
 
 function LoadCell({ s }: { s?: DoctorStats }) {
   if (!s) return <span className="text-muted-foreground">—</span>;
@@ -106,6 +111,14 @@ export function DoctorsTable({
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [confirmDoctor, setConfirmDoctor] = useState<DoctorRecord | null>(null);
+  const [query, setQuery] = useState('');
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? doctors.filter((d) =>
+        [d.name, d.specialty, d.username, d.title].some((v) => (v ?? '').toLowerCase().includes(q))
+      )
+    : doctors;
 
   const impact = confirmDoctor ? stats?.[confirmDoctor.id] : undefined;
 
@@ -130,8 +143,24 @@ export function DoctorsTable({
 
   return (
     <div className="space-y-4">
+      {doctors.length > 0 && (
+        <div className="relative max-w-sm">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input
+            type="search"
+            aria-label="Search doctors"
+            placeholder="Search by name, specialty or username..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="rounded-full pl-10"
+          />
+        </div>
+      )}
+
       {doctors.length === 0 ? (
         <EmptyState icon={UserX} title="No doctors yet" description="Add your first doctor to start scheduling appointments." />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={Search} title="No matching doctors" description={`Nothing matches "${query.trim()}".`} />
       ) : (
         <>
           <div className="hidden overflow-x-auto rounded-2xl border shadow-soft md:block">
@@ -151,10 +180,10 @@ export function DoctorsTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {doctors.map((d) => (
+                {filtered.map((d) => (
                   <TableRow key={d.id} className="transition-colors hover:bg-muted/50">
                     <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
+                      <div className="flex w-56 min-w-0 items-center gap-2 lg:w-64" title={d.name}>
                         {d.photoUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
@@ -167,16 +196,20 @@ export function DoctorsTable({
                             {getInitials(d.name)}
                           </span>
                         )}
-                        {d.name}
+                        <span className="truncate">{d.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{d.specialty}</span>
+                      <span className="whitespace-nowrap rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                        {d.specialty || 'Not set'}
+                      </span>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{formatDays(d.workingDays)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      {formatDays(d.workingDays) || 'Not set'}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      <p className="whitespace-nowrap">{to12Hour(d.startTime)} – {to12Hour(d.endTime)}</p>
-                      <p className="text-xs">{d.slotMinutes}-min slots</p>
+                      <p className="whitespace-nowrap">{formatHours(d)}</p>
+                      <p className="whitespace-nowrap text-xs">{d.slotMinutes ? `${d.slotMinutes}-min slots` : 'Slot length not set'}</p>
                     </TableCell>
                     <TableCell className="text-sm">
                       {stats?.[d.id] ? stats[d.id].patients : <span className="text-muted-foreground">—</span>}
@@ -194,32 +227,33 @@ export function DoctorsTable({
                       {d.authUid ? formatRelativeTime(d.lastSignInTime) : '—'}
                     </TableCell>
                     <TableCell>
-                      {/* Same layout as the Patients table: one row that
-                          never wraps (the table scrolls instead), and the
-                          destructive action only appears on hovering the
-                          chevron. */}
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/admin/doctors/${d.id}`}
-                          className="text-sm font-medium text-primary hover:underline"
+                      {/* One row that never wraps (the table scrolls
+                          sideways instead); every action is always visible
+                          and reachable with the keyboard. */}
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          nativeButton={false}
+                          render={<Link href={`/admin/doctors/${d.id}`} aria-label={`View ${d.name}`} />}
                         >
                           View
-                        </Link>
-                        <DoctorFormDialog editing={d} trigger={<Button variant="outline" size="sm">Edit</Button>} />
-                        <div className="group/expand flex items-center gap-1">
-                          <ChevronRight className="h-4 w-4 shrink-0 cursor-default text-muted-foreground transition-transform duration-200 group-hover/expand:translate-x-0.5" />
-                          <div className="max-w-0 overflow-hidden opacity-0 transition-all duration-300 ease-out group-hover/expand:max-w-[90px] group-hover/expand:opacity-100">
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              disabled={pendingId === d.id}
-                              onClick={() => setConfirmDoctor(d)}
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        </div>
+                        </Button>
+                        <DoctorFormDialog
+                          editing={d}
+                          trigger={<Button variant="outline" size="sm" aria-label={`Edit ${d.name}`}>Edit</Button>}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+                          disabled={pendingId === d.id}
+                          onClick={() => setConfirmDoctor(d)}
+                          aria-label={`Remove ${d.name}`}
+                        >
+                          Remove
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -229,7 +263,7 @@ export function DoctorsTable({
           </div>
 
           <div className="grid gap-3 md:hidden">
-            {doctors.map((d) => {
+            {filtered.map((d) => {
               const s = stats?.[d.id];
               return (
                 <Card key={d.id} className="rounded-2xl shadow-soft transition-shadow hover:shadow-card">
@@ -253,8 +287,11 @@ export function DoctorsTable({
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      <p className="truncate">{formatDays(d.workingDays)}</p>
-                      <p className="truncate">{to12Hour(d.startTime)} – {to12Hour(d.endTime)} · {d.slotMinutes} min slots</p>
+                      <p className="truncate">{formatDays(d.workingDays) || 'Working days not set'}</p>
+                      <p className="truncate">
+                        {formatHours(d)}
+                        {d.slotMinutes ? ` · ${d.slotMinutes} min slots` : ''}
+                      </p>
                       {s && (
                         <p className="truncate">
                           {s.patients} patient{s.patients === 1 ? '' : 's'}
@@ -265,14 +302,26 @@ export function DoctorsTable({
                       {d.authUid && <p>Last active: {formatRelativeTime(d.lastSignInTime)}</p>}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-                      <Link
-                        href={`/admin/doctors/${d.id}`}
-                        className="text-sm font-medium text-primary hover:underline"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        nativeButton={false}
+                        render={<Link href={`/admin/doctors/${d.id}`} aria-label={`View ${d.name}`} />}
                       >
                         View
-                      </Link>
-                      <DoctorFormDialog editing={d} trigger={<Button variant="outline" size="sm">Edit</Button>} />
-                      <Button variant="ghost" size="sm" disabled={pendingId === d.id} onClick={() => setConfirmDoctor(d)}>
+                      </Button>
+                      <DoctorFormDialog
+                        editing={d}
+                        trigger={<Button variant="outline" size="sm" aria-label={`Edit ${d.name}`}>Edit</Button>}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
+                        disabled={pendingId === d.id}
+                        onClick={() => setConfirmDoctor(d)}
+                        aria-label={`Remove ${d.name}`}
+                      >
                         Remove
                       </Button>
                     </div>

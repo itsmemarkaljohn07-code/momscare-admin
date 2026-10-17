@@ -6,39 +6,33 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Check, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 import { getApiErrorMessage } from '@/lib/error-messages';
+import {
+  BLANK_SCHEDULE,
+  DoctorScheduleFields,
+  FieldError,
+  RequiredMark,
+  validateSchedule,
+  type ScheduleErrors,
+  type ScheduleFields,
+} from '@/components/doctor-schedule-fields';
 
-const TYPE_OPTIONS = [
-  'Obstetrics', 'OB-GYN', 'Radiology', 'Laboratory',
-  'Dietitian', 'Cardiology', 'Pediatrics', 'General Physician', 'Other',
-];
-
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const CHECK_DEBOUNCE_MS = 450;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-interface FormState {
-  name: string;
-  specialty: string;
-  workingDays: number[];
-  startTime: string;
-  endTime: string;
-  slotMinutes: number;
+interface Credentials {
+  username: string;
   email: string;
   password: string;
-  username: string;
+  confirmPassword: string;
 }
 
-const BLANK: FormState = {
-  name: '', specialty: '', workingDays: [], startTime: '09:00', endTime: '17:00',
-  slotMinutes: 30, email: '', password: '', username: '',
-};
+const BLANK_CREDENTIALS: Credentials = { username: '', email: '', password: '', confirmPassword: '' };
+
+type CredentialErrors = Partial<Record<keyof Credentials, string>>;
 
 // Only ever holds the real, async-check-driven states. The "too short
 // to check yet" case is derived at render time from input length
@@ -46,10 +40,6 @@ const BLANK: FormState = {
 // this never needs a synchronous setState-in-effect for that case.
 type Availability = 'idle' | 'checking' | 'available' | 'taken' | 'unknown';
 
-// Hoisted to module scope — a component defined inside another
-// component's body gets recreated on every render, which resets its
-// identity and defeats React's reconciliation. This has no state of
-// its own, so it's a plain, stable function component.
 function AvailabilityHint({ status, takenMessage }: { status: Availability; takenMessage: string }) {
   if (status === 'checking') {
     return (
@@ -60,7 +50,7 @@ function AvailabilityHint({ status, takenMessage }: { status: Availability; take
   }
   if (status === 'taken') {
     return (
-      <p className="flex items-center gap-1 text-xs text-red-500">
+      <p className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
         <X className="h-3 w-3" /> {takenMessage}
       </p>
     );
@@ -75,43 +65,81 @@ function AvailabilityHint({ status, takenMessage }: { status: Availability; take
   return null;
 }
 
+function validateCredentials(c: Credentials): CredentialErrors {
+  const e: CredentialErrors = {};
+  const username = c.username.trim();
+  if (!username) e.username = 'Enter a username.';
+  else if (username.length < 3) e.username = 'Use at least 3 characters.';
+  else if (/\s/.test(username)) e.username = 'Usernames can’t contain spaces.';
+  if (!c.email.trim()) e.email = 'Enter an email address.';
+  else if (!EMAIL_PATTERN.test(c.email.trim())) e.email = 'Enter a valid email address.';
+  if (!c.password) e.password = 'Enter a password.';
+  else if (c.password.length < 6) e.password = 'Use at least 6 characters.';
+  if (!c.confirmPassword) e.confirmPassword = 'Enter the password again.';
+  else if (c.password !== c.confirmPassword) e.confirmPassword = 'Passwords don’t match.';
+  return e;
+}
+
+function PasswordInput({
+  id,
+  value,
+  onChange,
+  autoComplete,
+  error,
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  autoComplete: string;
+  error?: string;
+}) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+        className="rounded-xl pr-11"
+        {...(error ? { 'aria-invalid': true, 'aria-describedby': `${id}-error` } : {})}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((v) => !v)}
+        aria-label={show ? 'Hide password' : 'Show password'}
+        aria-pressed={show}
+        aria-controls={id}
+        className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+      >
+        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+}
+
 export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactElement }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<FormState>(BLANK);
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  // Kept across a failed attempt (and a close/reopen); cleared only after
+  // a successful create.
+  const [schedule, setSchedule] = useState<ScheduleFields>(BLANK_SCHEDULE);
+  const [creds, setCreds] = useState<Credentials>(BLANK_CREDENTIALS);
+  const [submitted, setSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  // A ref, not state: a second click in the same tick still sees it.
+  const inFlight = useRef(false);
 
   const [usernameStatus, setUsernameStatus] = useState<Availability>('idle');
   const [emailStatus, setEmailStatus] = useState<Availability>('idle');
   const usernameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const emailTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset all form state exactly once per open transition — computed
-  // during render (React's documented alternative to an effect for
-  // this exact "reset on prop/flag change" case) rather than via
-  // setState inside a useEffect.
-  const [wasOpen, setWasOpen] = useState(open);
-  if (open !== wasOpen) {
-    setWasOpen(open);
-    if (open) {
-      setForm(BLANK);
-      setConfirmPassword('');
-      setError('');
-      setUsernameStatus('idle');
-      setEmailStatus('idle');
-    }
-  }
-
   // Debounced live check — fires 450ms after the person stops typing.
-  // For a too-short username, this simply skips checking (and clears
-  // any pending timer) rather than setState-ing an 'idle' status —
-  // "too short" is derived below from form.username's length instead.
   useEffect(() => {
-    const username = form.username.trim();
+    const username = creds.username.trim();
     if (usernameTimer.current) clearTimeout(usernameTimer.current);
     if (username.length < 3) return;
 
@@ -131,12 +159,12 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
     return () => {
       if (usernameTimer.current) clearTimeout(usernameTimer.current);
     };
-  }, [form.username]);
+  }, [creds.username]);
 
   useEffect(() => {
-    const email = form.email.trim();
+    const email = creds.email.trim();
     if (emailTimer.current) clearTimeout(emailTimer.current);
-    if (!email.includes('@') || !email.includes('.')) return;
+    if (!EMAIL_PATTERN.test(email)) return;
 
     emailTimer.current = setTimeout(async () => {
       setEmailStatus('checking');
@@ -154,277 +182,232 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
     return () => {
       if (emailTimer.current) clearTimeout(emailTimer.current);
     };
-  }, [form.email]);
+  }, [creds.email]);
 
   // Derived display status — overrides any stale 'checking'/'taken'/etc.
   // left over from a longer input the person has since shortened.
-  const usernameDisplayStatus: Availability =
-    form.username.trim().length < 3 ? 'idle' : usernameStatus;
-  const emailDisplayStatus: Availability =
-    form.email.trim().includes('@') && form.email.trim().includes('.') ? emailStatus : 'idle';
+  const usernameDisplayStatus: Availability = creds.username.trim().length < 3 ? 'idle' : usernameStatus;
+  const emailDisplayStatus: Availability = EMAIL_PATTERN.test(creds.email.trim()) ? emailStatus : 'idle';
 
-  function toggleDay(day: number, checked: boolean) {
-    setForm((f) => ({
-      ...f,
-      workingDays: checked
-        ? [...f.workingDays, day].sort((a, b) => a - b)
-        : f.workingDays.filter((d) => d !== day),
-    }));
+  // Errors appear once the person has tried to submit, then update live.
+  const scheduleErrors: ScheduleErrors = submitted ? validateSchedule(schedule) : {};
+  const credErrors: CredentialErrors = submitted ? validateCredentials(creds) : {};
+  if (usernameDisplayStatus === 'taken') credErrors.username = 'This username is already taken.';
+  if (emailDisplayStatus === 'taken') credErrors.email = 'This email is already registered.';
+
+  const setCred = (key: keyof Credentials) => (v: string) => setCreds((c) => ({ ...c, [key]: v }));
+
+  function handleOpenChange(next: boolean) {
+    // Never close while the account is being created.
+    if (!next && inFlight.current) return;
+    setOpen(next);
+    if (next) setError('');
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (inFlight.current) return;
+    setSubmitted(true);
     setError('');
 
-    if (
-      !form.name || !form.specialty || form.workingDays.length === 0 ||
-      !form.startTime || !form.endTime || !form.email || !form.password || !form.username
-    ) {
-      setError('Please complete all required fields.');
+    const sErr = validateSchedule(schedule);
+    const cErr = validateCredentials(creds);
+    if (Object.keys(sErr).length > 0 || Object.keys(cErr).length > 0) {
+      setError('Please fix the highlighted fields.');
       return;
     }
-    if (form.startTime >= form.endTime) {
-      setError('End time must be after start time.');
-      return;
-    }
-    if (usernameDisplayStatus === 'taken') {
-      setError('Username is already taken.');
-      return;
-    }
-    if (emailDisplayStatus === 'taken') {
-      setError('Email is already registered.');
-      return;
-    }
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-    if (form.password !== confirmPassword) {
-      setError('Passwords do not match.');
+    if (usernameDisplayStatus === 'taken' || emailDisplayStatus === 'taken') {
+      setError('Choose a username and email that aren’t already in use.');
       return;
     }
 
+    inFlight.current = true;
     setIsSaving(true);
-
     try {
       const res = await fetch('/api/doctors/create-with-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: schedule.name.trim(),
+          specialty: schedule.specialty,
+          workingDays: schedule.workingDays,
+          startTime: schedule.startTime,
+          endTime: schedule.endTime,
+          slotMinutes: schedule.slotMinutes,
+          username: creds.username.trim(),
+          email: creds.email.trim(),
+          password: creds.password,
+        }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         setError(getApiErrorMessage(res, data, undefined, 'create doctor account').description);
-        setIsSaving(false);
         return;
       }
 
       toast.success('Doctor account created.');
+      setSchedule(BLANK_SCHEDULE);
+      setCreds(BLANK_CREDENTIALS);
+      setSubmitted(false);
+      setUsernameStatus('idle');
+      setEmailStatus('idle');
+      inFlight.current = false;
       setOpen(false);
-      setForm(BLANK);
-      setConfirmPassword('');
       router.refresh();
     } catch (err: unknown) {
       setError(getApiErrorMessage(null, null, err, 'create doctor account').description);
     } finally {
+      inFlight.current = false;
       setIsSaving(false);
     }
   }
 
-  const canSubmit =
-    !isSaving && usernameDisplayStatus !== 'taken' && usernameDisplayStatus !== 'checking' &&
-    emailDisplayStatus !== 'taken' && emailDisplayStatus !== 'checking';
+  const checking = usernameDisplayStatus === 'checking' || emailDisplayStatus === 'checking';
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={trigger} />
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="max-h-[92vh] overflow-y-auto p-5 sm:max-w-3xl sm:p-6">
         <DialogHeader>
           <DialogTitle>Add Doctor Account</DialogTitle>
+          <DialogDescription>
+            Fields marked <span className="text-red-500">*</span> are required. The doctor signs in with the
+            username and password.
+          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-3 rounded-2xl border p-4 shadow-soft">
-            <p className="text-sm font-medium">Doctor Details</p>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Full Name</label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Dr. Maria Santos"
-                className="rounded-xl"
-                required
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+          <fieldset disabled={isSaving} className="grid gap-5 md:grid-cols-2">
+            <section className="space-y-4 rounded-2xl border p-4" aria-labelledby="add-doctor-details">
+              <h3 id="add-doctor-details" className="text-sm font-semibold">Doctor Details</h3>
+              <DoctorScheduleFields
+                idPrefix="add-doctor"
+                value={schedule}
+                onChange={setSchedule}
+                errors={scheduleErrors}
               />
-            </div>
+            </section>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Specialty</label>
-              <Select value={form.specialty} onValueChange={(value) => value && setForm((f) => ({ ...f, specialty: value }))}>
-                <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select…" /></SelectTrigger>
-                <SelectContent>
-                  {TYPE_OPTIONS.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <section className="space-y-4 rounded-2xl border p-4" aria-labelledby="add-doctor-login">
+              <h3 id="add-doctor-login" className="text-sm font-semibold">Login Credentials</h3>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Working Days</label>
-              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-                {DAY_LABELS.map((label, i) => (
-                  <label key={i} className="flex items-center gap-1.5 text-sm">
-                    <Checkbox
-                      checked={form.workingDays.includes(i)}
-                      onCheckedChange={(checked) => toggleDay(i, checked === true)}
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Start Time</label>
+              <div className="space-y-1.5">
+                <label htmlFor="add-doctor-username" className="text-sm font-medium">
+                  Username
+                  <RequiredMark />
+                </label>
                 <Input
-                  type="time"
-                  value={form.startTime}
-                  onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                  id="add-doctor-username"
+                  value={creds.username}
+                  onChange={(e) => setCred('username')(e.target.value)}
+                  placeholder="e.g. drmaria"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   className="rounded-xl"
-                  required
+                  {...(credErrors.username ? { 'aria-invalid': true, 'aria-describedby': 'add-doctor-username-error' } : {})}
                 />
+                {credErrors.username ? (
+                  <FieldError id="add-doctor-username-error" message={credErrors.username} />
+                ) : usernameDisplayStatus === 'idle' ? (
+                  <p className="text-xs text-muted-foreground">What the doctor types to sign in. At least 3 characters, unique.</p>
+                ) : (
+                  <AvailabilityHint status={usernameDisplayStatus} takenMessage="This username is already taken." />
+                )}
               </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium">End Time</label>
+
+              <div className="space-y-1.5">
+                <label htmlFor="add-doctor-email" className="text-sm font-medium">
+                  Email
+                  <RequiredMark />
+                </label>
                 <Input
-                  type="time"
-                  value={form.endTime}
-                  onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                  id="add-doctor-email"
+                  type="email"
+                  value={creds.email}
+                  onChange={(e) => setCred('email')(e.target.value)}
+                  placeholder="doctor@example.com"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   className="rounded-xl"
-                  required
+                  {...(credErrors.email ? { 'aria-invalid': true, 'aria-describedby': 'add-doctor-email-error' } : {})}
                 />
+                {credErrors.email ? (
+                  <FieldError id="add-doctor-email-error" message={credErrors.email} />
+                ) : emailDisplayStatus === 'idle' ? (
+                  <p className="text-xs text-muted-foreground">The account&apos;s login email, also used for recovery.</p>
+                ) : (
+                  <AvailabilityHint status={emailDisplayStatus} takenMessage="This email is already registered." />
+                )}
               </div>
-            </div>
 
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Slot Length (minutes)</label>
-              <Input
-                type="number"
-                min={5}
-                step={5}
-                value={form.slotMinutes}
-                onChange={(e) => setForm((f) => ({ ...f, slotMinutes: Number(e.target.value) }))}
-                className="rounded-xl"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="space-y-3 rounded-2xl border p-4 shadow-soft">
-            <p className="text-sm font-medium">Login Credentials</p>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Username</label>
-              <Input
-                value={form.username}
-                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-                placeholder="e.g. drmaria"
-                className={`rounded-xl transition-colors ${
-                  usernameDisplayStatus === 'taken' ? 'border-red-400 focus-visible:ring-red-300' :
-                  usernameDisplayStatus === 'available' ? 'border-[color:var(--status-approved)] focus-visible:ring-[color:var(--status-approved)]/30' : ''
-                }`}
-                required
-              />
-              <AvailabilityHint status={usernameDisplayStatus} takenMessage="Username is already taken." />
-              {usernameDisplayStatus === 'idle' && (
-                <p className="text-xs text-muted-foreground">
-                  What the doctor will type to log in — at least 3 characters, must be unique.
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Email</label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                className={`rounded-xl transition-colors ${
-                  emailDisplayStatus === 'taken' ? 'border-red-400 focus-visible:ring-red-300' :
-                  emailDisplayStatus === 'available' ? 'border-[color:var(--status-approved)] focus-visible:ring-[color:var(--status-approved)]/30' : ''
-                }`}
-                required
-              />
-              <AvailabilityHint status={emailDisplayStatus} takenMessage="Email is already registered." />
-              {emailDisplayStatus === 'idle' && (
-                <p className="text-xs text-muted-foreground">
-                  Used for account recovery and communication — not for logging in.
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Password</label>
-              <div className="relative">
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  className="rounded-xl pr-10"
-                  minLength={6}
-                  required
+              <div className="space-y-1.5">
+                <label htmlFor="add-doctor-password" className="text-sm font-medium">
+                  Password
+                  <RequiredMark />
+                </label>
+                <PasswordInput
+                  id="add-doctor-password"
+                  value={creds.password}
+                  onChange={setCred('password')}
+                  autoComplete="new-password"
+                  error={credErrors.password}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-0 top-0 flex h-full w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                {credErrors.password ? (
+                  <FieldError id="add-doctor-password-error" message={credErrors.password} />
+                ) : (
+                  <p className="text-xs text-muted-foreground">At least 6 characters. Share it with the doctor securely.</p>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                At least 6 characters. Share this with the doctor securely.
+
+              <div className="space-y-1.5">
+                <label htmlFor="add-doctor-confirm" className="text-sm font-medium">
+                  Confirm Password
+                  <RequiredMark />
+                </label>
+                <PasswordInput
+                  id="add-doctor-confirm"
+                  value={creds.confirmPassword}
+                  onChange={setCred('confirmPassword')}
+                  autoComplete="new-password"
+                  error={credErrors.confirmPassword}
+                />
+                <FieldError id="add-doctor-confirm-error" message={credErrors.confirmPassword} />
+              </div>
+            </section>
+          </fieldset>
+
+          <div aria-live="polite">
+            {error && (
+              <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                {error}
               </p>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Confirm Password</label>
-              <div className="relative">
-                <Input
-                  type={showConfirm ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="rounded-xl pr-10"
-                  minLength={6}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm((v) => !v)}
-                  className="absolute right-0 top-0 flex h-full w-10 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
-                  tabIndex={-1}
-                >
-                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
+            )}
           </div>
 
-          {error && (
-            <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
-              {error}
-            </p>
-          )}
-
-          <Button type="submit" className="h-11 w-full rounded-full" disabled={!canSubmit}>
-            {isSaving ? 'Creating...' : 'Create Doctor Account'}
-          </Button>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 rounded-full"
+              disabled={isSaving}
+              onClick={() => handleOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" className="h-10 rounded-full sm:min-w-52" disabled={isSaving || checking} aria-busy={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                  Creating account…
+                </>
+              ) : (
+                'Create Doctor Account'
+              )}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
