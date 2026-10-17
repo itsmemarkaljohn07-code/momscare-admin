@@ -5,6 +5,7 @@ dotenv.config({ path: '.env.local' });
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import { buildPushMessage, type PushContent } from '../src/lib/push-message';
+import { REQUEST_PUSH_BODY, REQUEST_PUSH_TITLE } from '../src/lib/appointment-requests';
 
 // Validates every push the dashboard sends with FCM's dry-run mode:
 // FCM checks the payload and credentials but delivers nothing. Sent to a
@@ -29,6 +30,10 @@ const FLOWS: PushContent[] = [
   { type: 'cancellation_update', refId: 'apptDryRun', route: '/appointments',
     title: 'Cancellation Update',
     body: 'Mommy, there is an update on your cancellation request. Open MomCare to view the details.' },
+  { type: 'appointment_request_scheduled', refId: 'apptDryRun', route: '/appointments',
+    title: REQUEST_PUSH_TITLE, body: REQUEST_PUSH_BODY },
+  { type: 'appointment_request_declined', refId: 'requestDryRun', route: '/appointments',
+    title: REQUEST_PUSH_TITLE, body: REQUEST_PUSH_BODY },
 ];
 
 async function main() {

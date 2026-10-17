@@ -11,7 +11,8 @@ export type PatientNotificationType =
   | 'doctor_comment'
   | 'cancellation_update'
   | 'appointment_missed'
-  | 'appointment_request_declined';
+  | 'appointment_request_declined'
+  | 'appointment_request_scheduled';
 
 /** Routes the phone app opens from a tapped push; anything else is ignored. */
 export type PushRoute = '/home' | '/appointments' | '/snapshot';

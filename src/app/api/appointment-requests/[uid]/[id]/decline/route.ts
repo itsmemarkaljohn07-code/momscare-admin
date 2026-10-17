@@ -4,7 +4,13 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { notifyPatient } from '@/lib/notify-patient';
 import { logAuditEvent } from '@/lib/audit-log';
-import { ADMIN_NOTE_MAX } from '@/lib/appointment-requests';
+import {
+  ADMIN_NOTE_MAX,
+  REQUEST_PUSH_BODY,
+  REQUEST_PUSH_TITLE,
+  requestDeclinedBellMessage,
+  requestNotificationId,
+} from '@/lib/appointment-requests';
 
 /** Declines a patient's pending appointment request, with an optional note
  *  the patient sees in the app. Only a pending request can be declined;
@@ -54,17 +60,20 @@ export async function POST(
       );
     }
 
+    // Only reached when this call really declined a pending request (a
+    // repeat gets 409 above), and notifyPatient never throws, so a failed
+    // notice can't undo the decline. The note goes in the bell, never the push.
     await notifyPatient({
       uid,
       type: 'appointment_request_declined',
       refId: id,
       route: '/appointments',
       icon: '📅',
-      bellTitle: 'Appointment Request Update',
-      bellMessage: "The clinic couldn't schedule your appointment request. Open Appointments to see their note.",
-      pushTitle: 'Appointment Request Update',
-      pushBody: 'Mommy, the clinic replied to your appointment request. Tap to view it.',
-      id: `appointment_request_declined_${id}`,
+      bellTitle: REQUEST_PUSH_TITLE,
+      bellMessage: requestDeclinedBellMessage(outcome.type, note),
+      pushTitle: REQUEST_PUSH_TITLE,
+      pushBody: REQUEST_PUSH_BODY,
+      id: requestNotificationId(id, 'declined'),
     });
 
     await logAuditEvent({

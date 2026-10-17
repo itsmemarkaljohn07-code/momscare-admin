@@ -5,7 +5,13 @@ import { Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { notifyPatient } from '@/lib/notify-patient';
 import { notifyDoctorOfNewAppointment } from '@/lib/doctor-notifications';
 import { logAuditEvent } from '@/lib/audit-log';
-import { appearanceFor } from '@/lib/appointment-requests';
+import {
+  REQUEST_PUSH_BODY,
+  REQUEST_PUSH_TITLE,
+  appearanceFor,
+  requestNotificationId,
+  requestScheduledBellMessage,
+} from '@/lib/appointment-requests';
 
 export async function POST(req: NextRequest) {
   const session = await getAdminSession();
@@ -36,6 +42,10 @@ export async function POST(req: NextRequest) {
       createdAt: Timestamp.now(),
     };
 
+    // Set by the transaction only when it really moves the request from
+    // pending to scheduled.
+    let requestType: unknown = undefined;
+
     if (requestId) {
       // Scheduling a request: create the appointment and mark the request
       // scheduled together, and only while it is still pending, so the
@@ -53,6 +63,7 @@ export async function POST(req: NextRequest) {
           scheduledAt: Timestamp.now(),
           scheduledBy: session.uid,
         });
+        requestType = request.type;
         return 'scheduled' as const;
       });
       if (outcome === 'not_found') {
@@ -77,20 +88,38 @@ export async function POST(req: NextRequest) {
       { merge: true }
     );
 
-    // Saved; tell the patient. Keyed on the new appointment's id. A
-    // scheduled request sends only this, no separate request notice.
-    await notifyPatient({
-      uid: patientUid,
-      type: 'appointment_created',
-      refId: docRef.id,
-      route: '/appointments',
-      icon: '📅',
-      bellTitle: 'New Appointment Scheduled',
-      bellMessage: `A new ${appt.label || 'appointment'} has been scheduled for you on ${appt.date} at ${appt.time}.`,
-      pushTitle: 'New Appointment Scheduled',
-      pushBody: 'Mommy, a new appointment has been scheduled for you. Tap to view the details.',
-      id: `appointment_created_${docRef.id}`,
-    });
+    // Saved; tell the patient, exactly once. From her request: the one
+    // request notice (keyed on the request, sent only after the transaction
+    // above really scheduled it). Otherwise the usual new-appointment notice
+    // (keyed on the appointment). notifyPatient never throws, so a failed
+    // notice can't undo the appointment.
+    if (requestId) {
+      await notifyPatient({
+        uid: patientUid,
+        type: 'appointment_request_scheduled',
+        refId: docRef.id,
+        route: '/appointments',
+        icon: '📅',
+        bellTitle: REQUEST_PUSH_TITLE,
+        bellMessage: requestScheduledBellMessage(requestType ?? appt.label, appt.date, appt.time),
+        pushTitle: REQUEST_PUSH_TITLE,
+        pushBody: REQUEST_PUSH_BODY,
+        id: requestNotificationId(requestId, 'scheduled'),
+      });
+    } else {
+      await notifyPatient({
+        uid: patientUid,
+        type: 'appointment_created',
+        refId: docRef.id,
+        route: '/appointments',
+        icon: '📅',
+        bellTitle: 'New Appointment Scheduled',
+        bellMessage: `A new ${appt.label || 'appointment'} has been scheduled for you on ${appt.date} at ${appt.time}.`,
+        pushTitle: 'New Appointment Scheduled',
+        pushBody: 'Mommy, a new appointment has been scheduled for you. Tap to view the details.',
+        id: `appointment_created_${docRef.id}`,
+      });
+    }
 
     if (requestId) {
       await logAuditEvent({

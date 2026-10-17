@@ -80,6 +80,40 @@ export function to12Hour(time24: string): string {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 
+// -- Patient notifications about a request --------------------------------
+// Bell text may name the appointment and include the clinic's note; the
+// push text never does (it shows on a lock screen).
+
+export const REQUEST_PUSH_TITLE = 'Appointment request update';
+export const REQUEST_PUSH_BODY = 'Mommy, the clinic has updated your request. Open MomCare to view it.';
+
+export function requestNotificationId(requestId: string, outcome: 'scheduled' | 'declined'): string {
+  return `request_${requestId}_${outcome}`;
+}
+
+/** "a Prenatal Checkup", "an Ultrasound"; "Other" reads "an appointment". */
+function withArticle(type: unknown): string {
+  const name = typeof type === 'string' && type && type !== 'Other' ? type : 'appointment';
+  return `${/^[aeiou]/i.test(name) ? 'an' : 'a'} ${name}`;
+}
+
+/** "Your request for a Blood Test was declined." plus the clinic's note. */
+export function requestDeclinedBellMessage(type: unknown, adminNote?: string): string {
+  const base = `Your request for ${withArticle(type)} was declined.`;
+  return adminNote ? `${base} Note from the clinic: ${adminNote}` : base;
+}
+
+/** "Your request for a Blood Test was scheduled for Oct 28, 2026 at 9:00 AM.
+ *  Waiting for the doctor's approval." */
+export function requestScheduledBellMessage(type: unknown, date: unknown, time: unknown): string {
+  const d = new Date(`${String(date)}T00:00:00`);
+  const day = Number.isNaN(d.getTime())
+    ? String(date ?? '')
+    : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return `Your request for ${withArticle(type)} was scheduled for ${day} at ${String(time ?? '')}. `
+    + "Waiting for the doctor's approval.";
+}
+
 /** "Tue, Nov 3 · 9:00 AM – 10:30 AM" */
 export function formatRequestOption(o: AppointmentRequestOption): string {
   const d = new Date(`${o.date}T00:00:00`);
