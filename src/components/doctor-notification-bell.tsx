@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase-client';
@@ -15,8 +15,8 @@ type NotificationList = { notifications: DoctorNotificationView[]; unreadCount: 
  *  comments already there when listening starts are ignored. */
 const LISTEN_WINDOW_MS = 60 * 60 * 1000;
 
-/** At most one list refresh per this long when the tab becomes visible. */
-const VISIBLE_REFRESH_MS = 30_000;
+/** "Anything new?" check while the tab is visible (one read on the server). */
+const HEAD_POLL_MS = 15_000;
 
 /** Doctor-dashboard bell: patient replies to the doctor's Snapshot
  *  comments. Loading it runs the full server-side check; while the page
@@ -50,27 +50,50 @@ export function DoctorNotificationBell() {
     };
   }, []);
 
-  // New entries that aren't replies (e.g. a new appointment to review)
-  // have no live listener: re-read the list when the doctor comes back
-  // to the tab, at most every 30 seconds. No timer runs in between.
+  // Newest id the bell is showing, read by the polling timer.
+  const newestId = useRef<string | null>(null);
   useEffect(() => {
-    let last = Date.now();
-    function onVisible() {
-      if (document.visibilityState !== 'visible' || Date.now() - last < VISIBLE_REFRESH_MS) return;
-      last = Date.now();
-      fetch('/api/doctors/notifications?refresh=1')
-        .then(async (res) => {
-          if (!res.ok) return;
-          const data: NotificationList = await res.json();
-          setItems(data.notifications);
-          setUnread(data.unreadCount);
-        })
-        .catch(() => {
-          // Keep the current list; the next visit or page load tries again.
-        });
+    newestId.current = items[0]?.id ?? null;
+  }, [items]);
+
+  // New entries that aren't replies (e.g. a new appointment to review)
+  // have no live listener. While the tab is visible, a cheap check every
+  // 15 s (one read) re-reads the list only when the newest id changed;
+  // returning to the tab re-reads it straight away.
+  useEffect(() => {
+    let busy = false;
+    async function refresh() {
+      const res = await fetch('/api/doctors/notifications?refresh=1', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data: NotificationList = await res.json();
+      setItems(data.notifications);
+      setUnread(data.unreadCount);
     }
+    async function tick(force: boolean) {
+      if (document.visibilityState !== 'visible' || busy) return;
+      busy = true;
+      try {
+        if (force) {
+          await refresh();
+          return;
+        }
+        const res = await fetch('/api/doctors/notifications?head=1', { cache: 'no-store' });
+        if (!res.ok) return;
+        const { latestId } = (await res.json()) as { latestId: string | null };
+        if (latestId !== newestId.current) await refresh();
+      } catch {
+        // Keep the current list; the next check tries again.
+      } finally {
+        busy = false;
+      }
+    }
+    const id = window.setInterval(() => void tick(false), HEAD_POLL_MS);
+    const onVisible = () => void tick(true);
     document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   // One listener per watched thread, for comments from the last hour
