@@ -1,17 +1,17 @@
-﻿import { getAuditLogs } from '@/lib/get-audit-logs';
+﻿import { getAuditLogPage } from '@/lib/get-audit-logs';
 import { PageHeader } from '@/components/page-header';
 import { AuditLogTable } from '@/components/audit-log-table';
 
 export default async function AuditLogPage() {
-  const logs = await getAuditLogs();
+  const initial = await getAuditLogPage();
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Audit Log"
-        description="A record of significant actions across the dashboard — who did what, and when."
+        description="Who did what in the dashboard, and when. Read-only."
       />
-      <AuditLogTable logs={logs} />
+      <AuditLogTable initial={initial} />
     </div>
   );
 }
