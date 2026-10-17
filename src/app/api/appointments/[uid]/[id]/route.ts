@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { Timestamp } from 'firebase-admin/firestore';
 import { logAuditEvent } from '@/lib/audit-log';
+import { isAccentColor, isIcon } from '@/lib/appointment-requests';
 
 export async function PATCH(
   req: NextRequest,
@@ -15,6 +16,10 @@ export async function PATCH(
 
   const { uid, id } = await params;
   const body = await req.json();
+  // The form no longer edits the card's icon and colour; an edit may only
+  // set a valid one, never clear or break the one already stored.
+  if (!isIcon(body.icon)) delete body.icon;
+  if (!isAccentColor(body.accentColor)) delete body.accentColor;
 
   try {
     const docRef = adminDb.collection('users').doc(uid).collection('appointments').doc(id);

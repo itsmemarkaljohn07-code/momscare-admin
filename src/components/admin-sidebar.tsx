@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Newspaper, Users, CalendarDays, ShieldCheck, Stethoscope, BarChart3, ScrollText, type LucideIcon,
+  LayoutDashboard, Newspaper, Users, CalendarDays, ShieldCheck, Stethoscope, BarChart3, ScrollText, Inbox, type LucideIcon,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/sidebar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LogoutButton } from '@/components/logout-button';
+import { useLiveAppointmentRequests } from '@/hooks/use-live-appointment-requests';
 
 interface NavItem {
   title: string;
@@ -41,6 +42,7 @@ const navGroups: NavGroup[] = [
     label: 'Management',
     items: [
       { title: 'Appointments', url: '/admin/appointments', icon: CalendarDays },
+      { title: 'Requests', url: '/admin/requests', icon: Inbox },
       { title: 'Reports', url: '/admin/reports', icon: BarChart3 },
       { title: 'Doctors', url: '/admin/doctors', icon: Stethoscope },
       { title: 'Patients', url: '/admin/users', icon: Users },
@@ -61,6 +63,9 @@ const navGroups: NavGroup[] = [
 
 export function AppSidebar({ pendingCancellations = 0 }: { pendingCancellations?: number }) {
   const pathname = usePathname();
+  // Live, so a new request shows up here without reloading the page.
+  const { requests } = useLiveAppointmentRequests();
+  const pendingRequests = requests.filter((r) => r.status === 'pending').length;
 
   return (
     <Sidebar collapsible="offcanvas">
@@ -116,6 +121,19 @@ export function AppSidebar({ pendingCancellations = 0 }: { pendingCancellations?
                             }
                           >
                             {pendingCancellations}
+                          </span>
+                        )}
+                        {item.url === '/admin/requests' && pendingRequests > 0 && (
+                          <span
+                            className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
+                            title={`${pendingRequests} pending appointment request${pendingRequests === 1 ? '' : 's'}`}
+                            style={
+                              isActive
+                                ? { backgroundColor: 'rgba(255,255,255,0.25)', color: '#ffffff' }
+                                : { backgroundColor: 'var(--status-pending-bg)', color: 'var(--status-pending)' }
+                            }
+                          >
+                            {pendingRequests}
                           </span>
                         )}
                       </SidebarMenuButton>
