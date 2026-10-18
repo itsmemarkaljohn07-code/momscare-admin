@@ -248,6 +248,13 @@ export async function notifyDoctorOfNewAppointment(input: {
   }
 }
 
+/** The newest record's id (one document read), so an open bell can tell
+ *  cheaply whether anything new arrived before re-reading the list. */
+export async function latestDoctorNotificationId(doctorId: string): Promise<string | null> {
+  const snap = await notificationsCol(doctorId).orderBy('createdAt', 'desc').limit(1).select().get();
+  return snap.empty ? null : snap.docs[0].id;
+}
+
 export async function listDoctorNotifications(
   doctorId: string
 ): Promise<{ notifications: DoctorNotificationView[]; unreadCount: number }> {

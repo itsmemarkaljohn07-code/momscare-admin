@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDoctorSession } from '@/lib/get-doctor-session';
 import {
   checkDoctorReplyThread,
+  latestDoctorNotificationId,
   listDoctorNotifications,
   markDoctorNotificationsRead,
   syncDoctorReplyNotifications,
@@ -22,6 +23,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 });
   }
   try {
+    // ?head=1: just the newest id (one read), polled often by an open bell.
+    if (req.nextUrl.searchParams.get('head') === '1') {
+      return NextResponse.json({ latestId: await latestDoctorNotificationId(session.doctorId) });
+    }
     // ?refresh=1 (the bell, when the doctor returns to the tab) only
     // re-reads the list; the reply scan already ran on page load.
     if (req.nextUrl.searchParams.get('refresh') === '1') {

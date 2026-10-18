@@ -227,6 +227,42 @@ export async function syncAdminNotificationsThrottled(): Promise<void> {
   }
 }
 
+/** The newest record's id (one document read), so an open bell can tell
+ *  cheaply whether anything new arrived before re-reading the list. */
+export async function latestAdminNotificationId(): Promise<string | null> {
+  const snap = await adminCol().orderBy('createdAt', 'desc').limit(1).select().get();
+  return snap.empty ? null : snap.docs[0].id;
+}
+
+/**
+ * The bell saw a new appointment request appear live: create its record
+ * straight away instead of waiting for the next full check. Reads that
+ * one request on the server first, so a made-up id creates nothing.
+ * Never throws.
+ */
+export async function notifyAppointmentRequest(patientUid: string, requestId: string): Promise<void> {
+  try {
+    const patient = adminDb.collection('users').doc(patientUid);
+    const [request, profile] = await Promise.all([
+      patient.collection('appointmentRequests').doc(requestId).get(),
+      patient.get(),
+    ]);
+    if (!request.exists || !withinWindow(millis(request.get('createdAt')), Date.now())) return;
+    const options = request.get('options');
+    await createAdminNotification(
+      appointmentRequestNotification({
+        patientUid,
+        requestId,
+        patientName: String(profile.get('fullName') ?? '').trim() || 'A patient',
+        type: String(request.get('type') ?? ''),
+        options: Array.isArray(options) ? options : [],
+      })
+    );
+  } catch (err) {
+    console.error(`[admin-notifications] request notice failed (non-fatal): ${errorCode(err)}`);
+  }
+}
+
 export async function listAdminNotifications(
   adminUid: string
 ): Promise<{ notifications: AdminNotificationView[]; unreadCount: number }> {
