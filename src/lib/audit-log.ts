@@ -1,7 +1,8 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
+import type { PatientAuditEvent } from '@/lib/patient-audit-rules';
 
-export type AuditActorRole = 'admin' | 'doctor';
+export type AuditActorRole = 'admin' | 'doctor' | 'patient';
 
 export interface AuditLogEntry {
   actorUid: string;
@@ -59,4 +60,49 @@ export async function logMinimalAuditEvent(entry: MinimalAuditLogEntry): Promise
     console.error('[audit-log] Failed to record audit event (non-fatal):', err);
     return false;
   }
+}
+/**
+ * Records patient actions taken in the app (see patient-audit-rules.ts).
+ * Each event has a fixed document id and is written with create(), so
+ * running this again never duplicates an entry. No email and no free
+ * text: actorUid is the patient's uid, the label holds type + date/time.
+ * With dryRun it only counts the missing ones. Never throws.
+ */
+export async function logPatientAuditEvents(
+  events: PatientAuditEvent[],
+  { dryRun }: { dryRun: boolean }
+): Promise<{ found: number; missing: number; created: number }> {
+  const result = { found: events.length, missing: 0, created: 0 };
+  try {
+    const col = adminDb.collection('auditLogs');
+    for (let i = 0; i < events.length; i += 100) {
+      const chunk = events.slice(i, i + 100);
+      const snaps = await adminDb.getAll(...chunk.map((e) => col.doc(e.id)), { fieldMask: [] });
+      const existing = new Set(snaps.filter((s) => s.exists).map((s) => s.id));
+      for (const e of chunk) {
+        if (existing.has(e.id)) continue;
+        result.missing++;
+        if (dryRun) continue;
+        try {
+          await col.doc(e.id).create({
+            actorUid: e.actorUid,
+            actorRole: 'patient',
+            action: e.action,
+            targetType: e.targetType,
+            targetId: e.targetId,
+            targetLabel: e.targetLabel,
+            details: null,
+            createdAt: Timestamp.fromMillis(e.at),
+          });
+          result.created++;
+        } catch (err) {
+          const code = (err as { code?: unknown })?.code;
+          if (code !== 6 && code !== 409 && code !== 'already-exists') throw err;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[audit-log] patient entries failed (non-fatal):', (err as { code?: unknown })?.code ?? 'unknown');
+  }
+  return result;
 }

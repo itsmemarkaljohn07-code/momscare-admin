@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   if (
     (cursor && !ID_PATTERN.test(cursor)) ||
     (action && !ACTION_PATTERN.test(action)) ||
-    (role && role !== 'admin' && role !== 'doctor') ||
+    (role && role !== 'admin' && role !== 'doctor' && role !== 'patient') ||
     (from && !DAY_PATTERN.test(from)) ||
     (to && !DAY_PATTERN.test(to))
   ) {

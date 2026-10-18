@@ -11,6 +11,8 @@ import {
   type AdminNotificationDraft,
   type RequestOption,
 } from '@/lib/admin-notification-rules';
+import { cancellationAuditEvents, requestAuditEvents, type PatientAuditEvent } from '@/lib/patient-audit-rules';
+import { logPatientAuditEvents } from '@/lib/audit-log';
 
 // One shared admin bell: adminNotifications/{id}, the same list for every
 // admin, with read state per admin in readBy {uid: true}. Only the server
@@ -100,12 +102,13 @@ async function patientNames(uids: string[]): Promise<Map<string, string>> {
   return names;
 }
 
-/** Every event of the last 7 days that should have a bell record. */
-async function collectDrafts(nowMs: number): Promise<AdminNotificationDraft[]> {
+/** Every event of the last 7 days that should have a bell record, plus
+ *  the patient actions that should have an audit entry (same reads). */
+async function collectDrafts(nowMs: number): Promise<{ drafts: AdminNotificationDraft[]; patientEvents: PatientAuditEvent[] }> {
   // Plain collection-group reads of a few fields (no index needed), the
   // same approach as the missed-appointment sweep.
   const [requests, appointments] = await Promise.all([
-    adminDb.collectionGroup('appointmentRequests').select('type', 'options', 'createdAt').get(),
+    adminDb.collectionGroup('appointmentRequests').select('type', 'options', 'createdAt', 'status', 'withdrawnAt').get(),
     adminDb
       .collectionGroup('appointments')
       .select('label', 'date', 'time', 'doctor', 'doctorApproval', 'doctorApprovalAt', 'cancellation')
@@ -117,11 +120,20 @@ async function collectDrafts(nowMs: number): Promise<AdminNotificationDraft[]> {
     | { kind: 'decision'; uid: string; id: string; decision: 'approved' | 'rejected'; at: number; doctor: string; label: string; date: string; time: string }
     | { kind: 'cancel'; uid: string; id: string; at: number; label: string; date: string; time: string };
   const pending: Pending[] = [];
+  const patientEvents: PatientAuditEvent[] = [];
 
   for (const d of requests.docs) {
     const uid = d.ref.parent.parent?.id;
-    if (!uid || !withinWindow(millis(d.get('createdAt')), nowMs)) continue;
+    if (!uid) continue;
     const options = d.get('options');
+    patientEvents.push(...requestAuditEvents(uid, d.id, {
+      type: String(d.get('type') ?? ''),
+      options: Array.isArray(options) ? options : [],
+      status: String(d.get('status') ?? ''),
+      createdAt: millis(d.get('createdAt')),
+      withdrawnAt: millis(d.get('withdrawnAt')),
+    }, nowMs));
+    if (!withinWindow(millis(d.get('createdAt')), nowMs)) continue;
     pending.push({
       kind: 'request',
       uid,
@@ -146,13 +158,14 @@ async function collectDrafts(nowMs: number): Promise<AdminNotificationDraft[]> {
 
     const cancellation = d.get('cancellation');
     const requestedAt = millis(cancellation?.requestedAt);
+    patientEvents.push(...cancellationAuditEvents(uid, d.id, { label, date, time, state: cancellation?.state, requestedAt }, nowMs));
     if (cancellation?.state === 'requested' && withinWindow(requestedAt, nowMs)) {
       pending.push({ kind: 'cancel', uid, id: d.id, at: requestedAt as number, label, date, time });
     }
   }
 
   const names = await patientNames(pending.map((p) => p.uid));
-  return pending.map((p) => {
+  const drafts = pending.map((p): AdminNotificationDraft => {
     const patientName = names.get(p.uid) ?? 'A patient';
     if (p.kind === 'request') {
       return appointmentRequestNotification({ patientUid: p.uid, requestId: p.id, patientName, type: p.type, options: p.options });
@@ -168,6 +181,7 @@ async function collectDrafts(nowMs: number): Promise<AdminNotificationDraft[]> {
       patientName, appointmentLabel: p.label, date: p.date, time: p.time,
     });
   });
+  return { drafts, patientEvents };
 }
 
 export interface AdminNotificationSyncResult {
@@ -175,6 +189,8 @@ export interface AdminNotificationSyncResult {
   missing: number;
   created: number;
   failed: number;
+  /** Patient actions found / missing / written to the audit log. */
+  patientAudit: { found: number; missing: number; created: number };
 }
 
 /**
@@ -185,8 +201,11 @@ export interface AdminNotificationSyncResult {
  * ids make re-runs harmless. With dryRun it only counts.
  */
 export async function syncAdminNotifications({ dryRun }: { dryRun: boolean }): Promise<AdminNotificationSyncResult> {
-  const result: AdminNotificationSyncResult = { eventsFound: 0, missing: 0, created: 0, failed: 0 };
-  const drafts = await collectDrafts(Date.now());
+  const result: AdminNotificationSyncResult = {
+    eventsFound: 0, missing: 0, created: 0, failed: 0, patientAudit: { found: 0, missing: 0, created: 0 },
+  };
+  const { drafts, patientEvents } = await collectDrafts(Date.now());
+  result.patientAudit = await logPatientAuditEvents(patientEvents, { dryRun });
   result.eventsFound = drafts.length;
   if (drafts.length === 0) return result;
 

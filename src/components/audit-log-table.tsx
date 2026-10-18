@@ -24,6 +24,10 @@ const ACTION_LABELS: Record<string, string> = {
   'appointment.delete': 'Deleted appointment',
   'appointment.cancel_approve': 'Approved cancellation request',
   'appointment.cancel_decline': 'Declined cancellation request',
+  'appointment.cancel_request': 'Requested cancellation (patient)',
+  'appointment.cancel_withdraw': 'Withdrew cancellation request (patient)',
+  'appointment_request.create': 'Sent appointment request (patient)',
+  'appointment_request.withdraw': 'Withdrew appointment request (patient)',
   'appointment_request.schedule': 'Scheduled appointment request',
   'appointment_request.decline': 'Declined appointment request',
   'clinical_note.create': 'Added clinical note',
@@ -195,12 +199,13 @@ export function AuditLogTable({ initial }: { initial: AuditLogPage }) {
 
         <Select value={filters.role} onValueChange={(v) => update({ role: v ?? 'all' })}>
           <SelectTrigger className="w-full" aria-label="Filter by role">
-            <SelectValue>{filters.role === 'all' ? 'All roles' : filters.role === 'admin' ? 'Admin' : 'Doctor'}</SelectValue>
+            <SelectValue>{filters.role === 'all' ? 'All roles' : filters.role === 'admin' ? 'Admin' : filters.role === 'doctor' ? 'Doctor' : 'Patient'}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All roles</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
             <SelectItem value="doctor">Doctor</SelectItem>
+            <SelectItem value="patient">Patient</SelectItem>
           </SelectContent>
         </Select>
 
