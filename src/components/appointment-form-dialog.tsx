@@ -18,7 +18,7 @@ import type { AdminUserView } from '@/lib/get-users';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { DoctorRecord } from '@/lib/get-doctors';
 import { formatRequestOption, type AppointmentRequestView } from '@/lib/appointment-requests';
-import { NAME_TO_TYPES } from '@/lib/appointment-types';
+import { NAME_TO_TYPES, isCustomSpecialty } from '@/lib/appointment-types';
 
 // Names the admin can choose. "Booking Appointment" is no longer offered
 // for new appointments; one that already has it keeps it (see nameOptions).
@@ -138,7 +138,11 @@ export function AppointmentFormDialog({
   // Appointment"): keep it selectable so it still shows and can be kept.
   const nameOptions =
     editing?.label && !NAME_OPTIONS.includes(editing.label) ? [...NAME_OPTIONS, editing.label] : NAME_OPTIONS;
-  const availableTypes = nameChosen ? (NAME_TO_TYPES[form.label] ?? []) : [];
+  // "Other" appointments can also go to doctors with a typed-in specialty.
+  const customSpecialties = [...new Set(doctors.map((d) => d.specialty).filter(isCustomSpecialty))].sort();
+  const typesFor = (name: string) =>
+    name === 'Other' ? [...(NAME_TO_TYPES.Other ?? []), ...customSpecialties] : (NAME_TO_TYPES[name] ?? []);
+  const availableTypes = nameChosen ? typesFor(form.label) : [];
   const availableDoctors = typeChosen ? doctors.filter((d) => d.specialty === form.type) : [];
 
   const selectedDoctor = doctors.find((d) => d.name === form.doctor) ?? null;
@@ -263,7 +267,7 @@ export function AppointmentFormDialog({
   }
 
   function handleNameChange(value: string) {
-    const allowedTypes = NAME_TO_TYPES[value] ?? [];
+    const allowedTypes = typesFor(value);
     const keepType = allowedTypes.includes(form.type);
     setForm((f) => ({
       ...f,

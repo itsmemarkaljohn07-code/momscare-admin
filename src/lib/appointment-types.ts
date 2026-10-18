@@ -19,7 +19,20 @@ export const NAME_TO_TYPES: Record<string, string[]> = {
   'Other': TYPE_OPTIONS,
 };
 
-/** Specialties that can take an appointment of this name (any, when unknown). */
+/** Specialties from the list that can take an appointment of this name
+ *  (any, when the name is unknown). */
 export function specialtiesFor(name: string): string[] {
   return NAME_TO_TYPES[name] ?? TYPE_OPTIONS;
+}
+
+/** A specialty typed in for "Other" (not one from the list). */
+export function isCustomSpecialty(specialty: string): boolean {
+  return !!specialty && !TYPE_OPTIONS.includes(specialty);
+}
+
+/** Can a doctor with this specialty take an appointment of this name? A
+ *  doctor with a custom specialty only takes "Other" appointments. */
+export function doctorFitsAppointment(name: string, specialty: string): boolean {
+  if (isCustomSpecialty(specialty)) return name === 'Other';
+  return specialtiesFor(name).includes(specialty);
 }

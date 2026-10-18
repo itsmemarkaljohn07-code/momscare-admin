@@ -13,6 +13,7 @@ import { getApiErrorMessage } from '@/lib/error-messages';
 import {
   BLANK_SCHEDULE,
   DoctorScheduleFields,
+  effectiveSpecialty,
   FieldError,
   RequiredMark,
   validateSchedule,
@@ -229,7 +230,7 @@ export function DoctorAccountFormDialog({ trigger }: { trigger: React.ReactEleme
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: schedule.name.trim(),
-          specialty: schedule.specialty,
+          specialty: effectiveSpecialty(schedule),
           workingDays: schedule.workingDays,
           startTime: schedule.startTime,
           endTime: schedule.endTime,

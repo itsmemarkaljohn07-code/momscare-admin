@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { logAuditEvent } from '@/lib/audit-log';
+import { cleanSpecialty, SPECIALTY_ERROR } from '@/lib/doctor-specialty';
 
 export async function PATCH(
   req: NextRequest,
@@ -17,6 +18,11 @@ export async function PATCH(
 
   if (!name || !specialty || !Array.isArray(workingDays) || workingDays.length === 0 || !startTime || !endTime || !slotMinutes) {
     return NextResponse.json({ error: 'Please complete all required fields.' }, { status: 400 });
+  }
+
+  const cleanedSpecialty = cleanSpecialty(specialty);
+  if (!cleanedSpecialty) {
+    return NextResponse.json({ error: SPECIALTY_ERROR }, { status: 400 });
   }
 
   try {
@@ -44,7 +50,7 @@ export async function PATCH(
 
     // Deliberately not writing `name`: the stored value is kept as-is.
     await doctorRef.update({
-      specialty, workingDays, startTime, endTime, slotMinutes: Number(slotMinutes),
+      specialty: cleanedSpecialty, workingDays, startTime, endTime, slotMinutes: Number(slotMinutes),
       ...(username ? { username: username.toLowerCase() } : {}),
     });
 

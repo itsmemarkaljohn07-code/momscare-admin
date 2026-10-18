@@ -15,7 +15,7 @@ import {
 import { RequestDecline } from '@/components/request-decline';
 import { formatRequestOption, type AppointmentRequestView } from '@/lib/appointment-requests';
 import { clinicNow, hhmmTo12h, type NoSlotReason } from '@/lib/doctor-availability';
-import { specialtiesFor } from '@/lib/appointment-types';
+import { doctorFitsAppointment } from '@/lib/appointment-types';
 import type { DoctorRecord } from '@/lib/get-doctors';
 
 const REASON_TEXT: Record<NoSlotReason, string> = {
@@ -59,10 +59,10 @@ export function RequestReviewDialog({
   const router = useRouter();
   const pending = request.status === 'pending';
 
-  const eligibleDoctors = useMemo(() => {
-    const specialties = specialtiesFor(request.type);
-    return doctors.filter((d) => specialties.includes(d.specialty));
-  }, [doctors, request.type]);
+  const eligibleDoctors = useMemo(
+    () => doctors.filter((d) => doctorFitsAppointment(request.type, d.specialty)),
+    [doctors, request.type]
+  );
 
   // The patient's preferred dates that haven't passed yet.
   const dates = useMemo(() => {

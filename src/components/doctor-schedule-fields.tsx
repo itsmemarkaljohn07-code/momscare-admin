@@ -13,10 +13,13 @@ export const SPECIALTY_OPTIONS = [
 export const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-/** The doctor fields that exist today (doctors/{id}). */
+/** The doctor fields that exist today (doctors/{id}), as the form holds them. */
 export interface ScheduleFields {
   name: string;
+  /** The dropdown choice; "Other" means customSpecialty is the specialty. */
   specialty: string;
+  /** Form-only: the text typed for "Other". Never stored on its own. */
+  customSpecialty: string;
   workingDays: number[];
   startTime: string;
   endTime: string;
@@ -26,14 +29,38 @@ export interface ScheduleFields {
 export type ScheduleErrors = Partial<Record<keyof ScheduleFields, string>>;
 
 export const BLANK_SCHEDULE: ScheduleFields = {
-  name: '', specialty: '', workingDays: [], startTime: '09:00', endTime: '17:00', slotMinutes: 30,
+  name: '', specialty: '', customSpecialty: '', workingDays: [], startTime: '09:00', endTime: '17:00', slotMinutes: 30,
 };
+
+export const CUSTOM_SPECIALTY_MIN = 2;
+export const CUSTOM_SPECIALTY_MAX = 40;
+
+/** The specialty to store: the typed text for "Other", else the choice. */
+export function effectiveSpecialty(f: Pick<ScheduleFields, 'specialty' | 'customSpecialty'>): string {
+  return f.specialty === 'Other' ? f.customSpecialty.trim() : f.specialty;
+}
+
+/** A stored specialty as the form shows it: one from the list, or "Other"
+ *  plus the text (a doctor saved as plain "Other" opens with empty text). */
+export function splitSpecialty(stored: string | null | undefined): Pick<ScheduleFields, 'specialty' | 'customSpecialty'> {
+  const s = (stored ?? '').trim();
+  if (!s) return { specialty: '', customSpecialty: '' };
+  if (s === 'Other') return { specialty: 'Other', customSpecialty: '' };
+  return SPECIALTY_OPTIONS.includes(s) ? { specialty: s, customSpecialty: '' } : { specialty: 'Other', customSpecialty: s };
+}
 
 /** Inline validation for the schedule half of the form. */
 export function validateSchedule(f: ScheduleFields): ScheduleErrors {
   const e: ScheduleErrors = {};
   if (!f.name.trim()) e.name = 'Enter the doctor’s full name.';
   if (!f.specialty) e.specialty = 'Choose a specialty.';
+  else if (f.specialty === 'Other') {
+    const custom = f.customSpecialty.trim();
+    if (!custom) e.customSpecialty = 'Type the specialty.';
+    else if (custom.length < CUSTOM_SPECIALTY_MIN || custom.length > CUSTOM_SPECIALTY_MAX) {
+      e.customSpecialty = `Use ${CUSTOM_SPECIALTY_MIN} to ${CUSTOM_SPECIALTY_MAX} characters.`;
+    }
+  }
   if (f.workingDays.length === 0) e.workingDays = 'Choose at least one working day.';
   if (!f.startTime) e.startTime = 'Enter a start time.';
   if (!f.endTime) e.endTime = 'Enter an end time.';
@@ -127,6 +154,33 @@ export function DoctorScheduleFields({
         </Select>
         <FieldError id={id('specialty-error')} message={errors.specialty} />
       </div>
+
+      {value.specialty === 'Other' && (
+        <div className="space-y-1.5">
+          <label htmlFor={id('custom-specialty')} className="text-sm font-medium">
+            Specify specialty
+            <RequiredMark />
+          </label>
+          <Input
+            id={id('custom-specialty')}
+            value={value.customSpecialty}
+            onChange={(e) => set('customSpecialty', e.target.value)}
+            placeholder="e.g. Perinatology"
+            maxLength={CUSTOM_SPECIALTY_MAX}
+            autoComplete="off"
+            className="rounded-xl"
+            {...invalid('customSpecialty')}
+          />
+          {errors.customSpecialty ? (
+            <FieldError id={id('customSpecialty-error')} message={errors.customSpecialty} />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {CUSTOM_SPECIALTY_MIN}–{CUSTOM_SPECIALTY_MAX} characters. Doctors with their own specialty can take
+              &quot;Other&quot; appointments.
+            </p>
+          )}
+        </div>
+      )}
 
       <fieldset className="space-y-1.5">
         <legend className="text-sm font-medium">

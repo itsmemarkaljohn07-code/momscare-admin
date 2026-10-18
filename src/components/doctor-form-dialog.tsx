@@ -16,6 +16,8 @@ import type { DoctorRecord } from '@/lib/get-doctors';
 import { getApiErrorMessage } from '@/lib/error-messages';
 import {
   DoctorScheduleFields,
+  effectiveSpecialty,
+  splitSpecialty,
   validateSchedule,
   type ScheduleErrors,
   type ScheduleFields,
@@ -24,7 +26,7 @@ import {
 function fromRecord(d: DoctorRecord): ScheduleFields {
   return {
     name: d.name ?? '',
-    specialty: d.specialty ?? '',
+    ...splitSpecialty(d.specialty),
     workingDays: [...(d.workingDays ?? [])].sort((a, b) => a - b),
     startTime: d.startTime ?? '',
     endTime: d.endTime ?? '',
@@ -34,6 +36,7 @@ function fromRecord(d: DoctorRecord): ScheduleFields {
 
 function sameSchedule(a: ScheduleFields, b: ScheduleFields): boolean {
   return (
+    effectiveSpecialty(a) === effectiveSpecialty(b) &&
     a.specialty === b.specialty &&
     a.startTime === b.startTime &&
     a.endTime === b.endTime &&
@@ -113,7 +116,7 @@ export function DoctorFormDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editing.name,
-          specialty: form.specialty,
+          specialty: effectiveSpecialty(form),
           workingDays: form.workingDays,
           startTime: form.startTime,
           endTime: form.endTime,

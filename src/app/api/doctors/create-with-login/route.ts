@@ -3,6 +3,7 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { Timestamp } from 'firebase-admin/firestore';
 import { logAuditEvent } from '@/lib/audit-log';
+import { cleanSpecialty, SPECIALTY_ERROR } from '@/lib/doctor-specialty';
 
 export async function POST(req: NextRequest) {
   const session = await getAdminSession();
@@ -30,6 +31,11 @@ export async function POST(req: NextRequest) {
       { error: 'A username of at least 3 characters is required.' },
       { status: 400 }
     );
+  }
+
+  const cleanedSpecialty = cleanSpecialty(specialty);
+  if (!cleanedSpecialty) {
+    return NextResponse.json({ error: SPECIALTY_ERROR }, { status: 400 });
   }
 
   const normalizedUsername = username.trim().toLowerCase();
@@ -71,7 +77,7 @@ export async function POST(req: NextRequest) {
 
     const docRef = await adminDb.collection('doctors').add({
       name,
-      specialty,
+      specialty: cleanedSpecialty,
       workingDays,
       startTime,
       endTime,
