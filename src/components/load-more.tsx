@@ -11,6 +11,7 @@ export function LoadMoreButton({
   onClick,
   shown,
   total,
+  label = 'Load more',
 }: {
   hasMore: boolean;
   loading?: boolean;
@@ -18,6 +19,8 @@ export function LoadMoreButton({
   /** Optional "Showing X of Y" line (lists whose total is known). */
   shown?: number;
   total?: number;
+  /** Button text, e.g. "See more" in the notification panel. */
+  label?: string;
 }) {
   if (!hasMore) return null;
   return (
@@ -36,7 +39,7 @@ export function LoadMoreButton({
             Loading…
           </>
         ) : (
-          'Load more'
+          label
         )}
       </Button>
       {shown !== undefined && total !== undefined && (

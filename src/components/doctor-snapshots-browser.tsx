@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { LoadMoreButton } from '@/components/load-more';
+import { useLoadMore } from '@/hooks/use-load-more';
 import { SearchX } from 'lucide-react';
 import { DoctorSnapshotCard } from '@/components/doctor-snapshot-card';
 import { SnapshotViewer } from '@/components/snapshot-viewer';
@@ -79,6 +81,15 @@ export function DoctorSnapshotsBrowser({ groups }: { groups: BrowserGroup[] }) {
 
   // One flat list in display order — what the viewer steps through.
   const flat = useMemo(() => visibleGroups.flatMap((g) => g.items), [visibleGroups]);
+  // 20 photos at a time, keeping their date groups; a new filter starts
+  // from the first 20. The viewer still steps through every match.
+  const page = useLoadMore(flat, 20, `${patientFilter}|${typeFilter}`);
+  const shownGroups = useMemo(() => {
+    const shown = new Set(page.visible.map((p) => p.id));
+    return visibleGroups
+      .map((g) => ({ ...g, total: g.items.length, items: g.items.filter((p) => shown.has(p.id)) }))
+      .filter((g) => g.items.length > 0);
+  }, [visibleGroups, page.visible]);
   const activeIndex = activeId ? flat.findIndex((p) => p.id === activeId) : -1;
   const active = activeIndex >= 0 ? flat[activeIndex] : null;
 
@@ -146,12 +157,12 @@ export function DoctorSnapshotsBrowser({ groups }: { groups: BrowserGroup[] }) {
           </button>
         </div>
       ) : (
-        visibleGroups.map((group) => (
+        shownGroups.map((group) => (
           <section key={group.dateKey} className="space-y-3">
             <div className="flex items-center gap-3">
               <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                 {group.label}
-                <span className="ml-1.5 font-normal opacity-70">· {group.items.length}</span>
+                <span className="ml-1.5 font-normal opacity-70">· {group.total}</span>
               </span>
               <div className="h-px flex-1 bg-border" />
             </div>
@@ -169,6 +180,8 @@ export function DoctorSnapshotsBrowser({ groups }: { groups: BrowserGroup[] }) {
           </section>
         ))
       )}
+
+      <LoadMoreButton hasMore={page.hasMore} onClick={page.loadMore} shown={page.shown} total={page.total} />
 
       <SnapshotViewer
         photo={active}

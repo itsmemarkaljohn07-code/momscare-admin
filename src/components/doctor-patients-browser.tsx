@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { LoadMoreButton } from '@/components/load-more';
+import { useLoadMore } from '@/hooks/use-load-more';
 import Link from 'next/link';
 import { CalendarClock, Camera, ChevronRight, Search, SearchX } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -169,6 +171,9 @@ export function DoctorPatientsBrowser({ patients }: { patients: PatientCardData[
     });
   }, [searched, trimester, sort]);
 
+  // 20 cards at a time; a new search, filter or sort starts from the first 20.
+  const page = useLoadMore(visible, 20, `${query.trim().toLowerCase()}|${trimester}|${sort}`);
+
   const isFiltered = query.trim() !== '' || trimester !== 'all';
 
   function clearFilters() {
@@ -235,11 +240,14 @@ export function DoctorPatientsBrowser({ patients }: { patients: PatientCardData[
           </button>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {visible.map((p) => (
-            <PatientCard key={p.uid} p={p} />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {page.visible.map((p) => (
+              <PatientCard key={p.uid} p={p} />
+            ))}
+          </div>
+          <LoadMoreButton hasMore={page.hasMore} onClick={page.loadMore} shown={page.shown} total={page.total} />
+        </>
       )}
     </div>
   );

@@ -4,6 +4,8 @@ import { Bell, Check, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatRelativeTime } from '@/lib/format-relative-time';
+import { LoadMoreButton } from '@/components/load-more';
+import { useLoadMore } from '@/hooks/use-load-more';
 
 export interface BellItem {
   id: string;
@@ -41,6 +43,8 @@ export function NotificationBellPanel({
   onMarkAll,
   sound,
 }: Props) {
+  // 10 at a time from the list already fetched; reopening starts at 10.
+  const page = useLoadMore(items, 10, open ? 'open' : 'closed');
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger
@@ -115,7 +119,7 @@ export function NotificationBellPanel({
             </div>
           ) : (
             <ul className="divide-y">
-              {items.map((n) => (
+              {page.visible.map((n) => (
                 <li key={n.id} className={`flex items-start ${n.read ? '' : 'bg-primary/5'}`}>
                   <button
                     type="button"
@@ -149,6 +153,11 @@ export function NotificationBellPanel({
                 </li>
               ))}
             </ul>
+          )}
+          {!loading && !failed && (
+            <div className="pb-3">
+              <LoadMoreButton hasMore={page.hasMore} onClick={page.loadMore} label="See more" />
+            </div>
           )}
         </div>
       </PopoverContent>

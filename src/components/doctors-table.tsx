@@ -7,6 +7,8 @@ import { toast } from 'sonner';
 import { UserX, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LoadMoreButton } from '@/components/load-more';
+import { useLoadMore } from '@/hooks/use-load-more';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
 import {
@@ -119,6 +121,8 @@ export function DoctorsTable({
         [d.name, d.specialty, d.username, d.title].some((v) => (v ?? '').toLowerCase().includes(q))
       )
     : doctors;
+  // 20 rows at a time; a new search starts from the first 20.
+  const page = useLoadMore(filtered, 20, q);
 
   const impact = confirmDoctor ? stats?.[confirmDoctor.id] : undefined;
 
@@ -180,7 +184,7 @@ export function DoctorsTable({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((d) => (
+                {page.visible.map((d) => (
                   <TableRow key={d.id} className="transition-colors hover:bg-muted/50">
                     <TableCell className="font-medium">
                       <div className="flex w-56 min-w-0 items-center gap-2 lg:w-64" title={d.name}>
@@ -263,7 +267,7 @@ export function DoctorsTable({
           </div>
 
           <div className="grid gap-3 md:hidden">
-            {filtered.map((d) => {
+            {page.visible.map((d) => {
               const s = stats?.[d.id];
               return (
                 <Card key={d.id} className="rounded-2xl shadow-soft transition-shadow hover:shadow-card">
@@ -330,6 +334,8 @@ export function DoctorsTable({
               );
             })}
           </div>
+
+          <LoadMoreButton hasMore={page.hasMore} onClick={page.loadMore} shown={page.shown} total={page.total} />
         </>
       )}
 

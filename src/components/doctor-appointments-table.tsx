@@ -15,12 +15,16 @@ import { AppointmentStatus, StatusBadge } from '@/components/status-badge';
 import { isPendingDoctorApproval } from '@/lib/appointment-status';
 import { showApiError } from '@/lib/error-messages';
 import type { DoctorAppointmentView } from '@/lib/get-doctor-appointments';
+import { LoadMoreButton } from '@/components/load-more';
+import { useLoadMore } from '@/hooks/use-load-more';
 
 export function DoctorAppointmentsTable({ appointments }: { appointments: DoctorAppointmentView[] }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [rejectingAppt, setRejectingAppt] = useState<DoctorAppointmentView | null>(null);
   const [reason, setReason] = useState('');
+  // 20 rows at a time (the list has no search or filter of its own).
+  const page = useLoadMore(appointments, 20);
 
   async function updateApproval(appt: DoctorAppointmentView, doctorApproval: 'approved' | 'rejected', rejectionReason?: string) {
     setPendingId(appt.id);
@@ -47,6 +51,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
   }
 
   return (
+    <div className="space-y-4">
     <div className="overflow-x-auto rounded-2xl border shadow-soft">
       <Table>
         <TableHeader>
@@ -61,7 +66,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
           </TableRow>
         </TableHeader>
         <TableBody>
-          {appointments.map((a) => {
+          {page.visible.map((a) => {
             return (
               <TableRow key={a.id}>
                 <TableCell className="font-medium">{a.patientName}</TableCell>
@@ -130,6 +135,8 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
           )}
         </TableBody>
       </Table>
+    </div>
+    <LoadMoreButton hasMore={page.hasMore} onClick={page.loadMore} shown={page.shown} total={page.total} />
     </div>
   );
 }
