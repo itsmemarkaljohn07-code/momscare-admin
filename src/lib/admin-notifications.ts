@@ -13,6 +13,7 @@ import {
 } from '@/lib/admin-notification-rules';
 import { cancellationAuditEvents, requestAuditEvents, type PatientAuditEvent } from '@/lib/patient-audit-rules';
 import { logPatientAuditEvents } from '@/lib/audit-log';
+import { clearPendingCancellationCountCache } from '@/lib/get-appointments';
 
 // One shared admin bell: adminNotifications/{id}, the same list for every
 // admin, with read state per admin in readBy {uid: true}. Only the server
@@ -279,6 +280,41 @@ export async function notifyAppointmentRequest(patientUid: string, requestId: st
     );
   } catch (err) {
     console.error(`[admin-notifications] request notice failed (non-fatal): ${errorCode(err)}`);
+  }
+}
+
+/**
+ * The bell saw an appointment's cancellation change live. Always drops the
+ * cached sidebar count (so the badge is right on the next render); when
+ * the appointment really has a cancellation request from the last 7 days,
+ * creates its record (fixed id, so never twice). Reads that appointment
+ * on the server first, so a made-up id creates nothing. Never throws.
+ */
+export async function notifyCancellationChange(patientUid: string, appointmentId: string): Promise<void> {
+  clearPendingCancellationCountCache();
+  try {
+    const patient = adminDb.collection('users').doc(patientUid);
+    const [appt, profile] = await Promise.all([
+      patient.collection('appointments').doc(appointmentId).get(),
+      patient.get(),
+    ]);
+    if (!appt.exists || appt.get('status') !== 'upcoming') return;
+    const cancellation = appt.get('cancellation');
+    const requestedAt = millis(cancellation?.requestedAt);
+    if (cancellation?.state !== 'requested' || !withinWindow(requestedAt, Date.now())) return;
+    await createAdminNotification(
+      cancellationRequestNotification({
+        patientUid,
+        appointmentId,
+        requestedAtMs: requestedAt as number,
+        patientName: String(profile.get('fullName') ?? '').trim() || 'A patient',
+        appointmentLabel: appointmentName(appt.get('label')),
+        date: String(appt.get('date') ?? ''),
+        time: String(appt.get('time') ?? ''),
+      })
+    );
+  } catch (err) {
+    console.error(`[admin-notifications] cancellation notice failed (non-fatal): ${errorCode(err)}`);
   }
 }
 

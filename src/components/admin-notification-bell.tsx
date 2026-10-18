@@ -6,6 +6,7 @@ import { collectionGroup, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase-client';
 import { NotificationBellPanel } from '@/components/notification-bell-panel';
 import { useNotificationSound } from '@/hooks/use-notification-sound';
+import { setLiveCancellationCount } from '@/lib/live-cancellation-count';
 import type { AdminNotificationView } from '@/lib/admin-notifications';
 
 type NotificationList = { notifications: AdminNotificationView[]; unreadCount: number };
@@ -149,6 +150,59 @@ export function AdminNotificationBell() {
     return () => {
       cancelled = true;
       unsub?.();
+    };
+  }, [apply]);
+
+  // Cancellation requests, live: admins may read every patient's
+  // appointments (firestore.rules, collection-group read). Each
+  // appointment's cancellation state is remembered; when it changes, the
+  // server records a new request (fixed id, so never twice). The same
+  // listener counts open cancellation requests for the sidebar badge
+  // (live, via live-cancellation-count). If the rules refuse the listener, the
+  // minute-by-minute full check above still finds new requests and the
+  // badge keeps the server count.
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    let cancelled = false;
+    const states = new Map<string, { state: string; open: boolean }>();
+    auth.authStateReady().then(() => {
+      if (cancelled || !auth.currentUser) return;
+      let initial = true;
+      unsub = onSnapshot(
+        collectionGroup(db, 'appointments'),
+        (snap) => {
+          const changed: { patientUid: string; appointmentId: string }[] = [];
+          for (const change of snap.docChanges()) {
+            const key = change.doc.ref.path;
+            const state = change.type === 'removed' ? '' : String(change.doc.get('cancellation.state') ?? '');
+            const before = states.get(key)?.state ?? '';
+            if (change.type === 'removed') states.delete(key);
+            else states.set(key, { state, open: state === 'requested' && change.doc.get('status') === 'upcoming' });
+            const patientUid = change.doc.ref.parent.parent?.id;
+            if (!initial && patientUid && state !== before) changed.push({ patientUid, appointmentId: change.doc.id });
+          }
+          initial = false;
+          setLiveCancellationCount([...states.values()].filter((s) => s.open).length);
+          if (changed.length === 0) return;
+          for (const c of changed) {
+            void
+              fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) })
+                .then(async (res) => (res.ok ? apply((await res.json()) as NotificationList) : undefined))
+                .catch(() => {
+                  // The regular checks pick it up anyway.
+                });
+          }
+        },
+        (error) => {
+          console.warn('[notifications] live cancellation listener stopped, falling back to polling:', error.code);
+          setLiveCancellationCount(null);
+        }
+      );
+    });
+    return () => {
+      cancelled = true;
+      unsub?.();
+      setLiveCancellationCount(null);
     };
   }, [apply]);
 

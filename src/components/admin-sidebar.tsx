@@ -21,6 +21,7 @@ import {
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LogoutButton } from '@/components/logout-button';
 import { useLiveAppointmentRequests } from '@/hooks/use-live-appointment-requests';
+import { useLiveCancellationCount } from '@/lib/live-cancellation-count';
 
 interface NavItem {
   title: string;
@@ -60,8 +61,12 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-export function AppSidebar({ pendingCancellations = 0 }: { pendingCancellations?: number }) {
+export function AppSidebar({ pendingCancellations: serverCancellations = 0 }: { pendingCancellations?: number }) {
   const pathname = usePathname();
+  // Counted live by the admin bell's listener when it runs; otherwise the
+  // count the server rendered (cached up to 60 s).
+  const liveCancellations = useLiveCancellationCount();
+  const pendingCancellations = liveCancellations ?? serverCancellations;
   // Live, so a new request adds to the Appointments badge without
   // reloading, and a scheduled or declined one drops out.
   const { requests } = useLiveAppointmentRequests();

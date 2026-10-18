@@ -5,6 +5,7 @@ import {
   listAdminNotifications,
   markAdminNotificationsRead,
   notifyAppointmentRequest,
+  notifyCancellationChange,
   syncAdminNotificationsThrottled,
 } from '@/lib/admin-notifications';
 
@@ -36,9 +37,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/** The browser saw a new appointment request live: record it now (the
- *  server re-reads the request, so only a real one creates anything),
- *  then return the list. */
+/** The browser saw a new appointment request, or an appointment's
+ *  cancellation change, live: record it now (the server re-reads the
+ *  document, so only a real one creates anything), then return the list. */
 export async function POST(req: NextRequest) {
   const session = await getAdminSession();
   if (!session) {
@@ -47,14 +48,16 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const patientUid: unknown = body?.patientUid;
   const requestId: unknown = body?.requestId;
-  if (
-    typeof patientUid !== 'string' || !ID_PATTERN.test(patientUid) ||
-    typeof requestId !== 'string' || !ID_PATTERN.test(requestId)
-  ) {
-    return NextResponse.json({ error: 'A patient and request are required.' }, { status: 400 });
+  const appointmentId: unknown = body?.appointmentId;
+  const validId = (v: unknown): v is string => typeof v === 'string' && ID_PATTERN.test(v);
+  // Exactly one of requestId (a new appointment request) or appointmentId
+  // (an appointment's cancellation changed).
+  if (!validId(patientUid) || validId(requestId) === validId(appointmentId)) {
+    return NextResponse.json({ error: 'A patient and a request or appointment are required.' }, { status: 400 });
   }
   try {
-    await notifyAppointmentRequest(patientUid, requestId);
+    if (validId(requestId)) await notifyAppointmentRequest(patientUid, requestId);
+    else await notifyCancellationChange(patientUid, appointmentId as string);
     return NextResponse.json(await listAdminNotifications(session.uid));
   } catch (err: unknown) {
     console.error('Failed to record appointment request:', (err as { code?: unknown })?.code ?? 'unknown');
