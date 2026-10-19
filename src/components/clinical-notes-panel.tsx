@@ -130,7 +130,7 @@ export function ClinicalNotesPanel({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  className="size-11 shrink-0 text-muted-foreground hover:text-destructive sm:size-8"
                   onClick={() => handleDelete(n.id)}
                   disabled={deletingId === n.id}
                   aria-label="Delete note"
@@ -155,7 +155,7 @@ export function ClinicalNotesPanel({
           <Button
             onClick={handleSend}
             disabled={isSending || !draft.trim()}
-            className="shrink-0 self-end rounded-full"
+            className="min-h-11 shrink-0 self-end rounded-full sm:min-h-9"
           >
             Add
           </Button>

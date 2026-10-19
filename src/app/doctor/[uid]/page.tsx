@@ -6,7 +6,8 @@ import { PatientHealthTrends } from '@/components/patient-health-trends';
 import { ClinicalNotesPanel } from '@/components/clinical-notes-panel';
 import { PageHeader } from '@/components/page-header';
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { Camera, ChevronLeft } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
 
 export default async function DoctorPatientSnapshotsPage({
   params,
@@ -36,8 +37,8 @@ export default async function DoctorPatientSnapshotsPage({
   return (
     <div className="space-y-6">
       <Link
-        href="/doctor"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        href="/doctor/patients"
+        className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ChevronLeft className="h-4 w-4" />
         Back to My Patients
@@ -45,7 +46,7 @@ export default async function DoctorPatientSnapshotsPage({
 
       <PageHeader
         title={patient.fullName}
-        description={`${totalPhotos} photo${totalPhotos === 1 ? '' : 's'} uploaded`}
+        description={`${totalPhotos} photo${totalPhotos === 1 ? '' : 's'} uploaded. Health trends, clinical notes and Snapshots with comments.`}
       />
 
       <PatientHealthTrends photos={allPhotos} />
@@ -57,18 +58,19 @@ export default async function DoctorPatientSnapshotsPage({
       />
 
       {groups.length === 0 && (
-        <p className="text-sm text-muted-foreground">No photos uploaded yet.</p>
+        <EmptyState icon={Camera} title="No photos yet" description="Photos this patient uploads in the app will appear here." />
       )}
 
       {groups.map((group) => (
         <div key={group.dateKey} className="space-y-3">
           <div className="flex items-center gap-3">
-            <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+            <h2 className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
               {group.label}
-            </span>
+              <span className="ml-1.5 font-normal opacity-70">· {group.items.length}</span>
+            </h2>
             <div className="h-px flex-1 bg-border" />
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {group.items.map((photo) => (
               <DoctorSnapshotCard key={photo.id} photo={photo} patientUid={uid} />
             ))}
