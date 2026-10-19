@@ -43,6 +43,7 @@ const ACTION_LABELS: Record<string, string> = {
   'user.delete': 'Permanently deleted patient account',
   'user.delete_incomplete': 'Partly deleted patient account (retry needed)',
   'admin.remove_access': 'Removed admin access',
+  'report.patient_export': 'Exported patient report (PDF)',
 };
 
 interface Group {
@@ -58,6 +59,7 @@ const GROUPS: Record<string, Group> = {
   doctor: { label: 'Doctor', badge: 'bg-violet-50 text-violet-800 ring-violet-200 dark:bg-violet-950/40 dark:text-violet-200 dark:ring-violet-900' },
   user: { label: 'Patient', badge: 'bg-amber-50 text-amber-900 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900' },
   admin: { label: 'Admin', badge: 'bg-slate-100 text-slate-800 ring-slate-200 dark:bg-slate-800/60 dark:text-slate-200 dark:ring-slate-700' },
+  report: { label: 'Report', badge: 'bg-rose-50 text-rose-800 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-900' },
 };
 const OTHER: Group = { label: 'Other', badge: 'bg-muted text-muted-foreground ring-border' };
 

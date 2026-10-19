@@ -26,6 +26,8 @@ export interface ReportMeta {
   /** Lines such as "Period: this month". */
   filters?: string[];
   generatedAt?: Date;
+  /** An extra footer line on every page, e.g. "Prepared for clinical use by …". */
+  footerNote?: string;
 }
 
 export interface SummaryItem {
@@ -249,6 +251,104 @@ export class ReportPdf {
     this.y = ((this.doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ?? this.y) + 6;
   }
 
+  /** Label / value pairs in two columns (e.g. a profile). */
+  keyValues(pairs: { label: string; value: string }[]) {
+    const d = this.doc;
+    const colWidth = (CONTENT.width - 6) / 2;
+    const labelWidth = 30;
+    const rows = Math.ceil(pairs.length / 2);
+    for (let r = 0; r < rows; r++) {
+      const cells = [pairs[r], pairs[r + rows]].filter(Boolean);
+      const heights = cells.map((c) => (d.splitTextToSize(c.value, colWidth - labelWidth) as string[]).length);
+      const h = Math.max(1, ...heights) * 4.2 + 2.2;
+      this.ensureSpace(h);
+      cells.forEach((c, i) => {
+        const x = CONTENT.left + i * (colWidth + 6);
+        d.setFontSize(8.5);
+        this.color('text', COLORS.muted);
+        d.text(c.label, x, this.y + 3.5);
+        this.color('text', COLORS.ink);
+        d.text(d.splitTextToSize(c.value, colWidth - labelWidth) as string[], x + labelWidth, this.y + 3.5);
+      });
+      this.color('draw', COLORS.rule);
+      d.setLineWidth(0.2);
+      d.line(CONTENT.left, this.y + h - 0.6, CONTENT.right, this.y + h - 0.6);
+      this.y += h;
+    }
+    this.y += 4;
+  }
+
+  /** A small line chart drawn with jsPDF primitives: one or more series
+   *  over the same x positions (e.g. one point per Snapshot). */
+  lineChart(input: {
+    xLabels: string[];
+    series: { label: string; values: (number | null)[]; color: Rgb }[];
+    unit?: string;
+  }) {
+    const all = input.series.flatMap((s) => s.values.filter((v): v is number => v !== null));
+    if (all.length === 0) {
+      this.empty();
+      return;
+    }
+    const d = this.doc;
+    const height = 46;
+    this.ensureSpace(height + 10);
+    const left = CONTENT.left + 12;
+    const right = CONTENT.right - 2;
+    const top = this.y + 2;
+    const bottom = this.y + height - 8;
+    const lo = Math.min(...all);
+    const hi = Math.max(...all);
+    const pad = hi === lo ? Math.max(1, Math.abs(hi) * 0.05) : (hi - lo) * 0.1;
+    const min = Math.floor(lo - pad);
+    const max = Math.ceil(hi + pad);
+    const n = Math.max(1, input.xLabels.length - 1);
+    const xAt = (i: number) => (input.xLabels.length === 1 ? (left + right) / 2 : left + (i / n) * (right - left));
+    const yAt = (v: number) => bottom - ((v - min) / (max - min)) * (bottom - top);
+
+    // Axes, gridlines and labels.
+    d.setLineWidth(0.2);
+    this.color('draw', COLORS.rule);
+    d.setFontSize(7);
+    this.color('text', COLORS.muted);
+    for (const v of [min, (min + max) / 2, max]) {
+      d.line(left, yAt(v), right, yAt(v));
+      d.text(String(Math.round(v)), left - 2, yAt(v) + 1, { align: 'right' });
+    }
+    const step = Math.max(1, Math.ceil(input.xLabels.length / 6));
+    input.xLabels.forEach((l, i) => {
+      if (i % step === 0 || i === input.xLabels.length - 1) d.text(l, xAt(i), bottom + 4, { align: 'center' });
+    });
+
+    // Series: lines between recorded points, a dot at each point.
+    for (const s of input.series) {
+      this.color('draw', s.color);
+      this.color('fill', s.color);
+      d.setLineWidth(0.6);
+      let prev: { x: number; y: number } | null = null;
+      s.values.forEach((v, i) => {
+        if (v === null) return;
+        const p = { x: xAt(i), y: yAt(v) };
+        if (prev) d.line(prev.x, prev.y, p.x, p.y);
+        d.circle(p.x, p.y, 0.7, 'F');
+        prev = p;
+      });
+    }
+
+    // Legend.
+    let lx = left;
+    d.setFontSize(7.5);
+    for (const s of input.series) {
+      this.color('fill', s.color);
+      d.rect(lx, bottom + 6.5, 3, 1.6, 'F');
+      this.color('text', COLORS.ink);
+      const label = input.unit ? `${s.label} (${input.unit})` : s.label;
+      d.text(label, lx + 4, bottom + 8);
+      lx += d.getTextWidth(label) + 10;
+    }
+    this.y += height + 4;
+  }
+
   note(text: string) {
     const d = this.doc;
     d.setFontSize(8.5);
@@ -284,6 +384,9 @@ export class ReportPdf {
       d.setFontSize(8);
       this.color('text', COLORS.muted);
       d.text(FOOTER_LEFT, CONTENT.left, PAGE.height - PAGE.footerHeight + 5);
+      if (this.meta.footerNote) {
+        d.text(d.splitTextToSize(this.meta.footerNote, CONTENT.width)[0], CONTENT.left, PAGE.height - PAGE.footerHeight + 9);
+      }
       d.text(pageLabel(p, pages), CONTENT.right, PAGE.height - PAGE.footerHeight + 5, { align: 'right' });
     }
     return d.output('blob');
