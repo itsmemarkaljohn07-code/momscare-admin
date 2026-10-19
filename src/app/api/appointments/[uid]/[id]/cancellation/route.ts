@@ -8,6 +8,7 @@ import { clearPendingCancellationCountCache } from '@/lib/get-appointments';
 import { notifyPatient } from '@/lib/notify-patient';
 import { appointmentName } from '@/lib/appointment-status';
 import { readOwnedSlotLock, releaseSlotLock } from '@/lib/slot-locks';
+import { notifyAppointmentCancelled } from '@/lib/appointment-cancelled-notice';
 
 type Decision = 'approve' | 'decline';
 
@@ -138,20 +139,24 @@ export async function POST(
     // The decision above has already been saved; notifyPatient never
     // throws, so it is not rolled back if this fails. The transaction
     // guarantees this is a real requested -> approved/declined change.
-    await notifyPatient({
-      uid,
-      type: 'cancellation_update',
-      refId: id,
-      route: '/appointments',
-      icon: isApprove ? '✅' : '❌',
-      bellTitle: isApprove ? 'Cancellation Approved' : 'Cancellation Declined',
-      bellMessage: isApprove
-        ? `Your request to cancel your ${appointmentName(data.label)} on ${when} was approved. The appointment is now cancelled.`
-        : `Your request to cancel your ${appointmentName(data.label)} on ${when} was declined, so the appointment is still scheduled.${declineReason ? ` Reason: ${declineReason}` : ''}`,
-      pushTitle: 'Cancellation Update',
-      pushBody: 'Mommy, there is an update on your cancellation request. Open MomCare to view the details.',
-      id: `cancellation_${id}_${isApprove ? 'approved' : 'declined'}_${decidedAt.toMillis()}`,
-    });
+    if (isApprove) {
+      // The appointment is now cancelled: the same single notice (and id,
+      // cancelled_{id}) as an admin Cancel, so the patient is told once.
+      await notifyAppointmentCancelled({ uid, appointmentId: id, data, by: 'request' });
+    } else {
+      await notifyPatient({
+        uid,
+        type: 'cancellation_update',
+        refId: id,
+        route: '/appointments',
+        icon: '❌',
+        bellTitle: 'Cancellation Declined',
+        bellMessage: `Your request to cancel your ${appointmentName(data.label)} on ${when} was declined, so the appointment is still scheduled.${declineReason ? ` Reason: ${declineReason}` : ''}`,
+        pushTitle: 'Cancellation Update',
+        pushBody: 'Mommy, there is an update on your cancellation request. Open MomCare to view the details.',
+        id: `cancellation_${id}_declined_${decidedAt.toMillis()}`,
+      });
+    }
 
     return NextResponse.json({
       success: true,
