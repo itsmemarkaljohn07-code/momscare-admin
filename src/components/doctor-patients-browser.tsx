@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { LoadMoreButton } from '@/components/load-more';
 import { useLoadMore } from '@/hooks/use-load-more';
 import Link from 'next/link';
-import { CalendarClock, Camera, ChevronRight, Search, SearchX } from 'lucide-react';
+import { CalendarClock, Camera, ChevronRight, Hourglass, Search, SearchX } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { FilterChip, FilterSelect } from '@/components/filter-controls';
@@ -61,7 +61,7 @@ function PatientCard({ p }: { p: PatientCardData }) {
               {getInitials(p.fullName)}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold leading-tight">{p.fullName}</p>
+              <p className="truncate font-semibold leading-tight" title={p.fullName}>{p.fullName}</p>
               <p className="truncate text-xs text-muted-foreground">
                 {p.email ?? 'No email on file'}
               </p>
@@ -124,12 +124,13 @@ function PatientCard({ p }: { p: PatientCardData }) {
             {p.pendingCount > 0 && (
               <p>
                 <span
-                  className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
                   style={{
                     backgroundColor: 'var(--status-pending-bg)',
                     color: 'var(--status-pending)',
                   }}
                 >
+                  <Hourglass className="h-3 w-3" aria-hidden="true" />
                   {p.pendingCount} awaiting your approval
                 </span>
               </p>
@@ -191,7 +192,8 @@ export function DoctorPatientsBrowser({ patients }: { patients: PatientCardData[
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by name or email..."
-              className="rounded-full pl-10"
+              aria-label="Search patients by name or email"
+              className="h-11 rounded-full pl-10 md:h-9"
             />
           </div>
           <div className="w-full sm:ml-auto sm:w-56">
@@ -234,7 +236,7 @@ export function DoctorPatientsBrowser({ patients }: { patients: PatientCardData[
           <button
             type="button"
             onClick={clearFilters}
-            className="text-sm font-medium text-primary hover:underline"
+            className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Clear search and filters
           </button>
