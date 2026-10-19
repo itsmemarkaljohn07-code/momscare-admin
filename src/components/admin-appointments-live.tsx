@@ -183,6 +183,7 @@ export function AdminAppointmentsLive({
           doctors={doctors}
           emptyTitle="No cancellation requests"
           emptyDescription="Requests from patients to cancel an upcoming appointment appear here."
+          showNewAppointment={false}
         />
       ) : (
         <AppointmentHistoryTable appointments={historyList} doctors={doctors} />

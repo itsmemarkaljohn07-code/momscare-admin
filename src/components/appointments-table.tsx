@@ -42,12 +42,16 @@ export function AppointmentsTable({
   doctors,
   emptyTitle = 'No appointments found',
   emptyDescription = 'No appointments have been scheduled yet.',
+  showNewAppointment = true,
 }: {
   appointments: AdminAppointment[];
   users: AdminUserView[];
   doctors: DoctorRecord[];
   emptyTitle?: string;
   emptyDescription?: string;
+  /** The "+ New Appointment" button. Off where the list isn't for
+   *  booking (e.g. the Cancellation requests tab). */
+  showNewAppointment?: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -117,7 +121,9 @@ export function AppointmentsTable({
           onChange={(e) => setQuery(e.target.value)}
           className="max-w-sm rounded-full"
         />
-        <AppointmentFormDialog users={users} appointments={appointments} doctors={doctors} trigger={<Button className="rounded-full">+ New Appointment</Button>} />
+        {showNewAppointment && (
+          <AppointmentFormDialog users={users} appointments={appointments} doctors={doctors} trigger={<Button className="rounded-full">+ New Appointment</Button>} />
+        )}
       </div>
 
       {filtered.length === 0 ? (
