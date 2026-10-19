@@ -127,6 +127,7 @@ export function SnapshotViewer({
   position,
   onPrev,
   onNext,
+  readOnly = false,
 }: {
   photo: AdminSnapshotPhoto | null;
   patientUid: string;
@@ -138,6 +139,9 @@ export function SnapshotViewer({
   /** Provide these to enable previous/next. Leave undefined at the ends. */
   onPrev?: () => void;
   onNext?: () => void;
+  /** View only (admins): no comment thread or form, and the patient name
+   *  doesn't link to the doctor page. Default false (doctor pages). */
+  readOnly?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -197,7 +201,9 @@ export function SnapshotViewer({
           <div className="min-w-0 space-y-4 p-5">
             <DialogHeader>
               <DialogTitle className="pr-8">
-                {patientName ? (
+                {patientName && readOnly ? (
+                  <span className="truncate">{patientName}</span>
+                ) : patientName ? (
                   <Link
                     href={`/doctor/${patientUid}`}
                     className="inline-flex min-w-0 items-center gap-2 hover:underline"
@@ -235,7 +241,13 @@ export function SnapshotViewer({
               <SnapshotHealthMetrics health={photo.healthSnapshot} variant="full" />
             </div>
 
-            <DoctorCommentThread key={photo.id} patientUid={patientUid} photoId={photo.id} />
+            {readOnly ? (
+              <p className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                View only. Comments on Snapshots are between the patient and her doctor.
+              </p>
+            ) : (
+              <DoctorCommentThread key={photo.id} patientUid={patientUid} photoId={photo.id} />
+            )}
           </div>
         </div>
       </DialogContent>
