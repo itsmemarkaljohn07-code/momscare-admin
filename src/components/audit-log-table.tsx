@@ -12,39 +12,10 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
 import { LoadMoreButton } from '@/components/load-more';
+import { ACTION_LABELS, actionLabel } from '@/lib/audit-labels';
 import { exportToCsv } from '@/lib/export-csv';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import type { AuditLogPage, AuditLogView } from '@/lib/get-audit-logs';
-
-const ACTION_LABELS: Record<string, string> = {
-  'appointment.approve': 'Approved appointment',
-  'appointment.decline': 'Declined appointment',
-  'appointment.status_change': 'Changed appointment status',
-  'appointment.edit': 'Edited appointment',
-  'appointment.delete': 'Deleted appointment',
-  'appointment.cancel_approve': 'Approved cancellation request',
-  'appointment.cancel_decline': 'Declined cancellation request',
-  'appointment.cancel_request': 'Requested cancellation (patient)',
-  'appointment.cancel_withdraw': 'Withdrew cancellation request (patient)',
-  'appointment_request.create': 'Sent appointment request (patient)',
-  'appointment_request.withdraw': 'Withdrew appointment request (patient)',
-  'appointment_request.schedule': 'Scheduled appointment request',
-  'appointment_request.decline': 'Declined appointment request',
-  'clinical_note.create': 'Added clinical note',
-  'clinical_note.delete': 'Deleted clinical note',
-  'doctor.create': 'Added doctor',
-  'doctor.create_account': 'Created doctor account',
-  'doctor.setup_login': 'Set up doctor login',
-  'doctor.reset_login': 'Reset doctor login',
-  'doctor.update': 'Updated doctor',
-  'doctor.delete': 'Removed doctor',
-  'user.suspend': 'Suspended patient account',
-  'user.reactivate': 'Reactivated patient account',
-  'user.delete': 'Permanently deleted patient account',
-  'user.delete_incomplete': 'Partly deleted patient account (retry needed)',
-  'admin.remove_access': 'Removed admin access',
-  'report.patient_export': 'Exported patient report (PDF)',
-};
 
 interface Group {
   label: string;
@@ -62,10 +33,6 @@ const GROUPS: Record<string, Group> = {
   report: { label: 'Report', badge: 'bg-rose-50 text-rose-800 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-200 dark:ring-rose-900' },
 };
 const OTHER: Group = { label: 'Other', badge: 'bg-muted text-muted-foreground ring-border' };
-
-function actionLabel(action: string): string {
-  return ACTION_LABELS[action] ?? action;
-}
 
 function groupOf(action: string): Group {
   return GROUPS[action.split('.')[0]] ?? OTHER;

@@ -349,6 +349,48 @@ export class ReportPdf {
     this.y += height + 4;
   }
 
+  /** Vertical bars, one per item in order (e.g. one per day), with the
+   *  top value on the axis and about eight x labels. */
+  columnChart(items: BarItem[]) {
+    if (items.length === 0 || items.every((i) => i.value === 0)) {
+      this.empty();
+      return;
+    }
+    const d = this.doc;
+    const height = 50;
+    this.ensureSpace(height + 4);
+    const left = CONTENT.left + 10;
+    const right = CONTENT.right;
+    const top = this.y + 4;
+    const bottom = this.y + height - 8;
+    const max = Math.max(...items.map((i) => i.value));
+    const lengths = barLengths(items.map((i) => i.value), bottom - top);
+    const slot = (right - left) / items.length;
+    const bar = Math.max(0.6, Math.min(slot * 0.7, 12));
+
+    d.setLineWidth(0.2);
+    this.color('draw', COLORS.rule);
+    d.setFontSize(7);
+    this.color('text', COLORS.muted);
+    for (const v of [0, max]) {
+      const y = bottom - (v / max) * (bottom - top);
+      d.line(left, y, right, y);
+      d.text(String(v), left - 2, y + 1, { align: 'right' });
+    }
+
+    const step = Math.max(1, Math.ceil(items.length / 8));
+    items.forEach((item, i) => {
+      const x = left + i * slot + (slot - bar) / 2;
+      this.color('fill', item.color ?? COLORS.primary);
+      if (lengths[i] > 0) d.rect(x, bottom - lengths[i], bar, lengths[i], 'F');
+      if (i % step === 0) {
+        this.color('text', COLORS.muted);
+        d.text(item.label, x + bar / 2, bottom + 4, { align: 'center' });
+      }
+    });
+    this.y += height;
+  }
+
   note(text: string) {
     const d = this.doc;
     d.setFontSize(8.5);
