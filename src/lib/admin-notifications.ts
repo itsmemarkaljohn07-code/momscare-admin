@@ -404,3 +404,49 @@ export async function purgeOldNotifications({ dryRun }: { dryRun: boolean }): Pr
   }
   return result;
 }
+
+/** Patient bell records deleted per sweep run. */
+const PATIENT_PURGE_CAP = 300;
+
+export interface PatientPurgeResult {
+  scanned: number;
+  due: number;
+  deleted: number;
+  capped: boolean;
+}
+
+/**
+ * Deletes patients' own bell records (users/{uid}/notifications) older
+ * than 7 days by createdAt. One plain collection-group read of createdAt
+ * only (no index); the "notifications" group also holds doctors' bell
+ * records, so only paths of the exact form users/{uid}/notifications/{id}
+ * are touched. Records without a Timestamp createdAt are skipped. At most
+ * PATIENT_PURGE_CAP per run, in batches; the next run continues. Nothing
+ * else (audit log, appointments, requests, patient data) is read or
+ * deleted. With dryRun it only counts.
+ */
+export async function purgeOldPatientNotifications({ dryRun }: { dryRun: boolean }): Promise<PatientPurgeResult> {
+  const cutoffMs = Date.now() - NOTIFICATION_TTL_MS;
+  const snap = await adminDb.collectionGroup('notifications').select('createdAt').get();
+  const result: PatientPurgeResult = { scanned: snap.size, due: 0, deleted: 0, capped: false };
+
+  const refs: FirebaseFirestore.DocumentReference[] = [];
+  for (const d of snap.docs) {
+    const segments = d.ref.path.split('/');
+    if (segments.length !== 4 || segments[0] !== 'users' || segments[2] !== 'notifications') continue;
+    const createdAt = d.get('createdAt');
+    if (!(createdAt instanceof Timestamp) || createdAt.toMillis() >= cutoffMs) continue;
+    result.due++;
+    if (refs.length < PATIENT_PURGE_CAP) refs.push(d.ref);
+  }
+  result.capped = result.due > refs.length;
+  if (dryRun) return result;
+
+  for (let i = 0; i < refs.length; i += BATCH_SIZE) {
+    const batch = adminDb.batch();
+    refs.slice(i, i + BATCH_SIZE).forEach((ref) => batch.delete(ref));
+    await batch.commit();
+    result.deleted += Math.min(BATCH_SIZE, refs.length - i);
+  }
+  return result;
+}

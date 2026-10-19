@@ -6,6 +6,7 @@ import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import { buildPushMessage, type PushContent } from '../src/lib/push-message';
 import { REQUEST_PUSH_BODY, REQUEST_PUSH_TITLE } from '../src/lib/appointment-requests';
+import { CANCELLED_PUSH_BODY, CANCELLED_PUSH_TITLE } from '../src/lib/appointment-cancelled-rules';
 
 // Validates every push the dashboard sends with FCM's dry-run mode:
 // FCM checks the payload and credentials but delivers nothing. Sent to a
@@ -34,6 +35,9 @@ const FLOWS: PushContent[] = [
     title: REQUEST_PUSH_TITLE, body: REQUEST_PUSH_BODY },
   { type: 'appointment_request_declined', refId: 'requestDryRun', route: '/appointments',
     title: REQUEST_PUSH_TITLE, body: REQUEST_PUSH_BODY },
+  // Appointment cancelled (admin Cancel or an approved patient request).
+  { type: 'cancellation_update', refId: 'apptDryRun', route: '/appointments',
+    title: CANCELLED_PUSH_TITLE, body: CANCELLED_PUSH_BODY },
 ];
 
 async function main() {

@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { Timestamp } from 'firebase-admin/firestore';
 import { logAuditEvent } from '@/lib/audit-log';
+import { notifyAppointmentCancelled } from '@/lib/appointment-cancelled-notice';
 import { isAccentColor, isIcon } from '@/lib/appointment-requests';
 import { daySlots, minutesToHHmm, slotLockId, timeToMinutes } from '@/lib/doctor-availability';
 import { getAvailableSlots, getDoctorForSlotsByName } from '@/lib/doctor-slots';
@@ -115,6 +116,13 @@ export async function PATCH(
       targetLabel: `${beforeData.label ?? 'Appointment'} — ${beforeData.date ?? ''} ${beforeData.time ?? ''}`.trim(),
       details: isStatusOnly ? `Status changed to ${body.status}` : null,
     });
+
+    // The transaction above only saves an upcoming appointment, so this is
+    // a real upcoming -> cancelled change: tell the patient once (fixed id,
+    // shared with the cancellation-request route). Never throws.
+    if (body.status === 'cancelled') {
+      await notifyAppointmentCancelled({ uid, appointmentId: id, data: beforeData, by: 'clinic' });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
