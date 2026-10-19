@@ -19,7 +19,7 @@ export function ReportDownloads() {
   const today = manilaKey(new Date());
   const [preset, setPreset] = useState<RangePreset | 'custom'>('this_month');
   const [range, setRange] = useState(() => rangeForPreset('this_month', today));
-  const [busy, setBusy] = useState<'appointments' | null>(null);
+  const [busy, setBusy] = useState<'appointments' | 'patients' | null>(null);
   const [error, setError] = useState('');
 
   const rangeOk = validRange(range);
@@ -48,6 +48,26 @@ export function ReportDownloads() {
       }
       const { downloadAppointmentReport } = await import('@/lib/appointment-report-pdf');
       await downloadAppointmentReport({ report: data.report, generatedBy: data.generatedBy, presetLabel, maxAppointments: data.maxAppointments });
+    } catch {
+      setError('Could not build the report. Check your connection and try again.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function downloadPatients() {
+    if (busy) return;
+    setBusy('patients');
+    setError('');
+    try {
+      const res = await fetch('/api/admin/reports/patients', { cache: 'no-store' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.report) {
+        setError(data?.error ?? 'Could not build the report. Please try again.');
+        return;
+      }
+      const { downloadPatientReport } = await import('@/lib/patient-report-pdf');
+      await downloadPatientReport({ report: data.report, generatedBy: data.generatedBy });
     } catch {
       setError('Could not build the report. Check your connection and try again.');
     } finally {
@@ -112,6 +132,24 @@ export function ReportDownloads() {
             </Button>
           </div>
           {!rangeOk && <p className="text-xs text-red-600 dark:text-red-400">The start date must be on or before the end date.</p>}
+        </div>
+
+        <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium">Patient summary</p>
+            <p className="text-xs text-muted-foreground">All patients as of today: trimester, assigned doctor, due month and who is due in the next 60 days.</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11 shrink-0 gap-2 rounded-full md:min-h-9"
+            disabled={busy !== null}
+            aria-busy={busy === 'patients'}
+            onClick={downloadPatients}
+          >
+            {busy === 'patients' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FileDown className="h-4 w-4" aria-hidden="true" />}
+            Patient summary (PDF)
+          </Button>
         </div>
 
         <div aria-live="polite">

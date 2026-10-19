@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
       report: buildAppointmentReport(rows, range, new Date(), capped),
     });
   } catch (err: unknown) {
-    console.error('Failed to build appointment report:', (err as { code?: unknown })?.code ?? 'unknown');
+    console.error('Failed to build appointment report:', (err as { code?: unknown })?.code ?? (err as Error)?.message ?? 'unknown');
     return NextResponse.json({ error: 'Could not build the report. Please try again.' }, { status: 500 });
   }
 }
