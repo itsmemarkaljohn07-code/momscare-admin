@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/page-header';
 import { StatCard } from '@/components/stat-card';
 import { AppointmentStatus, StatusBadge } from '@/components/status-badge';
 import { isPendingDoctorApproval } from '@/lib/appointment-status';
+import { formatDateKey } from '@/lib/pregnancy-display';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, CalendarClock, Clock, Camera, ChevronRight } from 'lucide-react';
 
@@ -57,7 +58,7 @@ export default async function DoctorOverviewPage() {
                 Review and approve or reject pending appointment requests.
               </p>
             </div>
-            <Link href="/doctor/appointments" className="text-sm font-medium text-primary hover:underline">
+            <Link href="/doctor/appointments" className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring -mx-2">
               Review now →
             </Link>
           </CardContent>
@@ -68,27 +69,30 @@ export default async function DoctorOverviewPage() {
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Recent Snapshots</CardTitle>
-            <Link href="/doctor/snapshots" className="text-xs font-medium text-primary hover:underline">
+            <Link href="/doctor/snapshots" className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring -my-2 -mr-2">
               View all
             </Link>
           </CardHeader>
           <CardContent>
             {recentSnapshots.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">No snapshots uploaded yet.</p>
+              <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-muted-foreground">
+                <Camera className="h-6 w-6" aria-hidden="true" />
+                No snapshots uploaded yet.
+              </div>
             ) : (
               <div className="space-y-1">
                 {recentSnapshots.map((s) => (
                   <Link
                     key={s.photoId}
                     href={`/doctor/${s.patientUid}`}
-                    className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50"
+                    className="flex min-h-11 items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-muted">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={s.imageUrl} alt="Snapshot" className="h-full w-full object-cover" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{s.patientName}</p>
+                      <p className="truncate text-sm font-medium" title={s.patientName}>{s.patientName}</p>
                       <p className="text-xs text-muted-foreground">
                         {TYPE_LABELS[s.type] ?? s.type} · Week {s.week} · {formatDate(s.createdAt)}
                       </p>
@@ -104,24 +108,27 @@ export default async function DoctorOverviewPage() {
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Upcoming Appointments</CardTitle>
-            <Link href="/doctor/appointments" className="text-xs font-medium text-primary hover:underline">
+            <Link href="/doctor/appointments" className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring -my-2 -mr-2">
               View all
             </Link>
           </CardHeader>
           <CardContent>
             {nextAppointments.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">No upcoming appointments.</p>
+              <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-muted-foreground">
+                <CalendarClock className="h-6 w-6" aria-hidden="true" />
+                No upcoming appointments.
+              </div>
             ) : (
               <div className="space-y-1">
                 {nextAppointments.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between gap-3 rounded-md p-2">
+                  <div key={a.id} className="flex flex-col gap-2 rounded-md p-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{a.patientName}</p>
+                      <p className="truncate text-sm font-medium" title={a.patientName}>{a.patientName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {a.label} · {a.date} · {a.time}
+                        {a.label} · {formatDateKey(a.date, { weekday: 'short', month: 'short', day: 'numeric' })} · {a.time}
                       </p>
                     </div>
-                    <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                    <div className="flex flex-wrap gap-1 sm:shrink-0 sm:justify-end">
                       <StatusBadge status={a.doctorApproval} />
                       {(a.cancellation?.state === 'requested' || a.cancellation?.state === 'declined') && (
                         <AppointmentStatus appointment={a} />
