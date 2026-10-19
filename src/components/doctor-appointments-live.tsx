@@ -50,12 +50,13 @@ export function DoctorAppointmentsLive({
 
   return (
     <div className="space-y-4">
-      <div className="inline-flex rounded-lg border bg-muted/40 p-1">
+      <div className="inline-flex rounded-lg border bg-muted/40 p-1" role="group" aria-label="View">
         <Button
           type="button"
           variant={view === 'list' ? 'default' : 'ghost'}
           size="sm"
-          className="gap-1.5"
+          className="min-h-11 gap-1.5 sm:min-h-8"
+          aria-pressed={view === 'list'}
           onClick={() => setView('list')}
         >
           <List className="h-3.5 w-3.5" />
@@ -65,7 +66,8 @@ export function DoctorAppointmentsLive({
           type="button"
           variant={view === 'calendar' ? 'default' : 'ghost'}
           size="sm"
-          className="gap-1.5"
+          className="min-h-11 gap-1.5 sm:min-h-8"
+          aria-pressed={view === 'calendar'}
           onClick={() => setView('calendar')}
         >
           <CalendarDays className="h-3.5 w-3.5" />
