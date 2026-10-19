@@ -4,6 +4,8 @@ import { markAppointmentMissed } from '@/lib/mark-missed';
 import { syncDoctorReplyNotifications } from '@/lib/doctor-notifications';
 import {
   purgeOldNotifications,
+  purgeOldPatientNotifications,
+  type PatientPurgeResult,
   syncAdminNotifications,
   type AdminNotificationSyncResult,
   type PurgeResult,
@@ -30,6 +32,8 @@ export interface SweepResult {
   adminNotifications: AdminNotificationSyncResult | null;
   /** Bell records older than 7 days (admin + doctor); never the audit log. */
   retention: PurgeResult | null;
+  /** Patients' own bell records older than 7 days. */
+  patientRetention: PatientPurgeResult | null;
   stoppedEarly: boolean;
   durationMs: number;
 }
@@ -44,11 +48,12 @@ export interface SweepResult {
  *  3. creates the admin bell records the phone can't trigger itself
  *     (appointment requests, cancellation requests) plus any missed
  *     doctor approve/decline record;
- *  4. deletes bell records older than 7 days (admin and doctor bells only).
+ *  4. deletes bell records older than 7 days (admin and doctor bells);
+ *  5. deletes patients' own bell records older than 7 days.
  *
  * Reads appointments with one plain collection-group get of three fields
  * (no index needed). With dryRun nothing is written: step 2 is skipped,
- * since the reply check creates records as it goes, and steps 3 and 4
+ * since the reply check creates records as it goes, and steps 3 to 5
  * only count.
  */
 export async function runScheduledSweep({ dryRun }: { dryRun: boolean }): Promise<SweepResult> {
@@ -66,6 +71,7 @@ export async function runScheduledSweep({ dryRun }: { dryRun: boolean }): Promis
     doctorsTotal: 0,
     adminNotifications: null,
     retention: null,
+    patientRetention: null,
     stoppedEarly: false,
     durationMs: 0,
   };
@@ -138,6 +144,17 @@ export async function runScheduledSweep({ dryRun }: { dryRun: boolean }): Promis
       result.retention = await purgeOldNotifications({ dryRun });
     } catch (err) {
       console.error('[sweep] notification cleanup failed:', (err as { code?: unknown })?.code ?? 'unknown');
+    }
+  }
+
+  // 5. Retention: patients' own bell records older than 7 days.
+  if (outOfTime()) {
+    result.stoppedEarly = true;
+  } else {
+    try {
+      result.patientRetention = await purgeOldPatientNotifications({ dryRun });
+    } catch (err) {
+      console.error('[sweep] patient notification cleanup failed:', (err as { code?: unknown })?.code ?? 'unknown');
     }
   }
 
