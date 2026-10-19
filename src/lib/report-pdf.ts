@@ -54,12 +54,16 @@ async function loadLogo(): Promise<string | null> {
     const res = await fetch('/momcare-logo.png');
     if (!res.ok) return null;
     const blob = await res.blob();
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
+    // Scaled down to the size it is printed at (18 mm), so the logo
+    // doesn't make every report a megabyte.
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width = 144;
+    canvas.height = 144;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/png');
   } catch {
     return null;
   }
