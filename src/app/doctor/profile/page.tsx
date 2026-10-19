@@ -13,7 +13,7 @@ export default async function DoctorProfilePage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <PageHeader title="My Profile" description="Manage how you appear across MomCare" />
+      <PageHeader title="My Profile" description="Your photo and title, as patients and the clinic see them." />
       <DoctorProfileForm initial={doctor} />
     </div>
   );

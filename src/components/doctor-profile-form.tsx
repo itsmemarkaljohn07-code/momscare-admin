@@ -138,7 +138,7 @@ export function DoctorProfileForm({ initial }: { initial: DoctorRecord }) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="absolute -bottom-1.5 -right-1.5 flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-sm transition-colors hover:bg-muted disabled:opacity-60"
+              className="absolute -bottom-2 -right-2 flex h-11 w-11 items-center justify-center rounded-full border bg-background shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 sm:-bottom-1.5 sm:-right-1.5 sm:h-8 sm:w-8"
               aria-label="Change profile picture"
             >
               {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
@@ -152,8 +152,8 @@ export function DoctorProfileForm({ initial }: { initial: DoctorRecord }) {
             />
           </div>
           <div className="min-w-0 flex-1 space-y-1">
-            <h1 className="truncate text-xl font-bold tracking-tight">{doctor.name}</h1>
-            <p className="truncate text-sm text-muted-foreground">{doctor.specialty}</p>
+            <h2 className="truncate text-xl font-bold tracking-tight" title={doctor.name}>{doctor.name}</h2>
+            <p className="truncate text-sm text-muted-foreground" title={doctor.specialty}>{doctor.specialty}</p>
           </div>
         </CardContent>
       </Card>
@@ -168,19 +168,20 @@ export function DoctorProfileForm({ initial }: { initial: DoctorRecord }) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1">
-            <label className="text-sm font-medium">Professional Title</label>
+            <label htmlFor="doctor-title" className="text-sm font-medium">Professional Title</label>
             <div className="flex gap-2">
               <Input
+                id="doctor-title"
                 value={titleDraft}
                 onChange={(e) => setTitleDraft(e.target.value)}
                 placeholder="e.g. Dr."
                 maxLength={20}
-                className="rounded-xl"
+                className="h-11 rounded-xl sm:h-9"
               />
               <Button
                 type="button"
                 size="sm"
-                className="rounded-full"
+                className="min-h-11 rounded-full px-4 sm:min-h-9"
                 disabled={!titleChanged || isSavingTitle}
                 onClick={handleSaveTitle}
               >
