@@ -4,6 +4,7 @@ import { getUserSnapshots } from '@/lib/get-user-snapshots';
 import { PatientViewLive } from '@/components/patient-view-live';
 import { ClinicalNotesPanel } from '@/components/clinical-notes-panel';
 import { AdminPatientSnapshots } from '@/components/admin-patient-snapshots';
+import { PatientReportDownload } from '@/components/patient-report-download';
 import { ChevronLeft } from 'lucide-react';
 
 export default async function UserDetailPage({
@@ -45,6 +46,7 @@ export default async function UserDetailPage({
 
         <div className="order-1 min-w-0 space-y-5 lg:order-2">
           <PatientViewLive initial={user} />
+          <PatientReportDownload patientUid={uid} />
           <ClinicalNotesPanel patientUid={uid} viewerRole="admin" />
         </div>
       </div>

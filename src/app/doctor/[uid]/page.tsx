@@ -4,6 +4,7 @@ import { getUserSnapshots } from '@/lib/get-user-snapshots';
 import { DoctorSnapshotCard } from '@/components/doctor-snapshot-card';
 import { PatientHealthTrends } from '@/components/patient-health-trends';
 import { ClinicalNotesPanel } from '@/components/clinical-notes-panel';
+import { PatientReportDownload } from '@/components/patient-report-download';
 import { PageHeader } from '@/components/page-header';
 import Link from 'next/link';
 import { Camera, ChevronLeft } from 'lucide-react';
@@ -50,6 +51,8 @@ export default async function DoctorPatientSnapshotsPage({
       />
 
       <PatientHealthTrends photos={allPhotos} />
+
+      <PatientReportDownload patientUid={uid} />
 
       <ClinicalNotesPanel
         patientUid={uid}
