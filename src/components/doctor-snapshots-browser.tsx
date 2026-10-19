@@ -151,7 +151,7 @@ export function DoctorSnapshotsBrowser({ groups }: { groups: BrowserGroup[] }) {
           <button
             type="button"
             onClick={clearFilters}
-            className="text-sm font-medium text-primary hover:underline"
+            className="inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Clear filters
           </button>
@@ -160,10 +160,10 @@ export function DoctorSnapshotsBrowser({ groups }: { groups: BrowserGroup[] }) {
         shownGroups.map((group) => (
           <section key={group.dateKey} className="space-y-3">
             <div className="flex items-center gap-3">
-              <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+              <h2 className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                 {group.label}
                 <span className="ml-1.5 font-normal opacity-70">· {group.total}</span>
-              </span>
+              </h2>
               <div className="h-px flex-1 bg-border" />
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-5">

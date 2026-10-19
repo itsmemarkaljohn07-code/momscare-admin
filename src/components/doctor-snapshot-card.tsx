@@ -82,7 +82,8 @@ export function DoctorSnapshotCard({
           {patientName && (
             <Link
               href={`/doctor/${patientUid}`}
-              className="flex min-w-0 items-center gap-2 hover:underline"
+              className="-mx-1 flex min-h-11 min-w-0 items-center gap-2 rounded-md px-1 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8"
+              title={patientName}
             >
               <span
                 className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${avatar.bg} ${avatar.text}`}

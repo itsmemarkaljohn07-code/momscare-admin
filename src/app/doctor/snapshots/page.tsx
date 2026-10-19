@@ -14,7 +14,7 @@ export default async function DoctorSnapshotsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Snapshots"
-        description={`${totalPhotos} photo${totalPhotos === 1 ? '' : 's'} from your patients`}
+        description={`${totalPhotos} photo${totalPhotos === 1 ? '' : 's'} from your patients. Open one to view it full size and comment.`}
       />
 
       {groups.length === 0 ? (
