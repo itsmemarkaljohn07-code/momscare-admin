@@ -1,27 +1,34 @@
+import {
+  Ban, CalendarClock, CalendarX, CheckCheck, CircleAlert, CircleCheck, CircleX, Hourglass, Timer, type LucideIcon,
+} from 'lucide-react';
 import { computeDisplayStatus } from '@/lib/appointment-status';
 import type { AppointmentCancellation } from '@/lib/appointment-cancellation';
 
-const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  pending:   { label: 'Pending Doctor Approval', color: 'var(--status-pending)',   bg: 'var(--status-pending-bg)' },
-  approved:  { label: 'Approved',                color: 'var(--status-approved)',  bg: 'var(--status-approved-bg)' },
-  rejected:  { label: 'Declined',                color: 'var(--status-declined)',  bg: 'var(--status-declined-bg)' },
-  upcoming:  { label: 'Upcoming',                color: 'var(--status-upcoming)',  bg: 'var(--status-upcoming-bg)' },
-  ongoing:   { label: 'Ongoing',                 color: 'var(--status-approved)',  bg: 'var(--status-approved-bg)' },
-  completed: { label: 'Completed',               color: 'var(--status-completed)', bg: 'var(--status-completed-bg)' },
-  cancelled: { label: 'Cancelled',                color: 'var(--status-cancelled)', bg: 'var(--status-cancelled-bg)' },
-  missed:    { label: 'Missed',                   color: 'var(--status-declined)',  bg: 'var(--status-declined-bg)' },
-  cancellation_requested: { label: 'Cancellation requested', color: 'var(--status-pending)', bg: 'var(--status-pending-bg)' },
+// Every status shows an icon and a text label (never colour alone). Colours
+// come from the existing --status-* CSS variables.
+const STATUS_MAP: Record<string, { label: string; icon: LucideIcon; color: string; bg: string }> = {
+  pending:   { label: 'Pending approval', icon: Hourglass,   color: 'var(--status-pending)',   bg: 'var(--status-pending-bg)' },
+  approved:  { label: 'Approved',         icon: CircleCheck, color: 'var(--status-approved)',  bg: 'var(--status-approved-bg)' },
+  rejected:  { label: 'Declined',         icon: CircleX,     color: 'var(--status-declined)',  bg: 'var(--status-declined-bg)' },
+  upcoming:  { label: 'Upcoming',         icon: CalendarClock, color: 'var(--status-upcoming)', bg: 'var(--status-upcoming-bg)' },
+  ongoing:   { label: 'Ongoing',          icon: Timer,       color: 'var(--status-approved)',  bg: 'var(--status-approved-bg)' },
+  completed: { label: 'Completed',        icon: CheckCheck,  color: 'var(--status-completed)', bg: 'var(--status-completed-bg)' },
+  cancelled: { label: 'Cancelled',        icon: Ban,         color: 'var(--status-cancelled)', bg: 'var(--status-cancelled-bg)' },
+  missed:    { label: 'Missed',           icon: CircleAlert, color: 'var(--status-declined)',  bg: 'var(--status-declined-bg)' },
+  cancellation_requested: { label: 'Cancellation requested', icon: CalendarX, color: 'var(--status-pending)', bg: 'var(--status-pending-bg)' },
 };
 
 export function StatusBadge({ status, label }: { status: string; label?: string }) {
   const key = status.toLowerCase();
-  const entry = STATUS_MAP[key] ?? { label: label ?? status, color: 'var(--muted-foreground)', bg: 'var(--muted)' };
+  const entry = STATUS_MAP[key];
+  const Icon = entry?.icon;
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-      style={{ color: entry.color, backgroundColor: entry.bg }}
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium"
+      style={{ color: entry?.color ?? 'var(--muted-foreground)', backgroundColor: entry?.bg ?? 'var(--muted)' }}
     >
-      {label ?? entry.label}
+      {Icon && <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
+      {label ?? entry?.label ?? status}
     </span>
   );
 }

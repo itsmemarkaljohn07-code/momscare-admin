@@ -19,7 +19,7 @@ export function FilterChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-[var(--action-ring)] ${
+      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium md:min-h-9 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-[var(--action-ring)] ${
         active
           ? 'border-[var(--action)] bg-[var(--action-soft)] text-[var(--action-soft-foreground)]'
           : 'border-input text-muted-foreground hover:bg-muted/60 hover:text-foreground'
@@ -57,7 +57,7 @@ export function FilterSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full appearance-none rounded-full border border-input bg-background pl-3.5 pr-9 text-sm outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring dark:[color-scheme:dark]"
+        className="h-11 w-full appearance-none rounded-full md:h-9 border border-input bg-background pl-3.5 pr-9 text-sm outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring dark:[color-scheme:dark]"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
