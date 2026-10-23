@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { AppointmentStatus, StatusBadge } from '@/components/status-badge';
 import { EmptyState } from '@/components/empty-state';
+import { DecidedByAdminNote } from '@/components/admin-approval-controls';
 import { isPendingDoctorApproval } from '@/lib/appointment-status';
 import { formatDateKey } from '@/lib/pregnancy-display';
 import { showApiError } from '@/lib/error-messages';
@@ -94,6 +95,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
     return (
       <div className="space-y-1">
         <StatusBadge status={a.doctorApproval} />
+        {a.doctorApproval !== 'pending' && a.decidedBy === 'admin' && <DecidedByAdminNote />}
         {a.doctorApproval === 'rejected' && a.rejectionReason && (
           <p
             className="line-clamp-2 max-w-[220px] whitespace-normal break-words text-xs text-muted-foreground"

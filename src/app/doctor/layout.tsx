@@ -4,6 +4,7 @@ import { getDoctorAppointments } from '@/lib/get-doctor-appointments';
 import { isPendingDoctorApproval } from '@/lib/appointment-status';
 import { DoctorSidebar } from '@/components/doctor-sidebar';
 import { DoctorNotificationBell } from '@/components/doctor-notification-bell';
+import { DoctorLiveAppointmentsProvider } from '@/components/doctor-live-appointments';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 
@@ -21,20 +22,24 @@ export default async function DoctorLayout({ children }: { children: React.React
   const appointments = await getDoctorAppointments(session.doctorName);
   const pendingCount = appointments.filter(isPendingDoctorApproval).length;
 
+  // One live list for every doctor page (Overview, My Appointments, the
+  // sidebar badge); see DoctorLiveAppointmentsProvider.
   return (
-    <SidebarProvider>
-      <DoctorSidebar doctorId={session.doctorId} doctorName={session.doctorName} pendingCount={pendingCount} />
-      <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-16 items-center gap-2 border-b bg-background/80 px-4 shadow-soft backdrop-blur-sm sm:px-6">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="h-5" />
-          <span className="text-sm text-muted-foreground">Signed in as {session.email}</span>
-          <div className="ml-auto">
-            <DoctorNotificationBell />
-          </div>
-        </header>
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
-      </SidebarInset>
-    </SidebarProvider>
+    <DoctorLiveAppointmentsProvider doctorName={session.doctorName} initial={appointments}>
+      <SidebarProvider>
+        <DoctorSidebar doctorId={session.doctorId} doctorName={session.doctorName} pendingCount={pendingCount} />
+        <SidebarInset>
+          <header className="sticky top-0 z-10 flex h-16 items-center gap-2 border-b bg-background/80 px-4 shadow-soft backdrop-blur-sm sm:px-6">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="h-5" />
+            <span className="text-sm text-muted-foreground">Signed in as {session.email}</span>
+            <div className="ml-auto">
+              <DoctorNotificationBell />
+            </div>
+          </header>
+          <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        </SidebarInset>
+      </SidebarProvider>
+    </DoctorLiveAppointmentsProvider>
   );
 }

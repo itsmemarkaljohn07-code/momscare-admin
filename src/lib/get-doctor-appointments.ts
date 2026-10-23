@@ -15,6 +15,10 @@ export interface DoctorAppointmentView {
   status: 'upcoming' | 'completed' | 'cancelled' | 'missed';
   doctorApproval: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
+  /** 'admin' when the clinic approved or declined on the doctor's behalf. */
+  decidedBy?: 'admin' | null;
+  /** The appointment's doctor, as stored (to notice a move to another doctor). */
+  doctor?: string;
   cancellation?: AppointmentCancellation;
 }
 
@@ -50,6 +54,8 @@ export async function getDoctorAppointments(doctorName: string): Promise<DoctorA
         status: data.status,
         doctorApproval: data.doctorApproval ?? 'pending',
         rejectionReason: data.rejectionReason,
+        decidedBy: data.decidedBy?.role === 'admin' ? ('admin' as const) : null,
+        doctor: data.doctor,
         cancellation: mapCancellation(data.cancellation),
       };
     })
