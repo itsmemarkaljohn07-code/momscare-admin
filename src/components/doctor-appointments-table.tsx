@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { CalendarX } from 'lucide-react';
@@ -25,6 +25,18 @@ import { useLoadMore } from '@/hooks/use-load-more';
 
 const HEAD = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground';
 
+const keyOf = (a: DoctorAppointmentView) => `${a.patientUid}/${a.id}`;
+
+/** Why a row can no longer be approved or declined, or null while it can.
+ *  The list is live, so the clinic deciding first shows up here. */
+function closedMessage(a: DoctorAppointmentView | undefined): string | null {
+  if (!a) return 'This appointment was removed or moved to another doctor.';
+  if (isPendingDoctorApproval(a) && a.status === 'upcoming') return null;
+  if (a.status !== 'upcoming') return 'This appointment is no longer upcoming.';
+  const verb = a.doctorApproval === 'approved' ? 'approved' : 'declined';
+  return a.decidedBy === 'admin' ? `The clinic already ${verb} this on your behalf.` : `This appointment was already ${verb}.`;
+}
+
 function dateLabel(date: string): string {
   return formatDateKey(date, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
@@ -32,12 +44,33 @@ function dateLabel(date: string): string {
 export function DoctorAppointmentsTable({ appointments }: { appointments: DoctorAppointmentView[] }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // The appointment being declined, as it looked when the dialog opened;
+  // its live row (below) tells whether it can still be declined.
   const [rejectingAppt, setRejectingAppt] = useState<DoctorAppointmentView | null>(null);
+  const rejectingLive = rejectingAppt ? appointments.find((x) => keyOf(x) === keyOf(rejectingAppt)) : undefined;
+  const rejectingClosed = rejectingAppt ? closedMessage(rejectingLive) : null;
+  // Latest rows for a request about to be sent (no stale closure).
+  const latest = useRef(appointments);
+  useEffect(() => {
+    latest.current = appointments;
+  }, [appointments]);
+  const sending = useRef(false);
   const [reason, setReason] = useState('');
   // 20 rows at a time (the list has no search or filter of its own).
   const page = useLoadMore(appointments, 20);
 
   async function updateApproval(appt: DoctorAppointmentView, doctorApproval: 'approved' | 'rejected', rejectionReason?: string) {
+    // No double submit, and nothing sent for a row the clinic (or anyone)
+    // already decided: the live list knows before the click.
+    if (sending.current) return;
+    const closed = closedMessage(latest.current.find((x) => keyOf(x) === keyOf(appt)));
+    if (closed) {
+      toast(closed);
+      setRejectingAppt(null);
+      setReason('');
+      return;
+    }
+    sending.current = true;
     setPendingId(appt.id);
     try {
       const res = await fetch(`/api/doctors/appointment/${appt.patientUid}/${appt.id}`, {
@@ -45,6 +78,12 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ doctorApproval, rejectionReason }),
       });
+      if (res.status === 409) {
+        // Someone got there first: a calm notice with the route's text.
+        const data = await res.json().catch(() => null);
+        toast(data?.error ?? 'This appointment can no longer be approved or declined.');
+        return;
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         showApiError(res, data, undefined, 'doctor appointment approval');
@@ -55,6 +94,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
     } catch (err) {
       showApiError(null, null, err, 'doctor appointment approval');
     } finally {
+      sending.current = false;
       setPendingId(null);
       setRejectingAppt(null);
       setReason('');
@@ -63,7 +103,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
 
   /** Approve / Decline for a pending appointment (44px on phones). */
   function renderActions(a: DoctorAppointmentView, stretch = false) {
-    if (!isPendingDoctorApproval(a)) return null;
+    if (closedMessage(a)) return null;
     const size = `min-h-11 sm:min-h-8 ${stretch ? 'flex-1' : ''}`;
     return (
       <div className="flex gap-2">
@@ -71,7 +111,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
           size="sm"
           variant="success"
           className={size}
-          disabled={pendingId === a.id}
+          disabled={pendingId !== null}
           onClick={() => updateApproval(a, 'approved')}
           aria-label={`Approve ${a.patientName}'s ${a.label} on ${dateLabel(a.date)}`}
         >
@@ -81,7 +121,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
           size="sm"
           variant="destructive"
           className={size}
-          disabled={pendingId === a.id}
+          disabled={pendingId !== null}
           onClick={() => setRejectingAppt(a)}
           aria-label={`Decline ${a.patientName}'s ${a.label} on ${dateLabel(a.date)}`}
         >
@@ -136,7 +176,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
           </TableHeader>
           <TableBody>
             {page.visible.map((a) => (
-              <TableRow key={a.id} className="align-top">
+              <TableRow key={keyOf(a)} className="align-top">
                 <TableCell className="max-w-48 truncate font-medium" title={a.patientName}>{a.patientName}</TableCell>
                 <TableCell className="whitespace-normal">
                   {a.label} <span className="text-xs text-muted-foreground">({a.type})</span>
@@ -161,7 +201,7 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
       {/* Under 640px */}
       <ul className="space-y-3 sm:hidden">
         {page.visible.map((a) => (
-          <li key={a.id}>
+          <li key={keyOf(a)}>
             <Card className="rounded-2xl shadow-soft">
               <CardContent className="space-y-3 p-4">
                 <div className="min-w-0">
@@ -195,22 +235,34 @@ export function DoctorAppointmentsTable({ appointments }: { appointments: Doctor
               </DialogDescription>
             )}
           </DialogHeader>
-          <label htmlFor="decline-reason" className="sr-only">Reason for the patient (optional)</label>
-          <Textarea
-            id="decline-reason"
-            placeholder="Reason for the patient (optional)"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            rows={3}
-          />
-          <Button
-            variant="destructive"
-            className="min-h-11 w-full"
-            disabled={!rejectingAppt || pendingId === rejectingAppt.id}
-            onClick={() => rejectingAppt && updateApproval(rejectingAppt, 'rejected', reason)}
-          >
-            Confirm Decline
-          </Button>
+          {rejectingClosed && pendingId === null ? (
+            // Decided elsewhere while the dialog was open: say so instead.
+            <>
+              <p role="status" className="rounded-lg bg-muted px-3.5 py-2.5 text-sm">{rejectingClosed}</p>
+              <Button variant="outline" className="min-h-11 w-full" onClick={() => { setRejectingAppt(null); setReason(''); }}>
+                Close
+              </Button>
+            </>
+          ) : (
+            <>
+              <label htmlFor="decline-reason" className="sr-only">Reason for the patient (optional)</label>
+              <Textarea
+                id="decline-reason"
+                placeholder="Reason for the patient (optional)"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                rows={3}
+              />
+              <Button
+                variant="destructive"
+                className="min-h-11 w-full"
+                disabled={!rejectingAppt || pendingId !== null}
+                onClick={() => rejectingAppt && updateApproval(rejectingAppt, 'rejected', reason)}
+              >
+                Confirm Decline
+              </Button>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
