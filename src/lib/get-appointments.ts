@@ -18,6 +18,8 @@ export interface AdminAppointment {
     status: 'upcoming' | 'completed' | 'cancelled' | 'missed';
   doctorApproval: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
+  /** 'admin' when the clinic approved or declined on the doctor's behalf. */
+  decidedBy?: 'admin' | null;
   createdAt?: string | null;
   cancellation?: AppointmentCancellation;
 }
@@ -54,6 +56,7 @@ export async function getAppointments(): Promise<AdminAppointment[]> {
       status: data.status,
       doctorApproval: data.doctorApproval ?? 'pending',
       rejectionReason: data.rejectionReason,
+      decidedBy: data.decidedBy?.role === 'admin' ? 'admin' : null,
       createdAt: data.createdAt?.toDate?.().toISOString() ?? null,
       cancellation: mapCancellation(data.cancellation),
     };

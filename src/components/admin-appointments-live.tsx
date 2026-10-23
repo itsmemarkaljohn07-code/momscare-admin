@@ -35,6 +35,7 @@ function toAdminView(base: AdminAppointment, data: DocumentData): AdminAppointme
     status: data.status,
     doctorApproval: data.doctorApproval ?? 'pending',
     rejectionReason: data.rejectionReason,
+    decidedBy: data.decidedBy?.role === 'admin' ? 'admin' : null,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? null,
     cancellation: mapCancellation(data.cancellation),
   };
@@ -175,7 +176,7 @@ export function AdminAppointmentsLive({
       </div>
 
       {tab === 'active' ? (
-        <AppointmentsTable appointments={activeList} users={users} doctors={doctors} />
+        <AppointmentsTable appointments={activeList} users={users} doctors={doctors} showApproval />
       ) : tab === 'requests' ? (
         <AppointmentsTable
           appointments={requestsList}

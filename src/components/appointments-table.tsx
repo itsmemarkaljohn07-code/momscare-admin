@@ -20,8 +20,10 @@ import {
 import { AppointmentFormDialog } from '@/components/appointment-form-dialog';
 import { AppointmentStatus, StatusBadge } from '@/components/status-badge';
 import { CancellationDecision } from '@/components/cancellation-decision';
+import { AdminApprovalControls, DecidedByAdminNote } from '@/components/admin-approval-controls';
 import { showApiError } from '@/lib/error-messages';
 import { isCancellationRequested } from '@/lib/appointment-cancellation';
+import { isPendingDoctorApproval } from '@/lib/appointment-status';
 import type { AdminAppointment } from '@/lib/get-appointments';
 import type { AdminUserView } from '@/lib/get-users';
 import type { DoctorRecord } from '@/lib/get-doctors';
@@ -43,6 +45,7 @@ export function AppointmentsTable({
   emptyTitle = 'No appointments found',
   emptyDescription = 'No appointments have been scheduled yet.',
   showNewAppointment = true,
+  showApproval = false,
 }: {
   appointments: AdminAppointment[];
   users: AdminUserView[];
@@ -52,6 +55,8 @@ export function AppointmentsTable({
   /** The "+ New Appointment" button. Off where the list isn't for
    *  booking (e.g. the Cancellation requests tab). */
   showNewAppointment?: boolean;
+  /** Approve / Decline on rows still waiting for the doctor (Active tab). */
+  showApproval?: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -68,6 +73,9 @@ export function AppointmentsTable({
   });
   // 20 rows at a time; a new search starts from the first 20.
   const page = useLoadMore(filtered, 20, query.trim().toLowerCase());
+  // The list itself only holds upcoming, not yet missed appointments on
+  // the Active tab; the route checks again.
+  const canDecide = (a: AdminAppointment) => showApproval && a.status === 'upcoming' && isPendingDoctorApproval(a);
 
   async function setStatus(appt: AdminAppointment, status: string) {
     setPendingId(appt.id);
@@ -175,6 +183,12 @@ export function AppointmentsTable({
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={approval} />
+                        {approval !== 'pending' && a.decidedBy === 'admin' && <DecidedByAdminNote />}
+                        {canDecide(a) && (
+                          <div className="mt-1.5">
+                            <AdminApprovalControls appointment={a} />
+                          </div>
+                        )}
                         {approval === 'rejected' && rejectionReason && (
                           <p
                             className="mt-1 line-clamp-2 max-w-[200px] whitespace-normal break-words text-xs text-muted-foreground"
@@ -281,6 +295,12 @@ export function AppointmentsTable({
 
                     <div>
                       <StatusBadge status={approval} />
+                      {approval !== 'pending' && a.decidedBy === 'admin' && <DecidedByAdminNote />}
+                      {canDecide(a) && (
+                        <div className="mt-2">
+                          <AdminApprovalControls appointment={a} stretch />
+                        </div>
+                      )}
                       {approval === 'rejected' && rejectionReason && (
                         <p
                           className="mt-1 line-clamp-2 whitespace-normal break-words text-xs text-muted-foreground"
