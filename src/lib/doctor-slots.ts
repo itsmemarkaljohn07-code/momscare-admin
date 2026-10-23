@@ -36,7 +36,7 @@ export async function getDoctorForSlotsByName(name: string): Promise<DoctorForSl
 
 /**
  * This doctor's appointments on `date`, any status. One plain
- * collection-group read of four fields, filtered here (a filtered
+ * collection-group read of five fields, filtered here (a filtered
  * collection-group query would need an index).
  */
 export async function getDoctorAppointmentsOn(
@@ -44,12 +44,17 @@ export async function getDoctorAppointmentsOn(
   date: string,
   exclude?: { patientUid: string; id: string }
 ): Promise<BookedAppointment[]> {
-  const snap = await adminDb.collectionGroup('appointments').select('doctor', 'date', 'time', 'status').get();
+  const snap = await adminDb.collectionGroup('appointments').select('doctor', 'date', 'time', 'status', 'doctorApproval').get();
   const wanted = doctorName.trim().toLowerCase();
   return snap.docs
     .filter((d) => !(exclude && d.id === exclude.id && d.ref.parent.parent?.id === exclude.patientUid))
     .filter((d) => String(d.get('doctor') ?? '').trim().toLowerCase() === wanted && d.get('date') === date)
-    .map((d) => ({ date, time: String(d.get('time') ?? ''), status: String(d.get('status') ?? '') }));
+    .map((d) => ({
+      date,
+      time: String(d.get('time') ?? ''),
+      status: String(d.get('status') ?? ''),
+      doctorApproval: String(d.get('doctorApproval') ?? 'pending'),
+    }));
 }
 
 /** Free slots for a doctor on a date, optionally limited to a patient's

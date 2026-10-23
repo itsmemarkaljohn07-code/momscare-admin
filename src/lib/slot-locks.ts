@@ -8,7 +8,8 @@ import { adminDb } from '@/lib/firebase-admin';
 // The appointment holding a lock stores its id as `slotLockId`, and the
 // lock stores the appointment's path. A lock is released only by the
 // appointment it points to, and a lock whose appointment is gone or no
-// longer upcoming (e.g. its patient was deleted) counts as free.
+// longer upcoming (e.g. its patient was deleted), or that the doctor or
+// clinic declined, counts as free.
 //
 // All helpers work inside a transaction: call the read* helpers before any
 // write, as Firestore requires.
@@ -31,7 +32,11 @@ export async function readSlotLock(
   const path = lock.get('appointmentPath');
   if (typeof path !== 'string' || !path) return { ref, free: true };
   const holder = await tx.get(adminDb.doc(path));
-  const held = holder.exists && holder.get('status') === 'upcoming' && holder.get('slotLockId') === lockId;
+  const held =
+    holder.exists &&
+    holder.get('status') === 'upcoming' &&
+    holder.get('doctorApproval') !== 'rejected' &&
+    holder.get('slotLockId') === lockId;
   return { ref, free: !held };
 }
 

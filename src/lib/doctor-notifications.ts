@@ -13,6 +13,13 @@ import {
   resolveAppointmentDoctor,
   type DoctorRef,
 } from '@/lib/doctor-appointment-notice';
+import {
+  CLINIC_DECISION_LINK,
+  CLINIC_DECISION_TITLE,
+  clinicDecisionMessage,
+  clinicDecisionNoticeId,
+  type Decision,
+} from '@/lib/appointment-decision-rules';
 
 // Doctor bell records live at doctors/{doctorId}/notifications/{id}. Only
 // the server reads or writes them (Admin SDK, behind getDoctorSession), so
@@ -244,6 +251,50 @@ export async function notifyDoctorOfNewAppointment(input: {
     }
   } catch (err) {
     console.error(`[doctor-notifications] appointment notice failed (non-fatal): ${errorCode(err)}`);
+    return 'failed';
+  }
+}
+
+/**
+ * One entry telling the doctor that the clinic approved or declined one of
+ * her pending appointments on her behalf. The doctor is found by exact
+ * name (nothing is created unless exactly one doctor matches); the fixed
+ * id clinic-decision-{appointmentId}-{decision} means a repeat never adds
+ * a second entry. Never throws; logs a short code only.
+ */
+export async function notifyDoctorOfClinicDecision(input: {
+  appointmentId: string;
+  patientUid: string;
+  doctorName: string;
+  decision: Decision;
+  patientName: string;
+  label: unknown;
+  date: string;
+  time: string;
+}): Promise<'created' | 'duplicate' | 'no_doctor' | 'failed'> {
+  try {
+    const snap = await adminDb.collection('doctors').select('name').get();
+    const candidates: DoctorRef[] = snap.docs.map((d) => ({ id: d.id, name: String(d.get('name') ?? '') }));
+    const doctor = resolveAppointmentDoctor(candidates, { doctorName: input.doctorName });
+    if (!doctor) return 'no_doctor';
+    try {
+      await notificationsCol(doctor.id).doc(clinicDecisionNoticeId(input.appointmentId, input.decision)).create({
+        type: input.decision === 'approved' ? 'appointment_approved_by_clinic' : 'appointment_declined_by_clinic',
+        title: CLINIC_DECISION_TITLE,
+        message: clinicDecisionMessage(input),
+        link: CLINIC_DECISION_LINK,
+        appointmentId: input.appointmentId,
+        patientUid: input.patientUid,
+        read: false,
+        createdAt: Timestamp.now(),
+      });
+      return 'created';
+    } catch (err) {
+      if (isAlreadyExists(err)) return 'duplicate';
+      throw err;
+    }
+  } catch (err) {
+    console.error(`[doctor-notifications] clinic decision notice failed (non-fatal): ${errorCode(err)}`);
     return 'failed';
   }
 }

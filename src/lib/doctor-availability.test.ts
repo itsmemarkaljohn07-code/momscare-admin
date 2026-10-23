@@ -38,6 +38,15 @@ test('upcoming appointments take their slot; other statuses release it', () => {
   assert.deepEqual(availableSlots({ schedule, date: MONDAY, appointments: appts, now: EARLY }).slots, ['09:30', '10:00', '10:30']);
 });
 
+test('a declined appointment frees its slot; pending and approved keep it', () => {
+  const appts = [
+    { date: MONDAY, time: '9:00 AM', status: 'upcoming', doctorApproval: 'rejected' },
+    { date: MONDAY, time: '9:30 AM', status: 'upcoming', doctorApproval: 'pending' },
+    { date: MONDAY, time: '10:00 AM', status: 'upcoming', doctorApproval: 'approved' },
+  ];
+  assert.deepEqual(availableSlots({ schedule, date: MONDAY, appointments: appts, now: EARLY }).slots, ['09:00', '10:30']);
+});
+
 test('an off-grid appointment blocks every slot it overlaps', () => {
   const r = availableSlots({ schedule, date: MONDAY, appointments: [{ date: MONDAY, time: '9:45 AM', status: 'upcoming' }], now: EARLY });
   assert.deepEqual(r.slots, ['09:00', '10:30']);

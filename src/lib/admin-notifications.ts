@@ -112,7 +112,7 @@ async function collectDrafts(nowMs: number): Promise<{ drafts: AdminNotification
     adminDb.collectionGroup('appointmentRequests').select('type', 'options', 'createdAt', 'status', 'withdrawnAt').get(),
     adminDb
       .collectionGroup('appointments')
-      .select('label', 'date', 'time', 'doctor', 'doctorApproval', 'doctorApprovalAt', 'cancellation')
+      .select('label', 'date', 'time', 'doctor', 'doctorApproval', 'doctorApprovalAt', 'decidedBy', 'cancellation')
       .get(),
   ]);
 
@@ -153,7 +153,9 @@ async function collectDrafts(nowMs: number): Promise<{ drafts: AdminNotification
 
     const decision = d.get('doctorApproval');
     const decidedAt = millis(d.get('doctorApprovalAt'));
-    if ((decision === 'approved' || decision === 'rejected') && withinWindow(decidedAt, nowMs)) {
+    // An admin's decision on the doctor's behalf isn't news for the admins.
+    const byAdmin = d.get('decidedBy')?.role === 'admin';
+    if ((decision === 'approved' || decision === 'rejected') && !byAdmin && withinWindow(decidedAt, nowMs)) {
       pending.push({ kind: 'decision', uid, id: d.id, decision, at: decidedAt as number, doctor: String(d.get('doctor') ?? ''), label, date, time });
     }
 

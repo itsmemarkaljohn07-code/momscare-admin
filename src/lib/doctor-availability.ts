@@ -18,6 +18,8 @@ export interface BookedAppointment {
   /** "9:30 AM" (as stored) or "09:30" */
   time: string;
   status: string;
+  /** A declined appointment no longer takes its slot. */
+  doctorApproval?: string;
 }
 
 /** A patient's preferred window: yyyy-MM-dd + "HH:mm" from/to. */
@@ -130,7 +132,7 @@ export function availableSlots(input: {
   const step = Number(schedule.slotMinutes);
   const busy: [number, number][] = [];
   for (const a of appointments) {
-    if (a.status !== 'upcoming' || a.date !== date) continue;
+    if (a.status !== 'upcoming' || a.doctorApproval === 'rejected' || a.date !== date) continue;
     const start = timeToMinutes(a.time);
     if (start !== null) busy.push([start, start + step]);
   }
