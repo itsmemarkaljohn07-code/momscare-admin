@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { useDoctorLiveAppointments } from '@/components/doctor-live-appointments';
+import { isPendingDoctorApproval } from '@/lib/appointment-status';
 import { db } from '@/lib/firebase-client';
 import {
   LayoutDashboard, Users, Camera, CalendarDays, UserCircle, type LucideIcon,
@@ -58,6 +60,9 @@ export function DoctorSidebar({
 }) {
   const pathname = usePathname();
   const [identity, setIdentity] = useState({ name: doctorName, photoUrl: null as string | null });
+  // Live when inside the doctor layout's list; the server count otherwise.
+  const live = useDoctorLiveAppointments();
+  const pending = live ? live.appointments.filter(isPendingDoctorApproval).length : pendingCount;
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -123,7 +128,7 @@ export function DoctorSidebar({
                       >
                         <item.icon className="h-[17px] w-[17px]" />
                         <span>{item.title}</span>
-                        {item.url === '/doctor/appointments' && pendingCount > 0 && (
+                        {item.url === '/doctor/appointments' && pending > 0 && (
                           <span
                             className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
                             style={
@@ -132,7 +137,7 @@ export function DoctorSidebar({
                                 : { backgroundColor: 'var(--accent-blue-bg)', color: 'var(--accent-blue)' }
                             }
                           >
-                            {pendingCount}
+                            {pending}
                           </span>
                         )}
                       </SidebarMenuButton>

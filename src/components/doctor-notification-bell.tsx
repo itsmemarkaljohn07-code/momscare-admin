@@ -6,6 +6,7 @@ import { collection, onSnapshot, query, Timestamp, where } from 'firebase/firest
 import { auth, db } from '@/lib/firebase-client';
 import { NotificationBellPanel } from '@/components/notification-bell-panel';
 import { useNotificationSound } from '@/hooks/use-notification-sound';
+import { DOCTOR_APPOINTMENT_CHANGED, DOCTOR_BELL_CHANGED } from '@/components/doctor-live-appointments';
 import type { DoctorNotificationView, WatchedThread } from '@/lib/doctor-notifications';
 
 type NotificationList = { notifications: DoctorNotificationView[]; unreadCount: number };
@@ -17,6 +18,10 @@ const LISTEN_WINDOW_MS = 60 * 60 * 1000;
 
 /** "Anything new?" check while the tab is visible (one read on the server). */
 const HEAD_POLL_MS = 15_000;
+
+/** After an appointment changed live, check again this soon (the server
+ *  writes its bell entry a moment after the appointment itself). */
+const AFTER_CHANGE_CHECKS_MS = [2_000, 6_000];
 
 /** Doctor-dashboard bell: patient replies to the doctor's Snapshot
  *  comments. Loading it runs the full server-side check; while the page
@@ -80,7 +85,12 @@ export function DoctorNotificationBell() {
         const res = await fetch('/api/doctors/notifications?head=1', { cache: 'no-store' });
         if (!res.ok) return;
         const { latestId } = (await res.json()) as { latestId: string | null };
-        if (latestId !== newestId.current) await refresh();
+        if (latestId !== newestId.current) {
+          await refresh();
+          // Something new (e.g. a new appointment, or the clinic deciding
+          // on the doctor's behalf): the appointment lists re-read too.
+          window.dispatchEvent(new Event(DOCTOR_BELL_CHANGED));
+        }
       } catch {
         // Keep the current list; the next check tries again.
       } finally {
@@ -89,10 +99,20 @@ export function DoctorNotificationBell() {
     }
     const id = window.setInterval(() => void tick(false), HEAD_POLL_MS);
     const onVisible = () => void tick(true);
+    // An appointment of hers changed live: look for its bell entry soon,
+    // instead of waiting up to 15 s for the next check.
+    let soon: number[] = [];
+    const onAppointmentChanged = () => {
+      soon.forEach((t) => window.clearTimeout(t));
+      soon = AFTER_CHANGE_CHECKS_MS.map((ms) => window.setTimeout(() => void tick(false), ms));
+    };
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener(DOCTOR_APPOINTMENT_CHANGED, onAppointmentChanged);
     return () => {
       window.clearInterval(id);
+      soon.forEach((t) => window.clearTimeout(t));
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener(DOCTOR_APPOINTMENT_CHANGED, onAppointmentChanged);
     };
   }, []);
 
