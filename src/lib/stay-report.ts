@@ -16,6 +16,12 @@ export interface ReportStay extends Stay {
   patientUid: string;
 }
 
+/** Stays whose patient document still exists: a stay left under a deleted
+ *  patient (e.g. a partial deletion) is never counted. */
+export function staysOfExistingPatients(stays: ReportStay[], existingPatientUids: Set<string>): ReportStay[] {
+  return stays.filter((s) => existingPatientUids.has(s.patientUid));
+}
+
 export type StayRowKey =
   | 'admissions' | 'admMother' | 'admNewborn' | 'census'
   | 'deliveries' | 'stillbirths' | 'discharges' | 'disMother' | 'disBaby' | 'transfers'

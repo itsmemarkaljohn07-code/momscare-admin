@@ -247,7 +247,7 @@ export async function deletePatient(uid: string, actorUid: string): Promise<Dele
   });
 
   // 4. users/{uid} and every subcollection under it, including
-  //    snapshots/*/comments and clinicalNotes.
+  //    snapshots/*/comments, clinicalNotes and stays (birth stays).
   await run('firestore_data', async () => {
     const [profileDoc, subcollections] = await Promise.all([userRef.get(), userRef.listCollections()]);
     if (!profileDoc.exists && subcollections.length === 0) return { status: 'already_gone' };

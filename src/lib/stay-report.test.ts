@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseManila, type Stay } from './stays';
-import { STAYS_RECORDED_FROM, buildStayReport, type ReportStay } from './stay-report';
+import { STAYS_RECORDED_FROM, buildStayReport, staysOfExistingPatients, type ReportStay } from './stay-report';
 import { buildPrenatalReport, daysOfMonth } from './prenatal-report';
 import { prenatalCsvRows } from './prenatal-report-csv';
 
@@ -117,4 +117,12 @@ test('preview data, CSV and the PDF all read the same counts', () => {
   const sept = prenatalCsvRows(buildPrenatalReport({ month: '2026-09', appointments: [], patients: [], stays, now: new Date('2026-10-24T02:00:00Z') }));
   assert.equal(sept.find((r) => r[0] === 'II. DELIVERIES')!.at(-1), 'Not recorded');
   assert.equal(sept.find((r) => r[0] === 'TOTAL OF DELIVERIES')![1], 'Not recorded');
+});
+
+test('stays of a deleted patient are not counted', () => {
+  const stays = [s('kept', { deliveredAt: t('2026-10-10T12:00'), outcome: 'live', babySex: 'male' }), s('gone', { deliveredAt: t('2026-10-11T12:00'), outcome: 'live', babySex: 'female' })];
+  const kept = staysOfExistingPatients(stays, new Set(['kept']));
+  assert.deepEqual(kept.map((x) => x.patientUid), ['kept']);
+  assert.equal(build(kept).rows.deliveries.total, 1);
+  assert.equal(build(kept).rows.liveFemale.total, 0);
 });

@@ -42,6 +42,7 @@ const COLLECTION_LABELS: Record<string, string> = {
   checklist: 'Checklist items',
   notifications: 'Notifications',
   clinicalNotes: 'Clinical notes',
+  stays: 'Birth stays',
 };
 
 const STEP_LABELS: Record<StepName, string> = {

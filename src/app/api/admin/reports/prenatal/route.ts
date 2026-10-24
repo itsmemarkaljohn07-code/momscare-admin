@@ -8,7 +8,7 @@ import { dueKey } from '@/lib/report-aggregations';
 import { dobKey } from '@/lib/date-of-birth';
 import { buildPrenatalReport, isMonthKey, type PrenatalAppointment, type PrenatalPatient } from '@/lib/prenatal-report';
 import { docToStay } from '@/lib/stay-store';
-import type { ReportStay } from '@/lib/stay-report';
+import { staysOfExistingPatients, type ReportStay } from '@/lib/stay-report';
 
 /**
  * Admin only. GET ?month=YYYY-MM[&export=1&format=pdf|csv]: the month's Prenatal
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
           .get()
       ),
     ]);
-    const stays: ReportStay[] = staySnap.docs
+    const allStays: ReportStay[] = staySnap.docs
       .map((d) => ({ patientUid: d.ref.parent.parent?.id ?? '', ...docToStay(d.data()) }))
       .filter((s) => s.patientUid && s.admittedAt > 0);
     const appointments: PrenatalAppointment[] = snap.docs
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       }))
       .filter((a) => a.patientUid && a.date.startsWith(`${month}-`));
 
-    const uids = [...new Set([...appointments.map((a) => a.patientUid), ...stays.map((s) => s.patientUid)])];
+    const uids = [...new Set([...appointments.map((a) => a.patientUid), ...allStays.map((s) => s.patientUid)])];
     const profiles = uids.length
       ? await adminDb.getAll(...uids.map((uid) => adminDb.collection('users').doc(uid)), { fieldMask: ['fullName', 'dob', 'dueDate'] })
       : [];
@@ -68,6 +68,8 @@ export async function GET(req: NextRequest) {
       dueDate: dueKey(typeof p.get('dueDate') === 'string' ? p.get('dueDate') : null),
     }));
 
+    // Stays left under a deleted patient's id are not counted.
+    const stays = staysOfExistingPatients(allStays, new Set(profiles.filter((p) => p.exists).map((p) => p.id)));
     const report = buildPrenatalReport({ month, appointments, patients, stays, now: new Date() });
     const generatedBy = await reportActor(session);
 
