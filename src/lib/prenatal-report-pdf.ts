@@ -7,6 +7,7 @@ import { formatDayKey, manilaDateKey, pdfFileName } from '@/lib/report-layout';
 import {
   DRAFT_LABEL, GESTATION_BANDS, NOT_RECORDED, TRIMESTER_NOTE, UNDER_8, type PrenatalReport,
 } from '@/lib/prenatal-report';
+import { CENSUS_NOTE, STAYS_RECORDED_FROM, STAYS_SCOPE_NOTE, type StayRowKey } from '@/lib/stay-report';
 
 /** "2026-09" -> "September 2026". */
 export function monthLabel(month: string): string {
@@ -66,6 +67,35 @@ export async function downloadPrenatalReport(input: { report: PrenatalReport; ge
   });
   pdf.note(TRIMESTER_NOTE);
 
+  // Stay rows (from birth stays), or "Not recorded" before they were kept.
+  const STAY_COLUMNS: [string, StayRowKey][] = [
+    ['Adm. mother', 'admMother'], ['Adm. newborn', 'admNewborn'], ['Census (prov.)', 'census'], ['Deliveries', 'deliveries'],
+    ['Male', 'liveMale'], ['Female', 'liveFemale'], ['Still-birth', 'stillbirths'], ['Disch. mother', 'disMother'],
+    ['Disch. baby', 'disBaby'], ['Transfer CDH', 'transfers'],
+  ];
+  pdf.heading('Admissions, deliveries and discharges per day');
+  const st = r.stays;
+  if (st) {
+    pdf.table({
+      head: ['Date', ...STAY_COLUMNS.map(([h]) => h)],
+      rows: [
+        ...r.daily.map((d, i) => [formatDayKey(d.date).replace(/, \d{4}$/, ''), ...STAY_COLUMNS.map(([, k]) => st.rows[k].daily[i])]),
+        ['Total', ...STAY_COLUMNS.map(([, k]) => st.rows[k].total)],
+      ],
+      numeric: STAY_COLUMNS.map((_, i) => i + 1),
+    });
+    pdf.summary([
+      { label: 'Total of deliveries', value: st.rows.deliveries.total },
+      { label: 'Male', value: st.rows.liveMale.total },
+      { label: 'Female', value: st.rows.liveFemale.total },
+      { label: 'Stillbirths', value: st.rows.stillbirths.total },
+    ]);
+    pdf.note(`${STAYS_SCOPE_NOTE} Admissions on the clinic sheet = mother + newborn; discharges = mother + baby. Twins are one delivery with two newborns; a transfer never adds a delivery.`);
+    pdf.note(CENSUS_NOTE);
+  } else {
+    pdf.note(`Not recorded: birth stays are kept in MomCare only from ${monthLabel(STAYS_RECORDED_FROM)}.`);
+  }
+
   pdf.heading('Other rows of the monthly report');
   pdf.table({ head: ['Row', 'Value'], rows: r.noSourceRows.map((row) => [row, NOT_RECORDED]) });
   pdf.note('MomCare has no record for these rows, so they are left as "Not recorded" rather than 0.');
@@ -83,6 +113,8 @@ export async function downloadPrenatalReport(input: { report: PrenatalReport; ge
       ['Prenatal appointments still upcoming (not counted)', q.notCompleted.upcoming],
       ['Prenatal appointments missed (not counted)', q.notCompleted.missed],
       ['Prenatal appointments cancelled (not counted)', q.notCompleted.cancelled],
+      ['Stays without a discharge date (counted present to month end)', st ? st.withoutDischarge.length : NOT_RECORDED],
+      ['Stays without a delivery recorded', st ? st.withoutOutcome.length : NOT_RECORDED],
     ],
     numeric: [1],
   });

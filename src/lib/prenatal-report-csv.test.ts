@@ -66,12 +66,12 @@ test('weekend marks under their dates', () => {
 test("row order and wording follow the clinic's sheet", () => {
   const labels = prenatalCsvRows(report('2026-09')).map((r) => r[0]);
   const start = labels.indexOf('ITEM');
-  assert.deepEqual(labels.slice(start, start + 19), [
-    'ITEM', 'DAY', 'I. ADMISSIONS', 'MOTHER', 'NEWBORN', 'CENSUS', 'II. DELIVERIES', 'DISCHARGES', 'MOTHER', 'BABY',
+  assert.deepEqual(labels.slice(start, start + 20), [
+    'ITEM', 'DAY', 'I. ADMISSIONS', 'MOTHER', 'NEWBORN', 'CENSUS (PROVISIONAL)', 'II. DELIVERIES', 'STILLBIRTH', 'DISCHARGES', 'MOTHER', 'BABY',
     'III. TRANSFER TO CDH', 'PRENATAL CHECK UP', '19 Y/O ABOVE', '18 Y/O BELOW', 'AGE NOT RECORDED',
     'TOTAL OF DELIVERIES', 'MALE', 'FEMALE', 'PREPARED BY:',
   ]);
-  assert.equal(labels[start + 19], 'HEAD OF FACILITY:');
+  assert.equal(labels[start + 20], 'HEAD OF FACILITY:');
   assert.ok(labels.indexOf('SUMMARY') > labels.indexOf('HEAD OF FACILITY:'));
   assert.ok(labels.indexOf('VISITS BY GESTATIONAL AGE') > labels.indexOf('SUMMARY'));
   assert.ok(labels.indexOf('DATA QUALITY') > labels.indexOf('VISITS BY GESTATIONAL AGE'));
@@ -98,7 +98,7 @@ test('daily and total numbers equal the report JSON; age rows add up', () => {
 
 test('rows MomCare cannot fill say "Not recorded", never 0', () => {
   const rows = prenatalCsvRows(report('2026-09'));
-  for (const label of ['I. ADMISSIONS', 'NEWBORN', 'CENSUS', 'II. DELIVERIES', 'DISCHARGES', 'BABY', 'III. TRANSFER TO CDH']) {
+  for (const label of ['I. ADMISSIONS', 'NEWBORN', 'CENSUS (PROVISIONAL)', 'II. DELIVERIES', 'STILLBIRTH', 'DISCHARGES', 'BABY', 'III. TRANSFER TO CDH']) {
     const row = rowOf(rows, label);
     assert.ok(row.slice(1, -1).every((v) => v === ''), label);
     assert.equal(row.at(-1), 'Not recorded', label);

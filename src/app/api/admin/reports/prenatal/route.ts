@@ -7,6 +7,8 @@ import { reportActor } from '@/lib/report-actor';
 import { dueKey } from '@/lib/report-aggregations';
 import { dobKey } from '@/lib/date-of-birth';
 import { buildPrenatalReport, isMonthKey, type PrenatalAppointment, type PrenatalPatient } from '@/lib/prenatal-report';
+import { docToStay } from '@/lib/stay-store';
+import type { ReportStay } from '@/lib/stay-report';
 
 /**
  * Admin only. GET ?month=YYYY-MM[&export=1&format=pdf|csv]: the month's Prenatal
@@ -33,9 +35,18 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const snap = await withRetry(() =>
-      adminDb.collectionGroup('appointments').select('label', 'status', 'date', 'doctorApproval').get()
-    );
+    const [snap, staySnap] = await Promise.all([
+      withRetry(() => adminDb.collectionGroup('appointments').select('label', 'status', 'date', 'doctorApproval').get()),
+      // Birth stays of registered patients; each is counted by event date.
+      withRetry(() =>
+        adminDb.collectionGroup('stays')
+          .select('admittedAt', 'deliveredAt', 'outcome', 'babySex', 'birthWeightG', 'birthLengthCm', 'dischargedAt', 'transferredAt')
+          .get()
+      ),
+    ]);
+    const stays: ReportStay[] = staySnap.docs
+      .map((d) => ({ patientUid: d.ref.parent.parent?.id ?? '', ...docToStay(d.data()) }))
+      .filter((s) => s.patientUid && s.admittedAt > 0);
     const appointments: PrenatalAppointment[] = snap.docs
       .map((d) => ({
         patientUid: d.ref.parent.parent?.id ?? '',
@@ -46,7 +57,7 @@ export async function GET(req: NextRequest) {
       }))
       .filter((a) => a.patientUid && a.date.startsWith(`${month}-`));
 
-    const uids = [...new Set(appointments.map((a) => a.patientUid))];
+    const uids = [...new Set([...appointments.map((a) => a.patientUid), ...stays.map((s) => s.patientUid)])];
     const profiles = uids.length
       ? await adminDb.getAll(...uids.map((uid) => adminDb.collection('users').doc(uid)), { fieldMask: ['fullName', 'dob', 'dueDate'] })
       : [];
@@ -57,7 +68,7 @@ export async function GET(req: NextRequest) {
       dueDate: dueKey(typeof p.get('dueDate') === 'string' ? p.get('dueDate') : null),
     }));
 
-    const report = buildPrenatalReport({ month, appointments, patients, now: new Date() });
+    const report = buildPrenatalReport({ month, appointments, patients, stays, now: new Date() });
     const generatedBy = await reportActor(session);
 
     if (exporting) {

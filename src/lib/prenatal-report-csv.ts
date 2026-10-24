@@ -8,6 +8,7 @@ import {
   AGE_NOT_RECORDED, DRAFT_LABEL, GESTATION_BANDS, NOT_RECORDED, OTHER_AGES, TRIMESTER_NOTE, UNDER_8,
   type PrenatalReport,
 } from '@/lib/prenatal-report';
+import { CENSUS_NOTE, STAYS_SCOPE_NOTE, type StayRowKey } from '@/lib/stay-report';
 
 const BOM = '﻿';
 const CRLF = '\r\n';
@@ -18,9 +19,13 @@ const CLINIC_AGE_ROWS: { label: string; column: string }[] = [
   { label: '18 Y/O BELOW', column: '18 and below' },
 ];
 
-/** Clinic sheet rows MomCare has no record for, in the paper's order. */
-const NOT_RECORDED_GRID_ROWS = [
-  'I. ADMISSIONS', 'MOTHER', 'NEWBORN', 'CENSUS', 'II. DELIVERIES', 'DISCHARGES', 'MOTHER', 'BABY', 'III. TRANSFER TO CDH',
+/** The clinic sheet's stay rows, in the paper's order, and the stay count
+ *  each one shows. On the paper, I. ADMISSIONS is mother + newborn and
+ *  DISCHARGES is mother + baby. */
+const STAY_GRID_ROWS: [string, StayRowKey][] = [
+  ['I. ADMISSIONS', 'admissions'], ['MOTHER', 'admMother'], ['NEWBORN', 'admNewborn'], ['CENSUS (PROVISIONAL)', 'census'],
+  ['II. DELIVERIES', 'deliveries'], ['STILLBIRTH', 'stillbirths'],
+  ['DISCHARGES', 'discharges'], ['MOTHER', 'disMother'], ['BABY', 'disBaby'], ['III. TRANSFER TO CDH', 'transfers'],
 ];
 
 export const EMPTY_MONTH_NOTE = 'No completed prenatal check-ups were recorded in MomCare for this month.';
@@ -90,7 +95,11 @@ export function prenatalCsvRows(r: PrenatalReport): Cell[][] {
   rows.push(['DAY', ...days.map((d) => weekendMark(d.date)), '']);
 
   // 3. Rows in the clinic's order.
-  for (const label of NOT_RECORDED_GRID_ROWS) rows.push([label, ...days.map(() => ''), NOT_RECORDED]);
+  // Stay rows: counts from birth stays, or "Not recorded" (never 0) for
+  // months before stays were recorded.
+  const stayRow = (label: string, key: StayRowKey): Cell[] =>
+    r.stays ? [label, ...r.stays.rows[key].daily, r.stays.rows[key].total] : [label, ...days.map(() => ''), NOT_RECORDED];
+  for (const [label, key] of STAY_GRID_ROWS) rows.push(stayRow(label, key));
   rows.push(['PRENATAL CHECK UP', ...days.map((d) => d.total), r.totals.visits]);
   for (const a of ageRows(r)) {
     const i = col(a.column);
@@ -98,9 +107,14 @@ export function prenatalCsvRows(r: PrenatalReport): Cell[][] {
   }
 
   // 4. Below the grid, as on the paper.
-  rows.push(['TOTAL OF DELIVERIES', NOT_RECORDED]);
-  rows.push(['MALE', NOT_RECORDED]);
-  rows.push(['FEMALE', NOT_RECORDED]);
+  if (r.stays) {
+    rows.push(['Note', STAYS_SCOPE_NOTE]);
+    rows.push(['Note', CENSUS_NOTE]);
+  }
+  const stayTotal = (key: StayRowKey): Cell => (r.stays ? r.stays.rows[key].total : NOT_RECORDED);
+  rows.push(['TOTAL OF DELIVERIES', stayTotal('deliveries')]);
+  rows.push(['MALE', stayTotal('liveMale')]);
+  rows.push(['FEMALE', stayTotal('liveFemale')]);
   rows.push(['PREPARED BY:', '']);
   rows.push(['HEAD OF FACILITY:', '']);
   rows.push([]);
@@ -138,6 +152,8 @@ export function prenatalCsvRows(r: PrenatalReport): Cell[][] {
   rows.push(['Prenatal appointments still upcoming (not counted)', q.notCompleted.upcoming]);
   rows.push(['Prenatal appointments missed (not counted)', q.notCompleted.missed]);
   rows.push(['Prenatal appointments cancelled (not counted)', q.notCompleted.cancelled]);
+  rows.push(['Stays without a discharge date (counted present to month end)', r.stays ? r.stays.withoutDischarge.length : NOT_RECORDED]);
+  rows.push(['Stays without a delivery recorded', r.stays ? r.stays.withoutOutcome.length : NOT_RECORDED]);
   rows.push(['NOT RECORDED IN MOMCARE', r.noSourceRows.join('; ')]);
 
   return rows.map(pad);

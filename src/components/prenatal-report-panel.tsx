@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { manilaKey } from '@/lib/report-aggregations';
 import { pdfFileName } from '@/lib/report-layout';
+import { CENSUS_NOTE, STAYS_RECORDED_FROM, STAYS_SCOPE_NOTE, STAY_ROW_LABELS, type StayRowKey } from '@/lib/stay-report';
 import { formatDateKey } from '@/lib/pregnancy-display';
 import { DRAFT_LABEL, NOT_RECORDED, TRIMESTER_NOTE, UNDER_8, type PrenatalReport } from '@/lib/prenatal-report';
 
@@ -237,6 +238,48 @@ export function PrenatalReportPanel() {
             <p className="text-xs text-muted-foreground">
               Only days with visits are listed here; the PDF lists every day. Age is in full years on the visit date.
             </p>
+
+            <div>
+              <h3 className="mb-2 text-sm font-semibold">Births and stays</h3>
+              {r.stays ? (
+                <div className="space-y-2">
+                  <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                    {(Object.keys(STAY_ROW_LABELS) as StayRowKey[]).map((k) => (
+                      <div key={k} className="rounded-xl border p-2.5">
+                        <dt className="text-xs text-muted-foreground">{STAY_ROW_LABELS[k]}</dt>
+                        <dd className="text-lg font-semibold tabular-nums">{r.stays!.rows[k].total}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  <p className="text-xs text-muted-foreground">{STAYS_SCOPE_NOTE} Daily values are in the PDF and CSV. {CENSUS_NOTE}</p>
+                  {r.stayQuality && r.stayQuality.withoutDischarge.length + r.stayQuality.withoutOutcome.length > 0 && (
+                    <div className="space-y-1 rounded-xl border p-3 text-sm">
+                      {(['withoutDischarge', 'withoutOutcome'] as const).map((kind) =>
+                        r.stayQuality![kind].length > 0 ? (
+                          <div key={kind}>
+                            <p className="flex items-start gap-1.5">
+                              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" style={{ color: 'var(--status-pending)' }} aria-hidden="true" />
+                              {kind === 'withoutDischarge' ? 'Stays without a discharge date (counted present to month end):' : 'Stays without a delivery recorded:'}
+                            </p>
+                            <ul className="flex flex-wrap gap-x-3 pl-6">
+                              {r.stayQuality![kind].map((x, i) => (
+                                <li key={`${x.uid}-${x.admittedDay}-${i}`}>
+                                  <Link href={`/admin/users/${x.uid}`} className="inline-flex min-h-11 items-center text-primary hover:underline md:min-h-0">
+                                    {x.name} (admitted {x.admittedDay})
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Not recorded: birth stays are kept in MomCare from {monthLabel(STAYS_RECORDED_FROM)}.</p>
+              )}
+            </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
               <div>

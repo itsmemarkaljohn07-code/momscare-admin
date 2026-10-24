@@ -4,6 +4,7 @@
 // calendar dates, "YYYY-MM-DD"; appointment dates are stored that way.
 
 import { ageOn } from '@/lib/date-of-birth';
+import { buildStayReport, type ReportStay, type StayReport } from '@/lib/stay-report';
 
 export const FACILITY = {
   name: 'San Joaquin Health Station and Birthing Home',
@@ -61,7 +62,7 @@ export const UNDER_8 = 'Under 8';
 export const TRIMESTER_NOTE =
   'Gestational age is counted in completed weeks at the visit date from the due date (280-day model, capped at 40), the same rule as the rest of the dashboard. Trimesters: 1st weeks 0-13, 2nd weeks 14-27, 3rd weeks 28-40.';
 
-/** Clinic sheet rows MomCare has no record for. */
+/** Clinic sheet rows MomCare has no record for (before stays were recorded). */
 export const NO_SOURCE_ROWS = [
   'Admissions: mother',
   'Admissions: newborn',
@@ -70,6 +71,12 @@ export const NO_SOURCE_ROWS = [
   'Discharges: mother',
   'Discharges: baby',
   'Transfers to the district hospital',
+  'OPD',
+  'Postnatal check-ups (within 24 hours, day 3, days 7-14, 6 weeks)',
+];
+
+/** Clinic sheet rows still without a record once stays are recorded. */
+export const NO_SOURCE_ROWS_WITH_STAYS = [
   'OPD',
   'Postnatal check-ups (within 24 hours, day 3, days 7-14, 6 weeks)',
 ];
@@ -160,6 +167,11 @@ export interface PrenatalReport {
     notCompleted: { upcoming: number; missed: number; cancelled: number };
   };
   noSourceRows: string[];
+  /** Admissions, deliveries, discharges, transfers and census from birth
+   *  stays; null for months before stays were recorded ("Not recorded"). */
+  stays: StayReport | null;
+  /** Stays to fix, with names, for the admin preview only (never in a file). */
+  stayQuality: { withoutDischarge: { uid: string; name: string; admittedDay: string }[]; withoutOutcome: { uid: string; name: string; admittedDay: string }[] } | null;
 }
 
 /** The month's Prenatal Services numbers. A visit is a completed "Prenatal
@@ -170,6 +182,8 @@ export function buildPrenatalReport(input: {
   patients: PrenatalPatient[];
   now: Date;
   split?: keyof typeof AGE_SPLITS;
+  /** Birth stays of registered patients (any month; counted by event date). */
+  stays?: ReportStay[];
 }): PrenatalReport {
   const split = input.split ?? AGE_SPLIT;
   const groups = AGE_SPLITS[split];
@@ -214,6 +228,9 @@ export function buildPrenatalReport(input: {
     bandCounts.set(label, (bandCounts.get(label) ?? 0) + 1);
   }
 
+  const stays = buildStayReport(input.month, days, input.stays ?? []);
+  const nameOf = (uid: string) => patients.get(uid)?.name || 'Unknown patient';
+
   const noDob = new Map<string, string>();
   for (const a of visits) {
     const p = patients.get(a.patientUid);
@@ -241,6 +258,13 @@ export function buildPrenatalReport(input: {
         cancelled: prenatal.filter((a) => a.status === 'cancelled').length,
       },
     },
-    noSourceRows: NO_SOURCE_ROWS,
+    noSourceRows: stays ? NO_SOURCE_ROWS_WITH_STAYS : NO_SOURCE_ROWS,
+    stays,
+    stayQuality: stays
+      ? {
+          withoutDischarge: stays.withoutDischarge.map((x) => ({ uid: x.patientUid, name: nameOf(x.patientUid), admittedDay: x.admittedDay })),
+          withoutOutcome: stays.withoutOutcome.map((x) => ({ uid: x.patientUid, name: nameOf(x.patientUid), admittedDay: x.admittedDay })),
+        }
+      : null,
   };
 }
