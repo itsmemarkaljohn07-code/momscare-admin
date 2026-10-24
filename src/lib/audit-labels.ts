@@ -31,6 +31,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'admin.remove_access': 'Removed admin access',
   'report.patient_export': 'Exported patient report (PDF)',
   'report.activity_export': 'Exported activity summary (PDF)',
+  'report.prenatal_export': 'Exported prenatal services report (PDF)',
 };
 
 /** The readable label, or the raw key for an action without one. */
