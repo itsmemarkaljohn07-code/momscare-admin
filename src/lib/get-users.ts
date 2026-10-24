@@ -1,5 +1,6 @@
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { withRetry } from '@/lib/with-retry';
+import { dobKey } from '@/lib/date-of-birth';
 
 export interface AdminUserView {
   uid: string;
@@ -7,6 +8,8 @@ export interface AdminUserView {
   fullName: string;
   username: string | null;
   dueDate: string | null;
+  /** Date of birth as a Philippine date, "YYYY-MM-DD" (null when not recorded). */
+  dob: string | null;
   weeksPregnant: number | null;
   firstTimeMom: boolean | null;
   clinicName: string | null;
@@ -67,6 +70,7 @@ export async function getUsers(): Promise<AdminUserView[]> {
         fullName: profile.fullName ?? '(no profile)',
         username: profile.username || null,
         dueDate: profile.dueDate ?? null,
+        dob: dobKey(profile.dob),
         weeksPregnant: profile.weeksPregnant ?? null,
         firstTimeMom: profile.firstTimeMom ?? null,
         clinicName: profile.clinicName ?? null,

@@ -27,6 +27,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'user.reactivate': 'Reactivated patient account',
   'user.delete': 'Permanently deleted patient account',
   'user.delete_incomplete': 'Partly deleted patient account (retry needed)',
+  'user.dob_update': 'Updated patient date of birth',
   'admin.remove_access': 'Removed admin access',
   'report.patient_export': 'Exported patient report (PDF)',
   'report.activity_export': 'Exported activity summary (PDF)',

@@ -12,6 +12,8 @@ import type { AdminUserView } from '@/lib/get-users';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import { showFriendlyError } from '@/lib/error-messages';
 import { computePregnancyWeek } from '@/lib/compute-pregnancy-week';
+import { dobKey } from '@/lib/date-of-birth';
+import { PatientDobRow } from '@/components/patient-dob-editor';
 
 export function PatientViewLive({ initial }: { initial: AdminUserView }) {
   // Firestore profile fields (fullName, dueDate, weeksPregnant,
@@ -23,6 +25,7 @@ export function PatientViewLive({ initial }: { initial: AdminUserView }) {
     fullName: initial.fullName,
     username: initial.username,
     dueDate: initial.dueDate,
+    dob: initial.dob,
     weeksPregnant: initial.weeksPregnant,
     firstTimeMom: initial.firstTimeMom,
     clinicName: initial.clinicName,
@@ -38,6 +41,7 @@ export function PatientViewLive({ initial }: { initial: AdminUserView }) {
           fullName: data.fullName ?? '(no profile)',
           username: data.username || null,
           dueDate: data.dueDate ?? null,
+          dob: dobKey(data.dob),
           weeksPregnant: data.weeksPregnant ?? null,
           firstTimeMom: data.firstTimeMom ?? null,
           clinicName: data.clinicName ?? null,
@@ -80,6 +84,7 @@ export function PatientViewLive({ initial }: { initial: AdminUserView }) {
       <Section title="Profile" live>
         <Row icon={AtSign} label="Username" value={profile.username} />
         <Row icon={Shield} label="Role" value="Patient" />
+        <PatientDobRow uid={initial.uid} patientName={profile.fullName} dob={profile.dob} />
         <Row
           icon={Heart}
           label="Signed up"
