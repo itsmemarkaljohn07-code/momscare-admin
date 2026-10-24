@@ -452,22 +452,39 @@ export class ReportPdf {
     this.y += 9;
   }
 
-  /** Footer on every page, then the finished file. */
+  /**
+   * Adds a first page in A4 landscape drawn by `draw` (no header band), in
+   * front of the report's portrait pages. Call it once, after the portrait
+   * content: the document's default stays portrait, so page breaks inside
+   * tables never turn landscape.
+   */
+  coverSheet(draw: (doc: jsPDF, logo: string | null) => void) {
+    const d = this.doc;
+    d.addPage('a4', 'l');
+    draw(d, this.logo);
+    d.movePage(d.getNumberOfPages(), 1);
+    d.setPage(d.getNumberOfPages());
+  }
+
+  /** Footer on every page (sized to that page), then the finished file. */
   finish(): Blob {
     const d = this.doc;
     const pages = d.getNumberOfPages();
     for (let p = 1; p <= pages; p++) {
       d.setPage(p);
+      const w = d.internal.pageSize.getWidth();
+      const h = d.internal.pageSize.getHeight();
+      const right = w - PAGE.margin;
       this.color('draw', COLORS.rule);
       d.setLineWidth(0.3);
-      d.line(CONTENT.left, PAGE.height - PAGE.footerHeight, CONTENT.right, PAGE.height - PAGE.footerHeight);
+      d.line(CONTENT.left, h - PAGE.footerHeight, right, h - PAGE.footerHeight);
       d.setFontSize(8);
       this.color('text', COLORS.muted);
-      d.text(FOOTER_LEFT, CONTENT.left, PAGE.height - PAGE.footerHeight + 5);
+      d.text(FOOTER_LEFT, CONTENT.left, h - PAGE.footerHeight + 5);
       if (this.meta.footerNote) {
-        d.text(d.splitTextToSize(this.meta.footerNote, CONTENT.width)[0], CONTENT.left, PAGE.height - PAGE.footerHeight + 9);
+        d.text(d.splitTextToSize(this.meta.footerNote, right - CONTENT.left)[0], CONTENT.left, h - PAGE.footerHeight + 9);
       }
-      d.text(pageLabel(p, pages), CONTENT.right, PAGE.height - PAGE.footerHeight + 5, { align: 'right' });
+      d.text(pageLabel(p, pages), right, h - PAGE.footerHeight + 5, { align: 'right' });
     }
     return d.output('blob');
   }
