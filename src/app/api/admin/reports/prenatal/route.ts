@@ -9,11 +9,12 @@ import { dobKey } from '@/lib/date-of-birth';
 import { buildPrenatalReport, isMonthKey, type PrenatalAppointment, type PrenatalPatient } from '@/lib/prenatal-report';
 
 /**
- * Admin only. GET ?month=YYYY-MM[&export=1]: the month's Prenatal
+ * Admin only. GET ?month=YYYY-MM[&export=1&format=pdf|csv]: the month's Prenatal
  * Services numbers (an internal draft, not an official submission). One
  * plain collection-group read of four appointment fields (no index), then
- * the profiles of the patients in the month. ?export=1 (the PDF download)
- * also records an audit entry; the on-screen preview doesn't.
+ * the profiles of the patients in the month. ?export=1 (a PDF or CSV
+ * download) also records an audit entry whose details are just the format;
+ * the on-screen preview doesn't. The file itself is built in the browser.
  */
 export async function GET(req: NextRequest) {
   const session = await getAdminSession();
@@ -26,6 +27,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Choose a month (YYYY-MM).' }, { status: 400 });
   }
   const exporting = req.nextUrl.searchParams.get('export') === '1';
+  const format = req.nextUrl.searchParams.get('format') ?? 'pdf';
+  if (exporting && format !== 'pdf' && format !== 'csv') {
+    return NextResponse.json({ error: 'Choose PDF or CSV.' }, { status: 400 });
+  }
 
   try {
     const snap = await withRetry(() =>
@@ -64,7 +69,7 @@ export async function GET(req: NextRequest) {
         targetType: 'report',
         targetId: `prenatal-${month}`,
         targetLabel: `Prenatal services ${month}`,
-        details: null,
+        details: format === 'csv' ? 'CSV' : 'PDF',
       });
     }
 

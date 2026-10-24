@@ -7,10 +7,29 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { manilaKey } from '@/lib/report-aggregations';
+import { pdfFileName } from '@/lib/report-layout';
 import { formatDateKey } from '@/lib/pregnancy-display';
 import { DRAFT_LABEL, NOT_RECORDED, TRIMESTER_NOTE, UNDER_8, type PrenatalReport } from '@/lib/prenatal-report';
 
 type Loaded = { report: PrenatalReport; generatedBy: string };
+type Format = 'pdf' | 'csv';
+
+const FORMATS: { value: Format; label: string; hint: string }[] = [
+  { value: 'pdf', label: 'PDF', hint: 'Printable report' },
+  { value: 'csv', label: 'CSV', hint: "Spreadsheet laid out like the clinic's monthly report" },
+];
+
+/** Hands a text file to the browser as a download. */
+function saveText(text: string, fileName: string, type: string) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
 
 function monthLabel(month: string): string {
   const d = new Date(`${month}-01T00:00:00Z`);
@@ -23,6 +42,7 @@ export function PrenatalReportPanel() {
   const [data, setData] = useState<Loaded | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [format, setFormat] = useState<Format>('pdf');
   const [error, setError] = useState('');
 
   const valid = /^\d{4}-(0[1-9]|1[0-2])$/.test(month);
@@ -52,16 +72,24 @@ export function PrenatalReportPanel() {
     };
   }, [month, valid]);
 
-  async function downloadPdf() {
+  async function download() {
     if (!valid || exporting) return;
     setExporting(true);
     setError('');
     try {
-      // The export request is the one that is audited.
-      const res = await fetch(`/api/admin/reports/prenatal?month=${month}&export=1`, { cache: 'no-store' });
+      // The export request is the one that is audited (its details are
+      // just the format). Both files are built from the same report JSON.
+      const res = await fetch(`/api/admin/reports/prenatal?month=${month}&export=1&format=${format}`, { cache: 'no-store' });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.report) {
         setError(json?.error ?? 'Could not build the report. Please try again.');
+        return;
+      }
+      if (format === 'csv') {
+        const { buildPrenatalCsv } = await import('@/lib/prenatal-report-csv');
+        const report: PrenatalReport = json.report;
+        const name = pdfFileName(`prenatal-services-${report.month}`, manilaKey(new Date(report.generatedAt))).replace(/.pdf$/, '.csv');
+        saveText(buildPrenatalCsv(report), name, 'text/csv;charset=utf-8');
         return;
       }
       const { downloadPrenatalReport } = await import('@/lib/prenatal-report-pdf');
@@ -107,17 +135,41 @@ export function PrenatalReportPanel() {
               className="h-11 w-48 md:h-9"
             />
           </label>
+          <div className="grid gap-1 text-xs font-medium text-muted-foreground">
+            <span id="prenatal-format">Format</span>
+            <div role="group" aria-labelledby="prenatal-format" className="inline-flex rounded-lg border bg-muted/40 p-1">
+              {FORMATS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  aria-pressed={format === f.value}
+                  title={f.hint}
+                  onClick={() => setFormat(f.value)}
+                  className={`min-h-11 min-w-16 rounded-md px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-7 ${
+                    format === f.value ? 'bg-primary text-primary-foreground shadow-soft' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <Button
             type="button"
             className="min-h-11 gap-2 rounded-full md:min-h-9"
             disabled={!valid || loading || exporting || !r}
             aria-busy={exporting}
-            onClick={downloadPdf}
+            onClick={download}
           >
             {exporting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FileDown className="h-4 w-4" aria-hidden="true" />}
-            Download prenatal report (PDF)
+            Download prenatal report ({format === 'csv' ? 'CSV' : 'PDF'})
           </Button>
         </div>
+        {r && !loading && r.totals.visits === 0 && (
+          <p className="text-sm text-muted-foreground">
+            No completed prenatal check-ups in {monthLabel(r.month)}. The file will still download, with zeros and a note.
+          </p>
+        )}
 
         <div aria-live="polite">
           {error && <p role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{error}</p>}
