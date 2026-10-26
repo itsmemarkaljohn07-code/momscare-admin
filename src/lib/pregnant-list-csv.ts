@@ -4,7 +4,7 @@
 
 import { csvField } from '@/lib/prenatal-report-csv';
 import { FACILITY } from '@/lib/prenatal-report';
-import { LIST_COLUMNS, LIST_DRAFT, LIST_SCOPE_NOTE, LIST_TITLE, rowCells, type PregnantList } from '@/lib/pregnant-list';
+import { LIST_COLUMNS, LIST_DRAFT, LIST_SCOPE_NOTE, LIST_TRIMESTER_NOTE, LIST_TITLE, rowCells, type PregnantList } from '@/lib/pregnant-list';
 
 export const EMPTY_LIST_NOTE = 'No pregnant women match on this date.';
 
@@ -18,6 +18,7 @@ export function pregnantListCsvRows(list: PregnantList): (string | number)[][] {
     ['Status', LIST_DRAFT],
     ['CONFIDENTIAL: contains patient information'],
     ['Note', LIST_SCOPE_NOTE],
+    ['Note', LIST_TRIMESTER_NOTE],
     [],
     LIST_COLUMNS,
     ...list.rows.map(rowCells),

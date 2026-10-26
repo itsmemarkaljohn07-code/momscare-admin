@@ -126,6 +126,20 @@ export function gestationalWeekOn(dueDate: string | null, date: string): number 
   return Math.min(40, Math.floor(elapsed / 7));
 }
 
+/** Last completed week of the first trimester (rule A: 13, so 1st = weeks
+ *  0-13, 2nd = 14-27, 3rd = 28-40; rule B would be 12). Switch it here. */
+export const FIRST_TRIMESTER_LAST_WEEK = 13;
+export const SECOND_TRIMESTER_LAST_WEEK = 27;
+export type TrimesterName = '1st' | '2nd' | '3rd';
+
+/** Trimester for completed weeks (above 40 counts as 3rd), or null without a week. */
+export function trimesterOf(week: number | null): TrimesterName | null {
+  if (week === null || !Number.isFinite(week) || week < 0) return null;
+  if (week <= FIRST_TRIMESTER_LAST_WEEK) return '1st';
+  if (week <= SECOND_TRIMESTER_LAST_WEEK) return '2nd';
+  return '3rd';
+}
+
 /** The age-group column for an age (or null when not recorded). */
 export function ageColumn(age: number | null, groups: AgeGroup[]): string {
   if (age === null || age < 0) return AGE_NOT_RECORDED;

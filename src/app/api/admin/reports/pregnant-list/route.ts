@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
     const list = buildPregnantList({ reportDate, barangay, patients, appointments, stays });
 
     if (!exporting) {
-      return NextResponse.json({ reportDate, barangay, counts: list.counts, barangays: listBarangays(patients) });
+      return NextResponse.json({ reportDate, barangay, counts: list.counts, trimesters: list.trimesters, barangays: listBarangays(patients) });
     }
 
     await logAuditEvent({

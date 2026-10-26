@@ -7,7 +7,7 @@ import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { COLORS, FOOTER_LEFT, PAGE, manilaDateKey, manilaDateTime, pageLabel, pdfFileName } from '@/lib/report-layout';
 import { FACILITY, GESTATION_BANDS } from '@/lib/prenatal-report';
-import { POSTNATAL_COLUMNS, LIST_DRAFT, LIST_SCOPE_NOTE, LIST_TITLE, rowCells, type PregnantList } from '@/lib/pregnant-list';
+import { POSTNATAL_COLUMNS, LIST_DRAFT, LIST_SCOPE_NOTE, LIST_TITLE, LIST_TRIMESTER_NOTE, rowCells, type PregnantList } from '@/lib/pregnant-list';
 import { EMPTY_LIST_NOTE } from '@/lib/pregnant-list-csv';
 
 function longDate(day: string): string {
@@ -49,6 +49,7 @@ export function downloadPregnantList(input: { list: PregnantList; generatedAt: s
       { content: 'Age', rowSpan: 2, styles: cell },
       { content: 'Address', rowSpan: 2, styles: { valign: 'middle' as const } },
       { content: 'Age of gestation', rowSpan: 2, styles: cell },
+      { content: 'Trimester', rowSpan: 2, styles: cell },
       { content: 'Gravida', rowSpan: 2, styles: cell },
       { content: 'Para', rowSpan: 2, styles: cell },
       { content: '1st tri', colSpan: 1, styles: cell },
@@ -60,10 +61,10 @@ export function downloadPregnantList(input: { list: PregnantList; generatedAt: s
   ];
   const body = list.rows.length
     ? list.rows.map((r) => rowCells(r).map(String))
-    : [[{ content: EMPTY_LIST_NOTE, colSpan: 21, styles: { halign: 'center' as const, fontStyle: 'italic' as const } }]];
+    : [[{ content: EMPTY_LIST_NOTE, colSpan: 22, styles: { halign: 'center' as const, fontStyle: 'italic' as const } }]];
 
   // Widths (mm) for 277 mm: names and address wrap, ticks stay narrow.
-  const widths = [8, 21, 21, 18, 9, 38, 14, 13, 13, 9, 9, 9, 9, 9, 8, 8, 9, 14, 12, 12, 14];
+  const widths = [8, 20, 20, 17, 9, 28, 14, 15, 12, 12, 9, 9, 9, 9, 9, 8, 8, 9, 14, 12, 12, 14];
   autoTable(doc, {
     head,
     body,
@@ -80,6 +81,18 @@ export function downloadPregnantList(input: { list: PregnantList; generatedAt: s
       if (d.section === 'body' && d.cell.raw === 'Not recorded') { d.cell.styles.textColor = [110, 110, 110]; d.cell.styles.fontSize = 6; }
     },
   });
+
+  // The trimester rule, under the table (on a new page if it does not fit).
+  const tableEnd = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+  let noteY = tableEnd + 5;
+  if (noteY > H - PAGE.footerHeight - 4) {
+    doc.addPage();
+    noteY = 18;
+  }
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(60, 60, 60);
+  doc.text(`${LIST_TRIMESTER_NOTE}.`, M, noteY);
 
   // Footer on every page.
   const pages = doc.getNumberOfPages();

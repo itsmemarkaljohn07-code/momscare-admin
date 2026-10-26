@@ -5,7 +5,7 @@
 
 import { dueKey } from '@/lib/report-aggregations';
 import { manilaDay } from '@/lib/stays';
-import { GESTATION_BANDS, gestationalWeekOn, NOT_RECORDED, PRENATAL_LABEL } from '@/lib/prenatal-report';
+import { FIRST_TRIMESTER_LAST_WEEK, GESTATION_BANDS, gestationalWeekOn, NOT_RECORDED, PRENATAL_LABEL, trimesterOf } from '@/lib/prenatal-report';
 import { ageOnDate, formatAddress, readAddress } from '@/lib/patient-profile-fields';
 import type { NameParts } from '@/lib/patient-name';
 
@@ -18,6 +18,8 @@ export const INCLUSION_RULE =
 export const AFTER_DUE_DAYS = 14;
 export const POSTNATAL_COLUMNS = ['Within 24 hrs', 'Day 3', '7-14 days', '6 weeks after'];
 export const TICK = '/';
+export const TRIMESTER_NOT_AVAILABLE = 'Not available';
+export const LIST_TRIMESTER_NOTE = `Trimester is worked out from the due date on the report date; first trimester ends at ${FIRST_TRIMESTER_LAST_WEEK === 13 ? 'week 13' : '12 weeks 6 days'}`;
 
 export interface ListPatient {
   uid: string;
@@ -52,6 +54,8 @@ export interface ListRow {
   age: string;
   address: string;
   gestation: string;
+  /** '1st', '2nd', '3rd' or TRIMESTER_NOT_AVAILABLE, from the same week as gestation. */
+  trimester: string;
   gravida: string;
   para: string;
   /** One cell per GESTATION_BANDS entry: TICK or ''. */
@@ -64,6 +68,8 @@ export interface PregnantList {
   barangay: string | null;
   rows: ListRow[];
   counts: { listed: number; noDueDate: number; delivered: number; outsideWindow: number };
+  /** Listed rows per trimester; they add up to counts.listed. */
+  trimesters: { first: number; second: number; third: number; notAvailable: number };
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -140,6 +146,7 @@ export function buildPregnantList(input: {
       if (band >= 0) ticks.add(band);
     }
     const age = ageOnDate(p.dob, reportDate);
+    const week = gestationalWeekOn(due, reportDate);
     return {
       no: i + 1,
       last: p.name.last || NOT_RECORDED,
@@ -147,7 +154,8 @@ export function buildPregnantList(input: {
       middle: p.name.middle,
       age: age === null ? NOT_RECORDED : String(age),
       address: formatAddress(readAddress(p.address)) ?? NOT_RECORDED,
-      gestation: `${gestationalWeekOn(due, reportDate)} weeks`,
+      gestation: week === null ? NOT_RECORDED : `${week} weeks`,
+      trimester: trimesterOf(week) ?? TRIMESTER_NOT_AVAILABLE,
       gravida: NOT_RECORDED,
       para: NOT_RECORDED,
       bands: GESTATION_BANDS.map((_, b) => (ticks.has(b) ? TICK : '')),
@@ -155,17 +163,24 @@ export function buildPregnantList(input: {
     };
   });
   counts.listed = rows.length;
-  return { reportDate, barangay, rows, counts };
+  const trimesters = { first: 0, second: 0, third: 0, notAvailable: 0 };
+  for (const r of rows) {
+    if (r.trimester === '1st') trimesters.first++;
+    else if (r.trimester === '2nd') trimesters.second++;
+    else if (r.trimester === '3rd') trimesters.third++;
+    else trimesters.notAvailable++;
+  }
+  return { reportDate, barangay, rows, counts, trimesters };
 }
 
 /** Column headings in the paper's order (flat, for the CSV). */
 export const LIST_COLUMNS = [
-  'No.', 'Last name', 'First name', 'Middle name', 'Age', 'Address', 'Age of gestation', 'Gravida', 'Para',
+  'No.', 'Last name', 'First name', 'Middle name', 'Age', 'Address', 'Age of gestation', 'Trimester', 'Gravida', 'Para',
   ...GESTATION_BANDS.map((b) => `${b.trimester === 1 ? '1st' : b.trimester === 2 ? '2nd' : '3rd'} tri ${b.label}`),
   ...POSTNATAL_COLUMNS.map((c) => `Postnatal ${c}`),
 ];
 
 /** One row as cells, in LIST_COLUMNS order. */
 export function rowCells(r: ListRow): (string | number)[] {
-  return [r.no, r.last, r.first, r.middle, r.age, r.address, r.gestation, r.gravida, r.para, ...r.bands, ...r.postnatal];
+  return [r.no, r.last, r.first, r.middle, r.age, r.address, r.gestation, r.trimester, r.gravida, r.para, ...r.bands, ...r.postnatal];
 }

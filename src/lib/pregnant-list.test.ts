@@ -6,6 +6,7 @@ import { buildPregnantList, inPregnancyWindow, listBarangays, TICK, type ListApp
 import { buildPregnantListCsv, pregnantListCsvRows, EMPTY_LIST_NOTE } from './pregnant-list-csv';
 import { patientNameParts } from './patient-name';
 import { parseManila } from './stays';
+import { FIRST_TRIMESTER_LAST_WEEK, trimesterOf } from './prenatal-report';
 
 const addr = (barangay: string, street = 'Purok 1') => ({ province: 'Samar', city: 'Calbayog City', barangay, street });
 const pt = (uid: string, name: object, over: Partial<ListPatient> = {}): ListPatient =>
@@ -109,12 +110,54 @@ test('CSV: same rows and columns, BOM, CRLF, escaping, title block', () => {
   const rows = pregnantListCsvRows(r);
   const header = rows.find((x) => x[0] === 'No.')!;
   const data = rows[rows.indexOf(header) + 1];
-  assert.equal(header.length, 21);
-  assert.equal(data.length, 21);
-  assert.deepEqual(data.slice(0, 7), [1, 'Cruz, Jr.', '=Ana', '', '30', 'Purok 1, San "Isidro", Calbayog City, Samar', '27 weeks']);
+  assert.equal(header.length, 22);
+  assert.equal(data.length, 22);
+  assert.deepEqual(header.slice(6, 8), ['Age of gestation', 'Trimester']);
+  assert.deepEqual(data.slice(0, 8), [1, 'Cruz, Jr.', '=Ana', '', '30', 'Purok 1, San "Isidro", Calbayog City, Samar', '27 weeks', '2nd']);
+  assert.ok(rows.some((x) => x[0] === 'Note' && x[1] === 'Trimester is worked out from the due date on the report date; first trimester ends at week 13'));
   assert.ok(text.includes('"Cruz, Jr."'));
   assert.ok(text.includes('\t=Ana'));
   assert.ok(text.includes('"Purok 1, San ""Isidro"", Calbayog City, Samar"'));
   assert.ok(text.includes('CONFIDENTIAL: contains patient information'));
   assert.ok(rows.some((x) => x[0] === 'Report date' && x[1] === '2026-10-26'));
+});
+
+test('trimesterOf: rule A boundaries (first trimester ends at week 13), cap, null', () => {
+  assert.equal(FIRST_TRIMESTER_LAST_WEEK, 13);
+  const cases: [number | null, string | null][] = [[0, '1st'], [12, '1st'], [13, '1st'], [14, '2nd'], [27, '2nd'], [28, '3rd'], [40, '3rd'], [41, '3rd'], [null, null]];
+  for (const [w, t] of cases) assert.equal(trimesterOf(w), t, String(w));
+});
+
+test('trimester per listed patient, from the same week as Age of gestation', () => {
+  const R = '2026-10-26';
+  // A due date that puts the report date at w weeks d days: due = R + 280 - (7w + d).
+  const dueAt = (w: number, d: number) => { const x = new Date(`${R}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + 280 - (7 * w + d)); return x.toISOString().slice(0, 10); };
+  const p = [
+    pt('a', { firstName: 'A', lastName: 'Zz1' }, { dueDate: dueAt(12, 6) }),
+    pt('b', { firstName: 'B', lastName: 'Zz2' }, { dueDate: dueAt(13, 0) }),
+    pt('c', { firstName: 'C', lastName: 'Zz3' }, { dueDate: dueAt(27, 6) }),
+    pt('d', { firstName: 'D', lastName: 'Zz4' }, { dueDate: dueAt(28, 0) }),
+    pt('e', { firstName: 'E', lastName: 'Zz5' }),
+    pt('f', { firstName: 'F', lastName: 'Zz6' }, { dueDate: 'not a date' }),
+    pt('g', { firstName: 'G', lastName: 'Zz7' }, { dueDate: dueAt(30, 0) }),
+  ];
+  const stays = [{ patientUid: 'g', deliveredAt: parseManila('2026-10-20T08:00') }];
+  const r = build(p, R, [], stays);
+  assert.deepEqual(r.rows.map((x) => [x.last, x.gestation, x.trimester]), [
+    ['Zz1', '12 weeks', '1st'], ['Zz2', '13 weeks', '1st'], ['Zz3', '27 weeks', '2nd'], ['Zz4', '28 weeks', '3rd'],
+  ]);
+  // Missing or unreadable due dates and a delivery stay keep the inclusion rule: counted, not listed.
+  assert.deepEqual(r.counts, { listed: 4, noDueDate: 2, delivered: 1, outsideWindow: 0 });
+  assert.deepEqual(r.trimesters, { first: 2, second: 1, third: 1, notAvailable: 0 });
+  // A week later: 13 weeks becomes 14 (2nd), 27 weeks 6 days becomes 28 (3rd).
+  const later = build(p, '2026-11-02', [], stays);
+  assert.deepEqual(later.rows.map((x) => x.trimester), ['1st', '2nd', '3rd', '3rd']);
+  assert.deepEqual(later.trimesters, { first: 1, second: 1, third: 2, notAvailable: 0 });
+  // Each row's trimester agrees with its gestation, and the CSV carries the same cells.
+  const csv = pregnantListCsvRows(r);
+  const at = csv.findIndex((x) => x[0] === 'No.');
+  r.rows.forEach((row, i) => {
+    assert.equal(trimesterOf(Number.parseInt(row.gestation, 10)), row.trimester);
+    assert.equal(csv[at + 1 + i][7], row.trimester);
+  });
 });

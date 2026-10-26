@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { manilaKey } from '@/lib/report-aggregations';
 import { pdfFileName } from '@/lib/report-layout';
-import { INCLUSION_RULE, LIST_SCOPE_NOTE, type PregnantList } from '@/lib/pregnant-list';
+import { INCLUSION_RULE, LIST_SCOPE_NOTE, LIST_TRIMESTER_NOTE, type PregnantList } from '@/lib/pregnant-list';
 
 type Counts = PregnantList['counts'];
+type Trimesters = PregnantList['trimesters'];
 
 function saveText(text: string, fileName: string, type: string) {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -39,6 +40,7 @@ export function PregnantListPanel() {
   const [barangay, setBarangay] = useState('');
   const [barangays, setBarangays] = useState<string[]>([]);
   const [counts, setCounts] = useState<Counts | null>(null);
+  const [trimesters, setTrimesters] = useState<Trimesters | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [job, setJob] = useState<'pdf' | 'csv' | null>(null);
@@ -65,6 +67,7 @@ export function PregnantListPanel() {
           return;
         }
         setCounts(json.counts);
+        setTrimesters(json.trimesters ?? null);
         setBarangays(json.barangays ?? []);
       })
       .catch(() => !cancelled && setLoadError('Could not load the list. Check your connection and try again.'))
@@ -156,6 +159,12 @@ export function PregnantListPanel() {
               <Tile label="Delivered on or before this date" value={counts.delivered} />
               <Tile label="Outside the pregnancy window" value={counts.outsideWindow} />
             </dl>
+            {trimesters && (
+              <p className="text-sm tabular-nums">
+                <span className="font-medium">Listed by trimester:</span> 1st: {trimesters.first}, 2nd: {trimesters.second}, 3rd: {trimesters.third}, Not available: {trimesters.notAvailable}
+                <span className="block text-xs text-muted-foreground">{LIST_TRIMESTER_NOTE}.</span>
+              </p>
+            )}
             {counts.listed === 0 && <p className="text-sm text-muted-foreground">No pregnant women match this date{barangay ? ' and barangay' : ''}. The files still download, with a message.</p>}
           </div>
         ) : null}
