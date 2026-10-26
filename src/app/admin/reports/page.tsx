@@ -3,7 +3,7 @@ import { getDoctors } from '@/lib/get-doctors';
 import { AppointmentReports } from '@/components/appointment-reports';
 import { PageHeader } from '@/components/page-header';
 import { ReportDownloads } from '@/components/report-downloads';
-import { PrenatalReportPanel } from '@/components/prenatal-report-panel';
+import { ClinicReports } from '@/components/clinic-reports';
 
 export default async function ReportsPage() {
   const [{ appointments }, doctors] = await Promise.all([
@@ -15,11 +15,15 @@ export default async function ReportsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Reports"
-        description="Filter and analyze appointment data across the whole clinic"
+        description="The clinic's monthly reports, then appointment and patient reports for the whole clinic."
       />
-      <ReportDownloads />
-      <PrenatalReportPanel />
-      <AppointmentReports appointments={appointments} doctors={doctors} />
+      <ClinicReports />
+
+      <section aria-labelledby="other-reports" className="space-y-4 border-t pt-6">
+        <h2 id="other-reports" className="text-lg font-semibold">Other reports</h2>
+        <ReportDownloads />
+        <AppointmentReports appointments={appointments} doctors={doctors} />
+      </section>
     </div>
   );
 }

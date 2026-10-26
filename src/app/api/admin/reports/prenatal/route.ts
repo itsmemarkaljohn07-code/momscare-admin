@@ -12,13 +12,16 @@ import { staysOfExistingPatients, type ReportStay } from '@/lib/stay-report';
 import { NAME_FIELDS, patientName } from '@/lib/patient-name';
 
 /**
- * Admin only. GET ?month=YYYY-MM[&export=1&format=pdf|csv]: the month's Prenatal
- * Services numbers (an internal draft, not an official submission). One
+ * Admin only. GET ?month=YYYY-MM[&export=1&report=monthly|prenatal&format=pdf|csv]:
+ * the month's numbers for the Monthly Report and the Prenatal Services Report (an internal draft, not an official submission). One
  * plain collection-group read of four appointment fields (no index), then
  * the profiles of the patients in the month. ?export=1 (a PDF or CSV
- * download) also records an audit entry whose details are just the format;
+ * download) also records an audit entry whose details are the report and
+ * the format (e.g. "Monthly Report, CSV"), never data;
  * the on-screen preview doesn't. The file itself is built in the browser.
  */
+const REPORT_NAMES = { monthly: 'Monthly Report', prenatal: 'Prenatal Services Report' } as const;
+
 export async function GET(req: NextRequest) {
   const session = await getAdminSession();
   if (!session) {
@@ -31,8 +34,10 @@ export async function GET(req: NextRequest) {
   }
   const exporting = req.nextUrl.searchParams.get('export') === '1';
   const format = req.nextUrl.searchParams.get('format') ?? 'pdf';
-  if (exporting && format !== 'pdf' && format !== 'csv') {
-    return NextResponse.json({ error: 'Choose PDF or CSV.' }, { status: 400 });
+  const which = req.nextUrl.searchParams.get('report') ?? 'monthly';
+  // The Prenatal Services Report is PDF only; the Monthly Report has PDF and CSV.
+  if (exporting && (!(which in REPORT_NAMES) || (format !== 'pdf' && format !== 'csv') || (which === 'prenatal' && format !== 'pdf'))) {
+    return NextResponse.json({ error: 'Choose a report and a format.' }, { status: 400 });
   }
 
   try {
@@ -83,7 +88,7 @@ export async function GET(req: NextRequest) {
         targetType: 'report',
         targetId: `prenatal-${month}`,
         targetLabel: `Prenatal services ${month}`,
-        details: format === 'csv' ? 'CSV' : 'PDF',
+        details: `${REPORT_NAMES[which as keyof typeof REPORT_NAMES]}, ${format === 'csv' ? 'CSV' : 'PDF'}`,
       });
     }
 

@@ -1,10 +1,12 @@
-// Lays out the monthly Prenatal Services report (data from
-// /api/admin/reports/prenatal) with the shared PDF template. Client-side.
-// An internal draft for the clinic: patient names are not printed.
+// The two monthly reports built from the same PrenatalReport JSON
+// (/api/admin/reports/prenatal). Client-side; patient names are never
+// printed. downloadMonthlySheet: the clinic's paper monthly report, one A4
+// landscape page. downloadPrenatalReport: the Prenatal Services Report,
+// the supplementary analysis on portrait pages with the shared template.
 
-import type { jsPDF } from 'jspdf';
+import { jsPDF } from 'jspdf';
 import { ReportPdf } from '@/lib/report-pdf';
-import { COLORS, manilaDateKey, manilaDateTime, pdfFileName } from '@/lib/report-layout';
+import { COLORS, FOOTER_LEFT, PAGE, manilaDateKey, manilaDateTime, pageLabel, pdfFileName } from '@/lib/report-layout';
 import { prenatalCsvRows } from '@/lib/prenatal-report-csv';
 import {
   DRAFT_LABEL, GESTATION_BANDS, NOT_RECORDED, TRIMESTER_NOTE, UNDER_8, type PrenatalReport,
@@ -158,7 +160,7 @@ function drawClinicSheet(d: jsPDF, r: PrenatalReport) {
     ink(GREY_TEXT);
     d.setFont('helvetica', 'normal');
     d.setFontSize(7);
-    d.text(`${STAYS_SCOPE_NOTE} CENSUS uses a provisional definition (see the notes on the next pages).`, M, by + 0.5);
+    d.text(`${STAYS_SCOPE_NOTE} CENSUS uses a provisional definition (explained in the Prenatal Services Report).`, M, by + 0.5);
   }
 
   // Bottom right: two signature areas side by side, lines at one height.
@@ -210,7 +212,7 @@ export async function downloadPrenatalReport(input: { report: PrenatalReport; ge
     { label: 'Visits, due date not recorded', value: r.dataQuality.visitsWithoutDueDate },
   ]);
 
-  pdf.note("Page 1 is the clinic's monthly sheet with the daily counts for every row.");
+  pdf.note('The daily counts for every row are in the Monthly Report (a separate download).');
   pdf.note('A visit is a completed "Prenatal Checkup" appointment on that date. Age is in full years on the visit date; "Age not recorded" means the patient has no date of birth in MomCare. Total = all age columns.');
 
   pdf.heading('Patients seen by age group');
@@ -269,7 +271,27 @@ export async function downloadPrenatalReport(input: { report: PrenatalReport; ge
     numeric: [1],
   });
 
-  pdf.coverSheet((doc) => drawClinicSheet(doc, r));
-
   pdf.save(pdfFileName(`prenatal-services-${r.month}`, manilaDateKey(now)));
+}
+
+/** The Monthly Report: the clinic's paper sheet alone, one A4 landscape
+ *  page with the confidential footer. */
+export async function downloadMonthlySheet(input: { report: PrenatalReport }): Promise<void> {
+  const r = input.report;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+  doc.setProperties({ title: `MomCare - Monthly Report ${monthLabel(r.month)}`, creator: 'MomCare dashboard' });
+  drawClinicSheet(doc, r);
+  const w = doc.internal.pageSize.getWidth();
+  const h = doc.internal.pageSize.getHeight();
+  const [lr, lg, lb] = COLORS.rule;
+  const [mr, mg, mb] = COLORS.muted;
+  doc.setDrawColor(lr, lg, lb);
+  doc.setLineWidth(0.3);
+  doc.line(PAGE.margin, h - PAGE.footerHeight, w - PAGE.margin, h - PAGE.footerHeight);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(mr, mg, mb);
+  doc.text(FOOTER_LEFT, PAGE.margin, h - PAGE.footerHeight + 5);
+  doc.text(pageLabel(1, 1), w - PAGE.margin, h - PAGE.footerHeight + 5, { align: 'right' });
+  doc.save(pdfFileName(`monthly-report-${r.month}`, manilaDateKey(new Date(r.generatedAt))));
 }
