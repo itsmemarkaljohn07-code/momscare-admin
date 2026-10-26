@@ -16,7 +16,7 @@ type Choice = ReportKey | 'pregnant';
 type Loaded = { report: PrenatalReport; generatedBy: string };
 type Job = `${ReportKey}-${'pdf' | 'csv'}`;
 
-const FACILITY_TITLE = 'San Joaquin Health Station and Birthing Home, Calbayog City: Monthly Report';
+const FACILITY_TITLE = 'Clinic Monthly Report';
 
 const REPORTS: { key: Choice; title: string; description: string }[] = [
   {
