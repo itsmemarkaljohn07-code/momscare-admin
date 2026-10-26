@@ -9,14 +9,16 @@ import { manilaKey } from '@/lib/report-aggregations';
 import { pdfFileName } from '@/lib/report-layout';
 import { DRAFT_LABEL, type PrenatalReport } from '@/lib/prenatal-report';
 import { STAYS_RECORDED_FROM, STAYS_SCOPE_NOTE } from '@/lib/stay-report';
+import { PregnantListPanel } from '@/components/pregnant-list-panel';
 
 type ReportKey = 'monthly' | 'prenatal';
+type Choice = ReportKey | 'pregnant';
 type Loaded = { report: PrenatalReport; generatedBy: string };
 type Job = `${ReportKey}-${'pdf' | 'csv'}`;
 
 const FACILITY_TITLE = 'San Joaquin Health Station and Birthing Home, Calbayog City: Monthly Report';
 
-const REPORTS: { key: ReportKey; title: string; description: string }[] = [
+const REPORTS: { key: Choice; title: string; description: string }[] = [
   {
     key: 'monthly',
     title: FACILITY_TITLE,
@@ -26,6 +28,11 @@ const REPORTS: { key: ReportKey; title: string; description: string }[] = [
     key: 'prenatal',
     title: 'Prenatal Services Report',
     description: 'The analysis behind the sheet: summary, patients seen by age group, visits by gestational age and data quality.',
+  },
+  {
+    key: 'pregnant',
+    title: 'List of Pregnant Women',
+    description: 'Patients pregnant on a report date, with gestation, visit bands and postnatal columns, like the paper list.',
   },
 ];
 
@@ -59,7 +66,7 @@ function Tile({ label, value }: { label: string; value: string | number }) {
  *  its record counts (never names) and download it. Both monthly reports
  *  read the same report JSON from the server. */
 export function ClinicReports() {
-  const [selected, setSelected] = useState<ReportKey>('monthly');
+  const [selected, setSelected] = useState<Choice>('monthly');
   const [month, setMonth] = useState(() => manilaKey(new Date()).slice(0, 7));
   const [data, setData] = useState<Loaded | null>(null);
   const [loading, setLoading] = useState(true);
@@ -161,7 +168,7 @@ export function ClinicReports() {
         <p className="text-sm text-muted-foreground">{DRAFT_LABEL}. Choose a report, set it up and download it.</p>
       </div>
 
-      <fieldset className="grid gap-3 md:grid-cols-2">
+      <fieldset className="grid gap-3 lg:grid-cols-3">
         <legend className="sr-only">Report</legend>
         {REPORTS.map((o) => (
           <label
@@ -186,6 +193,7 @@ export function ClinicReports() {
         ))}
       </fieldset>
 
+      {selected === 'pregnant' ? <PregnantListPanel /> : (
       <Card>
         <CardContent className="space-y-4 p-4 sm:p-6">
           <div className="flex flex-wrap items-end gap-3">
@@ -269,6 +277,7 @@ export function ClinicReports() {
           </div>
         </CardContent>
       </Card>
+      )}
     </section>
   );
 }

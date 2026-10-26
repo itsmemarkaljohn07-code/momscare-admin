@@ -2,6 +2,7 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { withRetry } from '@/lib/with-retry';
 import { dobKey } from '@/lib/date-of-birth';
 import { patientName, patientNameParts } from '@/lib/patient-name';
+import { formatAddress, readAddress, type PatientAddress } from '@/lib/patient-profile-fields';
 
 export interface AdminUserView {
   uid: string;
@@ -14,8 +15,12 @@ export interface AdminUserView {
   lastName: string;
   username: string | null;
   dueDate: string | null;
-  /** Date of birth as a Philippine date, "YYYY-MM-DD" (null when not recorded). */
+  /** Birthday (users/{uid}.dob) as a Philippine date, "YYYY-MM-DD" (null when not set). */
   dob: string | null;
+  /** The address as one line ("Purok 1, Barangay, City, Province"), null when not set. */
+  address: string | null;
+  /** The address parts, null when not set. An older plain-string address is the street. */
+  addressParts: PatientAddress | null;
   weeksPregnant: number | null;
   firstTimeMom: boolean | null;
   clinicName: string | null;
@@ -80,6 +85,8 @@ export async function getUsers(): Promise<AdminUserView[]> {
         username: profile.username || null,
         dueDate: profile.dueDate ?? null,
         dob: dobKey(profile.dob),
+        addressParts: readAddress(profile.address),
+        address: formatAddress(readAddress(profile.address)),
         weeksPregnant: profile.weeksPregnant ?? null,
         firstTimeMom: profile.firstTimeMom ?? null,
         clinicName: profile.clinicName ?? null,
