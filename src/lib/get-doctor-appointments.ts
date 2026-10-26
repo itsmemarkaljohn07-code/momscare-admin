@@ -1,6 +1,7 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { withRetry } from '@/lib/with-retry';
 import { mapCancellation, type AppointmentCancellation } from '@/lib/appointment-cancellation';
+import { patientName } from '@/lib/patient-name';
 
 export interface DoctorAppointmentView {
   id: string;
@@ -34,7 +35,7 @@ export async function getDoctorAppointments(doctorName: string): Promise<DoctorA
     withRetry(() => adminDb.collection('users').get()),
   ]);
 
-  const nameByUid = new Map(usersSnap.docs.map((d) => [d.id, d.data().fullName ?? '(unknown)']));
+  const nameByUid = new Map(usersSnap.docs.map((d) => [d.id, patientName(d.data(), '(unknown)')]));
 
   return apptSnap.docs
     .filter((doc) => doc.data().doctor === doctorName)

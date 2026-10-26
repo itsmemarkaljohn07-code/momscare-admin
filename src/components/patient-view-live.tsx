@@ -14,6 +14,7 @@ import { showFriendlyError } from '@/lib/error-messages';
 import { computePregnancyWeek } from '@/lib/compute-pregnancy-week';
 import { dobKey } from '@/lib/date-of-birth';
 import { PatientDobRow } from '@/components/patient-dob-editor';
+import { patientName } from '@/lib/patient-name';
 
 export function PatientViewLive({ initial }: { initial: AdminUserView }) {
   // Firestore profile fields (fullName, dueDate, weeksPregnant,
@@ -38,7 +39,7 @@ export function PatientViewLive({ initial }: { initial: AdminUserView }) {
         if (!docSnap.exists()) return;
         const data = docSnap.data();
         setProfile({
-          fullName: data.fullName ?? '(no profile)',
+          fullName: patientName(data, '(no profile)'),
           username: data.username || null,
           dueDate: data.dueDate ?? null,
           dob: dobKey(data.dob),

@@ -32,6 +32,7 @@ import {
 import { showApiError } from '@/lib/error-messages';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import { exportToCsv } from '@/lib/export-csv';
+import { matchesName } from '@/lib/patient-name';
 import type { DeletionPreview, DeletionResult, StepName, StepStatus } from '@/lib/patient-deletion';
 
 const COLLECTION_LABELS: Record<string, string> = {
@@ -81,7 +82,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
   const filtered = users.filter((u) => {
     const q = query.toLowerCase();
     return (
-      u.fullName.toLowerCase().includes(q) ||
+      matchesName({ first: u.firstName, middle: u.middleName, last: u.lastName, full: u.fullName }, query) ||
       (u.email ?? '').toLowerCase().includes(q) ||
       (u.username ?? '').toLowerCase().includes(q)
     );

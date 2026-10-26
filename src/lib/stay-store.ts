@@ -5,6 +5,7 @@ import { getAdminSession, type AdminSession } from '@/lib/get-admin-session';
 import { isNonPatientUid } from '@/lib/patient-deletion';
 import { logAuditEvent } from '@/lib/audit-log';
 import type { Stay } from '@/lib/stays';
+import { patientName } from '@/lib/patient-name';
 
 // Firestore side of birth stays: users/{uid}/stays/{id}, written only by
 // the server (Admin SDK); clients stay denied by the default rule.
@@ -49,7 +50,7 @@ export async function stayAccess(uid: string): Promise<{ session: AdminSession; 
   if (!ID_PATTERN.test(uid)) return NextResponse.json({ error: 'Patient not found.' }, { status: 404 });
   const [snap, staff] = await Promise.all([adminDb.collection('users').doc(uid).get(), isNonPatientUid(uid)]);
   if (!snap.exists || staff) return NextResponse.json({ error: 'Patient not found.' }, { status: 404 });
-  return { session, name: String(snap.get('fullName') ?? '').trim() || 'Patient' };
+  return { session, name: patientName(snap.data(), 'Patient') };
 }
 
 /** One audit entry per change; its text never holds clinical values or dates. */

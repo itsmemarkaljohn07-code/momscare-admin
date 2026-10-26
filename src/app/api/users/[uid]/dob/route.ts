@@ -5,6 +5,7 @@ import { logAuditEvent } from '@/lib/audit-log';
 import { isNonPatientUid } from '@/lib/patient-deletion';
 import { manilaKey } from '@/lib/report-aggregations';
 import { dobKey, validateDob } from '@/lib/date-of-birth';
+import { patientName } from '@/lib/patient-name';
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
@@ -53,7 +54,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ uid:
       action: 'user.dob_update',
       targetType: 'user',
       targetId: uid,
-      targetLabel: String(snap.get('fullName') ?? '').trim() || 'Patient',
+      targetLabel: patientName(snap.data(), 'Patient'),
       // What changed, never the date.
       details: dob === null ? 'Date of birth removed' : before ? 'Date of birth changed' : 'Date of birth added',
     });

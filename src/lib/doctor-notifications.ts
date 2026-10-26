@@ -1,5 +1,6 @@
 import { Timestamp, type DocumentData, type DocumentReference } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
+import { patientName as displayName } from '@/lib/patient-name';
 import {
   findRepliesForDoctor,
   replyNotificationId,
@@ -231,7 +232,7 @@ export async function notifyDoctorOfNewAppointment(input: {
     if (!doctor) return 'no_doctor';
 
     const patient = await adminDb.collection('users').doc(input.patientUid).get();
-    const patientName = String(patient.get('fullName') ?? '').trim() || 'A patient';
+    const patientName = displayName(patient.data(), 'A patient');
 
     try {
       await notificationsCol(doctor.id).doc(appointmentNoticeId(input.appointmentId)).create({

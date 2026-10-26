@@ -2,6 +2,7 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { logMinimalAuditEvent } from '@/lib/audit-log';
 import { deleteCloudinaryImages, isCloudinaryDeleteConfigured } from '@/lib/cloudinary-admin';
 import type { UserRecord } from 'firebase-admin/auth';
+import { patientName } from '@/lib/patient-name';
 
 export type StepStatus = 'done' | 'already_gone' | 'skipped' | 'failed';
 
@@ -110,7 +111,7 @@ export async function getPatientIdentity(uid: string): Promise<PatientIdentity> 
   return {
     profileExists: profileDoc.exists,
     authExists: authUser !== null,
-    fullName: typeof profile?.fullName === 'string' ? profile.fullName : null,
+    fullName: patientName(profile) || null,
     usernames: [...usernames],
     emails: [...emails],
     confirmBy,

@@ -1,5 +1,6 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { withRetry } from '@/lib/with-retry';
+import { patientName } from '@/lib/patient-name';
 
 export interface DoctorRecentSnapshot {
   photoId: string;
@@ -24,7 +25,7 @@ export async function getDoctorRecentSnapshots(
 
   if (usersSnap.empty) return [];
 
-  const nameByUid = new Map(usersSnap.docs.map((d) => [d.id, d.data().fullName ?? '(unnamed patient)']));
+  const nameByUid = new Map(usersSnap.docs.map((d) => [d.id, patientName(d.data(), '(unnamed patient)')]));
   const patientUids = new Set(usersSnap.docs.map((d) => d.id));
 
     const snapshotsSnap = await withRetry(() => adminDb.collectionGroup('snapshots').get());

@@ -7,6 +7,7 @@ import { logAuditEvent } from '@/lib/audit-log';
 import { reportActor } from '@/lib/report-actor';
 import { validRange } from '@/lib/report-aggregations';
 import { MAX_ACTIVITY_ENTRIES, buildActivityReport, type ActivityEntry } from '@/lib/activity-report';
+import { NAME_FIELDS, patientName } from '@/lib/patient-name';
 
 const BATCH = 500;
 
@@ -18,10 +19,10 @@ async function actorNames(): Promise<Map<string, string>> {
   const [admins, doctors, users] = await Promise.all([
     withRetry(() => adminDb.collection('admins').get()),
     withRetry(() => adminDb.collection('doctorAccounts').select('authUid', 'name').get()),
-    withRetry(() => adminDb.collection('users').select('fullName').get()),
+    withRetry(() => adminDb.collection('users').select(...NAME_FIELDS).get()),
   ]);
   const names = new Map<string, string>();
-  for (const d of users.docs) names.set(d.id, String(d.get('fullName') ?? '').trim());
+  for (const d of users.docs) names.set(d.id, patientName(d.data()));
   for (const d of doctors.docs) if (d.get('authUid')) names.set(String(d.get('authUid')), String(d.get('name') ?? '').trim());
   for (const d of admins.docs) names.set(d.id, String(d.get('name') ?? d.get('displayName') ?? '').trim());
   return names;

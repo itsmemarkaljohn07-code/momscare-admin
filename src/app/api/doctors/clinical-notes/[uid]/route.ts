@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getDoctorSession } from '@/lib/get-doctor-session';
 import { logAuditEvent } from '@/lib/audit-log';
 import { Timestamp } from 'firebase-admin/firestore';
+import { patientName } from '@/lib/patient-name';
 
 export async function POST(
   req: NextRequest,
@@ -47,7 +48,7 @@ export async function POST(
       action: 'clinical_note.create',
       targetType: 'user',
       targetId: uid,
-      targetLabel: patientDoc.data()?.fullName ?? uid,
+      targetLabel: patientName(patientDoc.data(), uid),
       details: trimmedMessage.length > 120 ? `${trimmedMessage.slice(0, 120)}…` : trimmedMessage,
     });
 

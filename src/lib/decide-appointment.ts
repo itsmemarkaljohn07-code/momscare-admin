@@ -7,6 +7,7 @@ import { doctorDecisionNotification } from '@/lib/admin-notification-rules';
 import { notifyDoctorOfClinicDecision } from '@/lib/doctor-notifications';
 import { readOwnedSlotLock, releaseSlotLock } from '@/lib/slot-locks';
 import { adminDecisionBlock, patientDecisionNotice, type Decision } from '@/lib/appointment-decision-rules';
+import { patientName as displayName } from '@/lib/patient-name';
 
 // The one place an appointment's doctor approval is decided: the doctor's
 // own route and the admin's backup route both call decideAppointment, then
@@ -130,7 +131,7 @@ export async function sendDecisionNotices(input: {
   });
 
   const patient = await adminDb.collection('users').doc(uid).get().catch(() => null);
-  const patientName = String(patient?.get('fullName') ?? '').trim() || 'A patient';
+  const patientName = displayName(patient?.data(), 'A patient');
 
   if (actor.role === 'doctor') {
     // Admin bell: one record per real change. Never throws; the sweep

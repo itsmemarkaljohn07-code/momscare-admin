@@ -1,6 +1,7 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { withRetry } from '@/lib/with-retry';
 import { Timestamp } from 'firebase-admin/firestore';
+import { NAME_FIELDS, patientName } from '@/lib/patient-name';
 
 export interface AuditLogView {
   id: string;
@@ -125,8 +126,8 @@ export async function getAuditLogPage(filters: AuditLogFilters = {}, cursor: str
   // (one read for the patients on this page).
   const patientUids = [...new Set(entries.filter((e) => e.actorRole === 'patient').map((e) => e.actorEmail))];
   if (patientUids.length > 0) {
-    const docs = await adminDb.getAll(...patientUids.map((uid) => adminDb.collection('users').doc(uid)), { fieldMask: ['fullName'] });
-    const names = new Map(docs.map((d) => [d.id, String(d.get('fullName') ?? '').trim()]));
+    const docs = await adminDb.getAll(...patientUids.map((uid) => adminDb.collection('users').doc(uid)), { fieldMask: [...NAME_FIELDS] });
+    const names = new Map(docs.map((d) => [d.id, patientName(d.data())]));
     for (const e of entries) {
       if (e.actorRole === 'patient') e.actorEmail = names.get(e.actorEmail) || 'Deleted patient';
     }

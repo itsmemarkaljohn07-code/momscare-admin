@@ -1,5 +1,6 @@
 import { adminDb } from '@/lib/firebase-admin';
 import { withRetry } from '@/lib/with-retry';
+import { patientName } from '@/lib/patient-name';
 
 export interface DoctorPatientSummary {
   uid: string;
@@ -26,7 +27,7 @@ export async function getDoctorPatients(doctorName: string): Promise<DoctorPatie
     const data = doc.data();
     patients.set(doc.id, {
       uid: doc.id,
-      fullName: data.fullName ?? '(unnamed patient)',
+      fullName: patientName(data, '(unnamed patient)'),
       email: data.email ?? null,
       dueDate: data.dueDate ?? null,
       photoCount: 0,

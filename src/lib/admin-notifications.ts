@@ -14,6 +14,7 @@ import {
 import { cancellationAuditEvents, requestAuditEvents, type PatientAuditEvent } from '@/lib/patient-audit-rules';
 import { logPatientAuditEvents } from '@/lib/audit-log';
 import { clearPendingCancellationCountCache } from '@/lib/get-appointments';
+import { NAME_FIELDS, patientName } from '@/lib/patient-name';
 
 // One shared admin bell: adminNotifications/{id}, the same list for every
 // admin, with read state per admin in readBy {uid: true}. Only the server
@@ -97,8 +98,8 @@ async function patientNames(uids: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(uids)];
   for (let i = 0; i < unique.length; i += BATCH_SIZE) {
     const refs = unique.slice(i, i + BATCH_SIZE).map((uid) => adminDb.collection('users').doc(uid));
-    const docs = await adminDb.getAll(...refs, { fieldMask: ['fullName'] });
-    for (const d of docs) names.set(d.id, String(d.get('fullName') ?? '').trim() || 'A patient');
+    const docs = await adminDb.getAll(...refs, { fieldMask: [...NAME_FIELDS] });
+    for (const d of docs) names.set(d.id, patientName(d.data(), 'A patient'));
   }
   return names;
 }
@@ -275,7 +276,7 @@ export async function notifyAppointmentRequest(patientUid: string, requestId: st
       appointmentRequestNotification({
         patientUid,
         requestId,
-        patientName: String(profile.get('fullName') ?? '').trim() || 'A patient',
+        patientName: patientName(profile.data(), 'A patient'),
         type: String(request.get('type') ?? ''),
         options: Array.isArray(options) ? options : [],
       })
@@ -309,7 +310,7 @@ export async function notifyCancellationChange(patientUid: string, appointmentId
         patientUid,
         appointmentId,
         requestedAtMs: requestedAt as number,
-        patientName: String(profile.get('fullName') ?? '').trim() || 'A patient',
+        patientName: patientName(profile.data(), 'A patient'),
         appointmentLabel: appointmentName(appt.get('label')),
         date: String(appt.get('date') ?? ''),
         time: String(appt.get('time') ?? ''),

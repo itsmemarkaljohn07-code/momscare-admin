@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getAdminSession } from '@/lib/get-admin-session';
 import { logAuditEvent } from '@/lib/audit-log';
+import { patientName } from '@/lib/patient-name';
 import {
   confirmationMatches,
   deletePatient,
@@ -29,7 +30,7 @@ export async function PATCH(
 
   try {
     const userDoc = await adminDb.collection('users').doc(uid).get();
-    const fullName: string = userDoc.data()?.fullName ?? uid;
+    const fullName: string = patientName(userDoc.data(), uid);
 
     await adminAuth.updateUser(uid, { disabled });
 

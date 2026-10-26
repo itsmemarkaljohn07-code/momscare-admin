@@ -1,11 +1,17 @@
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { withRetry } from '@/lib/with-retry';
 import { dobKey } from '@/lib/date-of-birth';
+import { patientName, patientNameParts } from '@/lib/patient-name';
 
 export interface AdminUserView {
   uid: string;
   email: string | null;
+  /** "First Middle Last" (from the name parts, else the stored fullName). */
   fullName: string;
+  /** Name parts; for older accounts split from fullName (first word / the rest). */
+  firstName: string;
+  middleName: string;
+  lastName: string;
   username: string | null;
   dueDate: string | null;
   /** Date of birth as a Philippine date, "YYYY-MM-DD" (null when not recorded). */
@@ -67,7 +73,10 @@ export async function getUsers(): Promise<AdminUserView[]> {
       users.push({
         uid: authUser.uid,
         email: authUser.email ?? null,
-        fullName: profile.fullName ?? '(no profile)',
+        fullName: patientName(profile, '(no profile)'),
+        firstName: patientNameParts(profile).first,
+        middleName: patientNameParts(profile).middle,
+        lastName: patientNameParts(profile).last,
         username: profile.username || null,
         dueDate: profile.dueDate ?? null,
         dob: dobKey(profile.dob),

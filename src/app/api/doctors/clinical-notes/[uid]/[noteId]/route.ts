@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getDoctorSession } from '@/lib/get-doctor-session';
 import { logAuditEvent } from '@/lib/audit-log';
+import { patientName } from '@/lib/patient-name';
 
 export async function DELETE(
   req: NextRequest,
@@ -40,7 +41,7 @@ export async function DELETE(
       action: 'clinical_note.delete',
       targetType: 'user',
       targetId: uid,
-      targetLabel: patientDoc.data()?.fullName ?? uid,
+      targetLabel: patientName(patientDoc.data(), uid),
       details: null,
     });
 

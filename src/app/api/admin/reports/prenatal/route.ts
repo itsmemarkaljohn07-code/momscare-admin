@@ -9,6 +9,7 @@ import { dobKey } from '@/lib/date-of-birth';
 import { buildPrenatalReport, isMonthKey, type PrenatalAppointment, type PrenatalPatient } from '@/lib/prenatal-report';
 import { docToStay } from '@/lib/stay-store';
 import { staysOfExistingPatients, type ReportStay } from '@/lib/stay-report';
+import { NAME_FIELDS, patientName } from '@/lib/patient-name';
 
 /**
  * Admin only. GET ?month=YYYY-MM[&export=1&format=pdf|csv]: the month's Prenatal
@@ -59,11 +60,11 @@ export async function GET(req: NextRequest) {
 
     const uids = [...new Set([...appointments.map((a) => a.patientUid), ...allStays.map((s) => s.patientUid)])];
     const profiles = uids.length
-      ? await adminDb.getAll(...uids.map((uid) => adminDb.collection('users').doc(uid)), { fieldMask: ['fullName', 'dob', 'dueDate'] })
+      ? await adminDb.getAll(...uids.map((uid) => adminDb.collection('users').doc(uid)), { fieldMask: [...NAME_FIELDS, 'dob', 'dueDate'] })
       : [];
     const patients: PrenatalPatient[] = profiles.map((p) => ({
       uid: p.id,
-      name: String(p.get('fullName') ?? '').trim() || 'Unknown patient',
+      name: patientName(p.data(), 'Unknown patient'),
       dob: dobKey(p.get('dob')),
       dueDate: dueKey(typeof p.get('dueDate') === 'string' ? p.get('dueDate') : null),
     }));
