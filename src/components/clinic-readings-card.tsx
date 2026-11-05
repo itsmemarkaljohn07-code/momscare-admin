@@ -34,15 +34,22 @@ export interface PatientReported {
 
 const FIELD_ORDER: FormField[] = ['measuredOn', 'weightKg', 'bpSys', 'bpDia', 'note'];
 const today = () => manilaKey(new Date());
-const emptyForm = (): Form => ({ measuredOn: today(), weightKg: '', bpSys: '', bpDia: '', note: '' });
+const emptyForm = (): Form => ({
+  measuredOn: today(), weightKg: '', bpSys: '', bpDia: '', fundalHeightCm: '', fetalHeartRate: '', pulse: '', temperatureC: '', note: '',
+});
+const text = (n: number | null) => (n === null ? '' : String(n));
 const longDate = (day: string) => formatDateKey(day, { month: 'short', day: 'numeric', year: 'numeric' });
 
 function toForm(r: Row): Form {
   return {
     measuredOn: r.measuredOn,
-    weightKg: r.weightKg === null ? '' : String(r.weightKg),
-    bpSys: r.bpSys === null ? '' : String(r.bpSys),
-    bpDia: r.bpDia === null ? '' : String(r.bpDia),
+    weightKg: text(r.weightKg),
+    bpSys: text(r.bpSys),
+    bpDia: text(r.bpDia),
+    fundalHeightCm: text(r.fundalHeightCm),
+    fetalHeartRate: text(r.fetalHeartRate),
+    pulse: text(r.pulse),
+    temperatureC: text(r.temperatureC),
     note: r.note,
   };
 }

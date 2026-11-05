@@ -83,14 +83,14 @@ test('who entered it comes from the session; a spoofed body is ignored', () => {
   const body = { measuredOn: TODAY, weightKg: 60, enteredByUid: 'someone-else', enteredByName: 'Dr Fake', enteredAt: 1 };
   const r = validateReading(body, TODAY);
   assert.ok(r.ok);
-  assert.deepEqual(Object.keys(r.value).sort(), ['bpDia', 'bpSys', 'measuredOn', 'note', 'weightKg']);
+  assert.deepEqual(Object.keys(r.value).sort(), ['bpDia', 'bpSys', 'fetalHeartRate', 'fundalHeightCm', 'measuredOn', 'note', 'pulse', 'temperatureC', 'weightKg']);
   const doc = newReadingDoc(r.value, { uid: 'doc-1', doctorName: 'Dr Real' }, 'NOW');
   assert.equal(doc.enteredByUid, 'doc-1');
   assert.equal(doc.enteredByName, 'Dr Real');
   assert.equal(doc.enteredAt, 'NOW');
   // An edit never touches who entered it or when.
   const edit = editedReadingFields(r.value as ReadingValues, 'LATER');
-  assert.deepEqual(Object.keys(edit).sort(), ['bpDia', 'bpSys', 'measuredOn', 'note', 'updatedAt', 'weightKg']);
+  assert.deepEqual(Object.keys(edit).sort(), ['bpDia', 'bpSys', 'fetalHeartRate', 'fundalHeightCm', 'measuredOn', 'note', 'pulse', 'temperatureC', 'updatedAt', 'weightKg']);
 });
 
 test('list order: newest measuredOn first, same day by entry time', () => {

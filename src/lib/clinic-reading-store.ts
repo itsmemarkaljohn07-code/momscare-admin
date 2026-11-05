@@ -22,6 +22,11 @@ export function readingFromDoc(id: string, d: DocumentData): ClinicReading & { i
     weightKg: num(d.weightKg),
     bpSys: num(d.bpSys),
     bpDia: num(d.bpDia),
+    // Later fields: older documents do not have them.
+    fundalHeightCm: num(d.fundalHeightCm),
+    fetalHeartRate: num(d.fetalHeartRate),
+    pulse: num(d.pulse),
+    temperatureC: num(d.temperatureC),
     note: typeof d.note === 'string' ? d.note : '',
     measuredOn: typeof d.measuredOn === 'string' ? d.measuredOn : '',
     enteredByUid: typeof d.enteredByUid === 'string' ? d.enteredByUid : '',
