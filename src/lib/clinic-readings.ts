@@ -173,6 +173,34 @@ export function editedReadingFields<T>(value: ReadingValues, now: T): ReadingVal
   return { ...measures(value), updatedAt: now };
 }
 
+const finite = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+/** A stored document as a reading. A measure that is missing (older
+ *  documents have no fundal height, fetal heart rate, pulse or
+ *  temperature) or not a finite number reads as null. */
+export function readingFromData(id: string, d: Record<string, unknown>): ClinicReading & { id: string } {
+  const millis = (v: unknown) => {
+    const t = v as { toMillis?: () => number } | null | undefined;
+    return typeof t?.toMillis === 'function' ? t.toMillis() : 0;
+  };
+  return {
+    id,
+    weightKg: finite(d.weightKg),
+    bpSys: finite(d.bpSys),
+    bpDia: finite(d.bpDia),
+    fundalHeightCm: finite(d.fundalHeightCm),
+    fetalHeartRate: finite(d.fetalHeartRate),
+    pulse: finite(d.pulse),
+    temperatureC: finite(d.temperatureC),
+    note: typeof d.note === 'string' ? d.note : '',
+    measuredOn: typeof d.measuredOn === 'string' ? d.measuredOn : '',
+    enteredByUid: typeof d.enteredByUid === 'string' ? d.enteredByUid : '',
+    enteredByName: typeof d.enteredByName === 'string' ? d.enteredByName : '',
+    enteredAt: millis(d.enteredAt),
+    updatedAt: millis(d.updatedAt),
+  };
+}
+
 /** Newest measuredOn first; the same day by entry time, newest first. */
 export function sortReadings<R extends { measuredOn: string; enteredAt: number }>(readings: R[]): R[] {
   return [...readings].sort((a, b) => b.measuredOn.localeCompare(a.measuredOn) || b.enteredAt - a.enteredAt);

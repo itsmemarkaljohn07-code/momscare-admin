@@ -5,7 +5,7 @@ import { getDoctorSession, type DoctorSession } from '@/lib/get-doctor-session';
 import { isNonPatientUid } from '@/lib/patient-deletion';
 import { logAuditEvent } from '@/lib/audit-log';
 import { patientName } from '@/lib/patient-name';
-import type { ClinicReading } from '@/lib/clinic-readings';
+import { readingFromData, type ClinicReading } from '@/lib/clinic-readings';
 
 // Firestore side of clinic readings: users/{uid}/clinicReadings/{id},
 // written only by the server (Admin SDK) for the patient's assigned doctor.
@@ -14,26 +14,8 @@ export const ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
 export const readingsCol = (uid: string) => adminDb.collection('users').doc(uid).collection('clinicReadings');
 
-const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-
 export function readingFromDoc(id: string, d: DocumentData): ClinicReading & { id: string } {
-  return {
-    id,
-    weightKg: num(d.weightKg),
-    bpSys: num(d.bpSys),
-    bpDia: num(d.bpDia),
-    // Later fields: older documents do not have them.
-    fundalHeightCm: num(d.fundalHeightCm),
-    fetalHeartRate: num(d.fetalHeartRate),
-    pulse: num(d.pulse),
-    temperatureC: num(d.temperatureC),
-    note: typeof d.note === 'string' ? d.note : '',
-    measuredOn: typeof d.measuredOn === 'string' ? d.measuredOn : '',
-    enteredByUid: typeof d.enteredByUid === 'string' ? d.enteredByUid : '',
-    enteredByName: typeof d.enteredByName === 'string' ? d.enteredByName : '',
-    enteredAt: d.enteredAt?.toMillis?.() ?? 0,
-    updatedAt: d.updatedAt?.toMillis?.() ?? 0,
-  };
+  return readingFromData(id, d);
 }
 
 /**

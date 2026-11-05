@@ -57,14 +57,19 @@ const MEASURES: { key: string; label: string; value: (r: Pick<Row, FormField | '
   { key: 'temperatureC', label: 'Temperature', value: (r) => (r.temperatureC !== null && r.temperatureC !== '' ? `${r.temperatureC} °C` : null) },
 ];
 
-/** What the form would store, as "weight 62.4 kg, pulse 84 bpm" (filled fields only). */
+/** What the form would store, as "weight 62.4 kg, pulse 84 bpm" (taken
+ *  measures only); '' while the form would be refused. */
 function willSave(form: Form): string {
-  const trimmed = Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v.trim()]));
+  const checked = validateReading(form, today());
+  if (!checked.ok) return '';
   return MEASURES.map((m) => {
-    const v = m.value(trimmed);
+    const v = m.value(checked.value);
     return v ? `${m.label.toLowerCase()} ${v}` : null;
   }).filter(Boolean).join(', ');
 }
+
+/** "Systolic: ..." unless the message already names the value. */
+const bpMessage = (name: string, message: string) => (message.toLowerCase().includes(name.toLowerCase()) ? message : `${name}: ${message}`);
 
 function toForm(r: Row): Form {
   return {
@@ -144,8 +149,8 @@ function BloodPressureField({ prefix, form, errors, set }: { prefix: string; for
           describedBy={[errors.bpDia ? `${dia}-error` : '', hintId].filter(Boolean).join(' ')}
         />
       </div>
-      {errors.bpSys && <p id={`${sys}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">Systolic: {errors.bpSys}</p>}
-      {errors.bpDia && <p id={`${dia}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">Diastolic: {errors.bpDia}</p>}
+      {errors.bpSys && <p id={`${sys}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">{bpMessage('Systolic', errors.bpSys)}</p>}
+      {errors.bpDia && <p id={`${dia}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">{bpMessage('Diastolic', errors.bpDia)}</p>}
       <p id={hintId} className="text-xs text-muted-foreground">Accepted: systolic {SYS_MIN}-{SYS_MAX}, diastolic {DIA_MIN}-{DIA_MAX} mmHg</p>
     </div>
   );
