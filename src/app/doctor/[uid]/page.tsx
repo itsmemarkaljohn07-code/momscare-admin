@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { getDoctorSession } from '@/lib/get-doctor-session';
 import { getUserSnapshots } from '@/lib/get-user-snapshots';
 import { DoctorSnapshotCard } from '@/components/doctor-snapshot-card';
-import { PatientHealthTrends } from '@/components/patient-health-trends';
+import { ClinicReadingsCard, type PatientReported } from '@/components/clinic-readings-card';
 import { ClinicalNotesPanel } from '@/components/clinical-notes-panel';
 import { PatientReportDownload } from '@/components/patient-report-download';
 import { PageHeader } from '@/components/page-header';
@@ -30,10 +30,21 @@ export default async function DoctorPatientSnapshotsPage({
     notFound();
   }
 
-  // Same data already fetched above for the day-grouped photo grid —
-  // flattened back into one chronological list for the trend charts,
-  // no additional Firestore read.
-  const allPhotos = groups.flatMap((g) => g.items);
+  // The latest weight and blood pressure the patient logged with a
+  // Snapshot (photos come newest first), from the data fetched above.
+  const positive = (v: unknown) => (typeof v === 'number' && v > 0 ? v : null);
+  const latest = groups.flatMap((g) => g.items).find((p) => {
+    const h = p.healthSnapshot;
+    return h && (positive(h.weight) !== null || (positive(h.bpSys) !== null && positive(h.bpDia) !== null));
+  });
+  const reported: PatientReported | null = latest?.healthSnapshot
+    ? {
+        weightKg: positive(latest.healthSnapshot.weight),
+        bpSys: positive(latest.healthSnapshot.bpDia) !== null ? positive(latest.healthSnapshot.bpSys) : null,
+        bpDia: positive(latest.healthSnapshot.bpSys) !== null ? positive(latest.healthSnapshot.bpDia) : null,
+        at: latest.createdAt,
+      }
+    : null;
 
   return (
     <div className="space-y-6">
@@ -47,10 +58,10 @@ export default async function DoctorPatientSnapshotsPage({
 
       <PageHeader
         title={patient.fullName}
-        description={`${totalPhotos} photo${totalPhotos === 1 ? '' : 's'} uploaded. Health trends, clinical notes and Snapshots with comments.`}
+        description={`${totalPhotos} photo${totalPhotos === 1 ? '' : 's'} uploaded. Health readings, clinical notes and Snapshots with comments.`}
       />
 
-      <PatientHealthTrends photos={allPhotos} />
+      <ClinicReadingsCard patientUid={uid} patientName={patient.fullName} reported={reported} />
 
       <PatientReportDownload patientUid={uid} />
 
