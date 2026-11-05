@@ -14,8 +14,8 @@ import { showApiError } from '@/lib/error-messages';
 import { manilaKey } from '@/lib/report-aggregations';
 import { formatDateKey } from '@/lib/pregnancy-display';
 import {
-  DIA_MAX, DIA_MIN, NOTE_MAX, SYS_MAX, SYS_MIN, WEIGHT_MAX, WEIGHT_MIN,
-  formatBp, validateReading, type ClinicReading, type ReadingField,
+  DIA_MAX, DIA_MIN, FHR_MAX, FHR_MIN, FUNDAL_MAX, FUNDAL_MIN, NOTE_MAX, PULSE_MAX, PULSE_MIN, SYS_MAX, SYS_MIN, TEMP_MAX, TEMP_MIN,
+  WEIGHT_MAX, WEIGHT_MIN, formatBp, validateReading, type ClinicReading, type ReadingField,
 } from '@/lib/clinic-readings';
 
 type Row = ClinicReading & { id: string };
@@ -32,13 +32,39 @@ export interface PatientReported {
   at: string | null;
 }
 
-const FIELD_ORDER: FormField[] = ['measuredOn', 'weightKg', 'bpSys', 'bpDia', 'note'];
+const FIELD_ORDER: FormField[] = ['measuredOn', 'weightKg', 'bpSys', 'bpDia', 'pulse', 'temperatureC', 'fundalHeightCm', 'fetalHeartRate', 'note'];
 const today = () => manilaKey(new Date());
 const emptyForm = (): Form => ({
   measuredOn: today(), weightKg: '', bpSys: '', bpDia: '', fundalHeightCm: '', fetalHeartRate: '', pulse: '', temperatureC: '', note: '',
 });
 const text = (n: number | null) => (n === null ? '' : String(n));
 const longDate = (day: string) => formatDateKey(day, { month: 'short', day: 'numeric', year: 'numeric' });
+const shortDate = (day: string) => formatDateKey(day, { month: 'short', day: 'numeric' });
+
+/**
+ * The six measures, in the order shown everywhere (strip, "Will save",
+ * reading cards). Values are shown as typed or stored, never judged.
+ */
+const MEASURES: { key: string; label: string; value: (r: Pick<Row, FormField | 'bpSys' | 'bpDia'> | Record<string, unknown>) => string | null }[] = [
+  { key: 'weightKg', label: 'Weight', value: (r) => (r.weightKg !== null && r.weightKg !== '' ? `${r.weightKg} kg` : null) },
+  {
+    key: 'bp', label: 'Blood pressure',
+    value: (r) => (r.bpSys !== null && r.bpSys !== '' && r.bpDia !== null && r.bpDia !== '' ? `${r.bpSys}/${r.bpDia} mmHg` : null),
+  },
+  { key: 'fundalHeightCm', label: 'Fundal height', value: (r) => (r.fundalHeightCm !== null && r.fundalHeightCm !== '' ? `${r.fundalHeightCm} cm` : null) },
+  { key: 'fetalHeartRate', label: 'Fetal heart rate', value: (r) => (r.fetalHeartRate !== null && r.fetalHeartRate !== '' ? `${r.fetalHeartRate} bpm` : null) },
+  { key: 'pulse', label: 'Pulse', value: (r) => (r.pulse !== null && r.pulse !== '' ? `${r.pulse} bpm` : null) },
+  { key: 'temperatureC', label: 'Temperature', value: (r) => (r.temperatureC !== null && r.temperatureC !== '' ? `${r.temperatureC} °C` : null) },
+];
+
+/** What the form would store, as "weight 62.4 kg, pulse 84 bpm" (filled fields only). */
+function willSave(form: Form): string {
+  const trimmed = Object.fromEntries(Object.entries(form).map(([k, v]) => [k, v.trim()]));
+  return MEASURES.map((m) => {
+    const v = m.value(trimmed);
+    return v ? `${m.label.toLowerCase()} ${v}` : null;
+  }).filter(Boolean).join(', ');
+}
 
 function toForm(r: Row): Form {
   return {
@@ -59,38 +85,88 @@ function FieldMessage({ id, error, hint }: { id: string; error?: string; hint?: 
   return hint ? <p id={`${id}-hint`} className="text-xs text-muted-foreground">{hint}</p> : null;
 }
 
-/** A number with its unit inside the field. */
+/** A number input with its unit inside the field. */
+function UnitInput({
+  id, unit, value, onChange, error, describedBy, decimal = false, label,
+}: {
+  id: string; unit: string; value: string; onChange: (v: string) => void; error?: string; describedBy?: string; decimal?: boolean; label?: string;
+}) {
+  return (
+    <div className="relative min-w-0 flex-1">
+      <Input
+        id={id}
+        inputMode={decimal ? 'decimal' : 'numeric'}
+        enterKeyHint="next"
+        autoComplete="off"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={label}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+        className="h-11 pr-14 tabular-nums md:h-9"
+      />
+      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground" aria-hidden="true">{unit}</span>
+    </div>
+  );
+}
+
+/** A labelled number field: label, input with unit, hint or error under it. */
 function NumberField({
   id, label, unit, hint, value, onChange, error, decimal = false,
 }: {
   id: string; label: string; unit: string; hint: string; value: string; onChange: (v: string) => void; error?: string; decimal?: boolean;
 }) {
   return (
-    <div className="grid min-w-0 gap-1.5">
+    <div className="grid min-w-0 content-start gap-1.5">
       <label htmlFor={id} className="text-sm font-medium">{label}</label>
-      <div className="relative">
-        <Input
-          id={id}
-          inputMode={decimal ? 'decimal' : 'numeric'}
-          autoComplete="off"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${id}-error` : `${id}-hint`}
-          className="h-11 pr-14 md:h-9"
-        />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground" aria-hidden="true">{unit}</span>
-      </div>
+      <UnitInput id={id} unit={unit} value={value} onChange={onChange} error={error} decimal={decimal} describedBy={error ? `${id}-error` : `${id}-hint`} />
       <FieldMessage id={id} error={error} hint={hint} />
     </div>
   );
 }
 
-/** The reading form, used inline to add and in the edit dialog. */
+/** Systolic / diastolic on one line, each error under the pair. */
+function BloodPressureField({ prefix, form, errors, set }: { prefix: string; form: Form; errors: Errors; set: (f: FormField) => (v: string) => void }) {
+  const sys = `${prefix}-bpSys`;
+  const dia = `${prefix}-bpDia`;
+  const hintId = `${prefix}-bp-hint`;
+  return (
+    <div className="grid min-w-0 content-start gap-1.5">
+      <span id={`${prefix}-bp-label`} className="text-sm font-medium">Blood pressure</span>
+      <div className="flex items-center gap-2" role="group" aria-labelledby={`${prefix}-bp-label`}>
+        <UnitInput
+          id={sys} unit="sys" label="Systolic (mmHg)" value={form.bpSys} onChange={set('bpSys')} error={errors.bpSys}
+          describedBy={[errors.bpSys ? `${sys}-error` : '', hintId].filter(Boolean).join(' ')}
+        />
+        <span className="text-lg text-muted-foreground" aria-hidden="true">/</span>
+        <UnitInput
+          id={dia} unit="dia" label="Diastolic (mmHg)" value={form.bpDia} onChange={set('bpDia')} error={errors.bpDia}
+          describedBy={[errors.bpDia ? `${dia}-error` : '', hintId].filter(Boolean).join(' ')}
+        />
+      </div>
+      {errors.bpSys && <p id={`${sys}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">Systolic: {errors.bpSys}</p>}
+      {errors.bpDia && <p id={`${dia}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">Diastolic: {errors.bpDia}</p>}
+      <p id={hintId} className="text-xs text-muted-foreground">Accepted: systolic {SYS_MIN}-{SYS_MAX}, diastolic {DIA_MIN}-{DIA_MAX} mmHg</p>
+    </div>
+  );
+}
+
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="min-w-0 space-y-3 rounded-xl border p-3 sm:p-4">
+      <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</legend>
+      <div className="grid gap-3 sm:grid-cols-2">{children}</div>
+    </fieldset>
+  );
+}
+
+/** The reading form, used inline to add and in the edit dialog. The ranges
+ *  in the hints are typing guards, not clinical limits. */
 function ReadingFields({ prefix, form, errors, set }: { prefix: string; form: Form; errors: Errors; set: (f: FormField) => (v: string) => void }) {
   const id = (f: FormField) => `${prefix}-${f}`;
+  const summary = willSave(form);
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="grid gap-1.5">
         <label htmlFor={id('measuredOn')} className="text-sm font-medium">Date measured</label>
         <div className="flex flex-wrap gap-2 sm:flex-nowrap">
@@ -102,7 +178,7 @@ function ReadingFields({ prefix, form, errors, set }: { prefix: string; form: Fo
             onChange={(e) => set('measuredOn')(e.target.value)}
             aria-invalid={errors.measuredOn ? true : undefined}
             aria-describedby={errors.measuredOn ? `${id('measuredOn')}-error` : undefined}
-            className="h-11 min-w-0 basis-full sm:basis-auto sm:flex-1 md:h-9"
+            className="h-11 min-w-0 basis-full sm:max-w-xs sm:basis-auto sm:flex-1 md:h-9"
           />
           <Button type="button" variant="outline" className="h-11 shrink-0 gap-1.5 px-3 md:h-9" onClick={() => set('measuredOn')(today())} aria-label="Date measured: today">
             <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
@@ -111,11 +187,19 @@ function ReadingFields({ prefix, form, errors, set }: { prefix: string; form: Fo
         </div>
         <FieldMessage id={id('measuredOn')} error={errors.measuredOn} />
       </div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <NumberField id={id('weightKg')} label="Weight" unit="kg" hint={`${WEIGHT_MIN}-${WEIGHT_MAX} kg, one decimal`} value={form.weightKg} onChange={set('weightKg')} error={errors.weightKg} decimal />
-        <NumberField id={id('bpSys')} label="Systolic" unit="mmHg" hint={`${SYS_MIN}-${SYS_MAX}`} value={form.bpSys} onChange={set('bpSys')} error={errors.bpSys} />
-        <NumberField id={id('bpDia')} label="Diastolic" unit="mmHg" hint={`${DIA_MIN}-${DIA_MAX}`} value={form.bpDia} onChange={set('bpDia')} error={errors.bpDia} />
-      </div>
+
+      <Group title="Vitals">
+        <NumberField id={id('weightKg')} label="Weight" unit="kg" hint={`Accepted: ${WEIGHT_MIN}-${WEIGHT_MAX} kg, one decimal`} value={form.weightKg} onChange={set('weightKg')} error={errors.weightKg} decimal />
+        <BloodPressureField prefix={prefix} form={form} errors={errors} set={set} />
+        <NumberField id={id('pulse')} label="Pulse" unit="bpm" hint={`Accepted: ${PULSE_MIN}-${PULSE_MAX} bpm`} value={form.pulse} onChange={set('pulse')} error={errors.pulse} />
+        <NumberField id={id('temperatureC')} label="Temperature" unit="°C" hint={`Accepted: ${TEMP_MIN.toFixed(1)}-${TEMP_MAX.toFixed(1)} °C, one decimal`} value={form.temperatureC} onChange={set('temperatureC')} error={errors.temperatureC} decimal />
+      </Group>
+
+      <Group title="Pregnancy">
+        <NumberField id={id('fundalHeightCm')} label="Fundal height" unit="cm" hint={`Accepted: ${FUNDAL_MIN}-${FUNDAL_MAX} cm, one decimal`} value={form.fundalHeightCm} onChange={set('fundalHeightCm')} error={errors.fundalHeightCm} decimal />
+        <NumberField id={id('fetalHeartRate')} label="Fetal heart rate" unit="bpm" hint={`Accepted: ${FHR_MIN}-${FHR_MAX} bpm`} value={form.fetalHeartRate} onChange={set('fetalHeartRate')} error={errors.fetalHeartRate} />
+      </Group>
+
       <div className="grid gap-1.5">
         <label htmlFor={id('note')} className="text-sm font-medium">Note <span className="font-normal text-muted-foreground">(optional)</span></label>
         <Textarea
@@ -129,8 +213,39 @@ function ReadingFields({ prefix, form, errors, set }: { prefix: string; form: Fo
         />
         <FieldMessage id={id('note')} error={errors.note} hint={`${form.note.trim().length}/${NOTE_MAX}`} />
       </div>
+
+      <div aria-live="polite">
+        {summary && <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm"><span className="font-medium">Will save:</span> {summary}</p>}
+      </div>
       {errors.form && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{errors.form}</p>}
     </div>
+  );
+}
+
+/** Newest value of each measure across the clinic readings (rows come newest first). */
+function LatestStrip({ rows }: { rows: Row[] }) {
+  return (
+    <section aria-labelledby="latest-values-title" className="space-y-2">
+      <h3 id="latest-values-title" className="text-sm font-semibold">Latest values</h3>
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+        {MEASURES.map((m) => {
+          const row = rows.find((r) => m.value(r) !== null);
+          return (
+            <div key={m.key} className="min-w-0 rounded-xl border bg-muted/30 px-3 py-2">
+              <dt className="truncate text-xs text-muted-foreground">{m.label}</dt>
+              {row ? (
+                <dd>
+                  <span className="block truncate text-base font-semibold tabular-nums">{m.value(row)}</span>
+                  <span className="text-xs text-muted-foreground">{shortDate(row.measuredOn)}</span>
+                </dd>
+              ) : (
+                <dd className="py-1 text-sm text-muted-foreground">Not taken yet</dd>
+              )}
+            </div>
+          );
+        })}
+      </dl>
+    </section>
   );
 }
 
@@ -256,6 +371,7 @@ export function ClinicReadingsCard({ patientUid, patientName, reported }: { pati
     }
   }
 
+  const spinner = <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />;
   const reportedBp = reported ? formatBp(reported) : '';
   const hasReported = reported && (reported.weightKg !== null || reportedBp);
 
@@ -263,9 +379,11 @@ export function ClinicReadingsCard({ patientUid, patientName, reported }: { pati
     <Card>
       <CardHeader className="space-y-1">
         <CardTitle className="text-base">Health readings</CardTitle>
-        <CardDescription>Weight and blood pressure measured at the clinic.</CardDescription>
+        <CardDescription>Measured at the clinic.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
+        {rows !== null && <LatestStrip rows={rows} />}
+
         <p className="flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span>
@@ -281,12 +399,12 @@ export function ClinicReadingsCard({ patientUid, patientName, reported }: { pati
           </span>
         </p>
 
-        <section aria-labelledby="add-reading-title" className="space-y-3">
+        <section aria-labelledby="add-reading-title" className="space-y-3 border-t pt-4">
           <h3 id="add-reading-title" className="text-sm font-semibold">Add a reading</h3>
           <ReadingFields prefix="add" form={form} errors={errors} set={setter(setForm, setErrors)} />
           <div className="flex justify-end">
-            <Button type="button" className="min-h-11 gap-2 md:min-h-9" disabled={busy !== null} aria-busy={busy === 'add'} onClick={add}>
-              {busy === 'add' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            <Button type="button" className="min-h-11 w-full gap-2 sm:w-auto md:min-h-9" disabled={busy !== null} aria-busy={busy === 'add'} onClick={add}>
+              {busy === 'add' && spinner}
               Save reading
             </Button>
           </div>
@@ -302,33 +420,40 @@ export function ClinicReadingsCard({ patientUid, patientName, reported }: { pati
           <ul className="space-y-2">
             {rows?.map((r) => {
               const mine = r.enteredByUid === viewerUid;
+              const taken = MEASURES.map((m) => ({ m, v: m.value(r) })).filter((x) => x.v !== null);
               return (
-                <li key={r.id} className="flex items-start justify-between gap-3 rounded-xl border p-3 text-sm">
-                  <div className="min-w-0 space-y-1">
-                    <p className="font-medium">{longDate(r.measuredOn)}</p>
-                    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 text-sm">
-                      <dt className="text-muted-foreground">Weight</dt><dd>{r.weightKg !== null ? `${r.weightKg} kg` : 'Not taken'}</dd>
-                      <dt className="text-muted-foreground">BP</dt><dd>{r.bpSys !== null ? `${formatBp(r)} mmHg` : 'Not taken'}</dd>
-                      {r.note && (<><dt className="text-muted-foreground">Note</dt><dd className="break-words">{r.note}</dd></>)}
-                    </dl>
-                    <p className="text-xs text-muted-foreground">Entered by {r.enteredByName || 'a doctor'}</p>
-                  </div>
-                  {mine && (
-                    <div className="flex shrink-0 gap-1">
-                      <Button
-                        type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8" aria-label={`Edit the reading of ${longDate(r.measuredOn)}`}
-                        onClick={(e) => { returnFocus.current = e.currentTarget; setEditing(r); setEditForm(toForm(r)); setEditErrors({}); }}
-                      >
-                        <Pencil className="h-4 w-4" aria-hidden="true" />
-                      </Button>
-                      <Button
-                        type="button" variant="ghost" size="icon-sm" className="size-11 text-destructive md:size-8" aria-label={`Delete the reading of ${longDate(r.measuredOn)}`}
-                        onClick={(e) => { returnFocus.current = e.currentTarget; setDeleting(r); }}
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      </Button>
+                <li key={r.id} className="rounded-xl border p-3 text-sm sm:p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h4 className="font-semibold">{longDate(r.measuredOn)}</h4>
+                      <p className="text-xs text-muted-foreground">Entered by {r.enteredByName || 'a doctor'}</p>
                     </div>
-                  )}
+                    {mine && (
+                      <div className="-mr-1 -mt-1 flex shrink-0 gap-1">
+                        <Button
+                          type="button" variant="ghost" size="icon-sm" className="size-11 md:size-8" aria-label={`Edit the reading of ${longDate(r.measuredOn)}`}
+                          onClick={(e) => { returnFocus.current = e.currentTarget; setEditing(r); setEditForm(toForm(r)); setEditErrors({}); }}
+                        >
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          type="button" variant="ghost" size="icon-sm" className="size-11 text-destructive md:size-8" aria-label={`Delete the reading of ${longDate(r.measuredOn)}`}
+                          onClick={(e) => { returnFocus.current = e.currentTarget; setDeleting(r); }}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                    {taken.map(({ m, v }) => (
+                      <div key={m.key} className="min-w-0">
+                        <dt className="text-xs text-muted-foreground">{m.label}</dt>
+                        <dd className="font-medium tabular-nums">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {r.note && <p className="mt-2 break-words border-t pt-2 text-sm text-muted-foreground">{r.note}</p>}
                 </li>
               );
             })}
@@ -337,10 +462,10 @@ export function ClinicReadingsCard({ patientUid, patientName, reported }: { pati
       </CardContent>
 
       <Dialog open={editing !== null} onOpenChange={(o) => !o && busy === null && setEditing(null)}>
-        <DialogContent finalFocus={returnFocus} className="flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-none flex-col gap-0 p-0 sm:max-h-[90vh] sm:max-w-[560px]">
+        <DialogContent finalFocus={returnFocus} className="flex max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-none flex-col gap-0 p-0 sm:max-h-[90vh] sm:max-w-[640px]">
           <DialogHeader className="border-b px-4 pb-3 pt-4 pr-12">
             <DialogTitle>Edit reading</DialogTitle>
-            <DialogDescription>{patientName}</DialogDescription>
+            <DialogDescription>{patientName}. A field left blank is cleared.</DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
             <ReadingFields prefix="edit" form={editForm} errors={editErrors} set={setter(setEditForm, setEditErrors)} />
@@ -348,7 +473,7 @@ export function ClinicReadingsCard({ patientUid, patientName, reported }: { pati
           <DialogFooter className="mx-0 mb-0 rounded-b-xl px-4 py-3">
             <Button type="button" variant="outline" className="min-h-11 md:min-h-9" disabled={busy !== null} onClick={() => setEditing(null)}>Cancel</Button>
             <Button type="button" className="min-h-11 gap-2 md:min-h-9" disabled={busy !== null} aria-busy={busy === 'edit'} onClick={saveEdit}>
-              {busy === 'edit' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+              {busy === 'edit' && spinner}
               Save
             </Button>
           </DialogFooter>
@@ -366,7 +491,7 @@ export function ClinicReadingsCard({ patientUid, patientName, reported }: { pati
           <DialogFooter className="mx-0 mb-0 rounded-b-xl px-4 py-3">
             <Button type="button" variant="outline" className="min-h-11 md:min-h-9" disabled={busy !== null} onClick={() => setDeleting(null)}>Cancel</Button>
             <Button type="button" variant="destructive-solid" className="min-h-11 gap-2 md:min-h-9" disabled={busy !== null} aria-busy={busy === 'delete'} onClick={remove}>
-              {busy === 'delete' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+              {busy === 'delete' && spinner}
               Delete
             </Button>
           </DialogFooter>
