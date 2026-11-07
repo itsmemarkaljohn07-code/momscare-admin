@@ -9,13 +9,17 @@ import type { PatientReported } from '@/lib/patient-reported';
 
 const shortDate = (day: string) => formatDateKey(day, { month: 'short', day: 'numeric' });
 
-/** Newest value of each measure across the clinic readings. */
-export function LatestValuesStrip({ rows, titleId = 'latest-values-title' }: { rows: ClinicReading[]; titleId?: string }) {
+/** Newest value of each measure across the clinic readings. `columns`
+ *  lets a narrower card use fewer tiles per row (the doctor card's
+ *  full-width default is 2, 3 from 640 px, 6 from 1280 px). */
+export function LatestValuesStrip({
+  rows, titleId = 'latest-values-title', columns = 'sm:grid-cols-3 xl:grid-cols-6',
+}: { rows: ClinicReading[]; titleId?: string; columns?: string }) {
   const latest = latestClinicValues(rows);
   return (
     <section aria-labelledby={titleId} className="space-y-2">
       <h3 id={titleId} className="text-sm font-semibold">Latest values</h3>
-      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+      <dl className={`grid grid-cols-2 gap-2 ${columns}`}>
         {MEASURES_SHOWN.map((m) => {
           const value = latestText(m.key, latest);
           return (

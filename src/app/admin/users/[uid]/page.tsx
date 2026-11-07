@@ -6,6 +6,9 @@ import { ClinicalNotesPanel } from '@/components/clinical-notes-panel';
 import { AdminPatientSnapshots } from '@/components/admin-patient-snapshots';
 import { PatientReportDownload } from '@/components/patient-report-download';
 import { PatientStaysCard } from '@/components/patient-stays-card';
+import { AdminClinicReadingsCard } from '@/components/admin-clinic-readings-card';
+import { getClinicReadings } from '@/lib/get-clinic-readings';
+import { latestPatientReported } from '@/lib/patient-reported';
 import { ChevronLeft } from 'lucide-react';
 
 export default async function UserDetailPage({
@@ -16,11 +19,13 @@ export default async function UserDetailPage({
   const { uid } = await params;
   // The patient and her Snapshots, read on the server (Admin SDK): the
   // rules let only the patient read her own snapshots from a browser.
-  const { patient: user, groups, totalPhotos } = await getUserSnapshots(uid);
+  const [{ patient: user, groups, totalPhotos }, readings] = await Promise.all([getUserSnapshots(uid), getClinicReadings(uid)]);
 
   if (!user) {
     notFound();
   }
+  // Her own latest weight and blood pressure, kept apart from the clinic values.
+  const reported = latestPatientReported(groups.flatMap((g) => g.items));
 
   return (
     <div className="space-y-5">
@@ -39,6 +44,11 @@ export default async function UserDetailPage({
           notes. One page scroll. */}
       <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start">
         <div className="contents lg:block lg:min-w-0 lg:space-y-5">
+          {/* Clinic readings (view only) come first, before the Snapshots,
+              as on the doctor page; on phones right after the information. */}
+          <div className="order-2 min-w-0">
+            <AdminClinicReadingsCard rows={'rows' in readings ? readings.rows : null} reported={reported} />
+          </div>
           <section className="order-2 min-w-0 space-y-4" aria-labelledby="patient-snapshots">
             <div className="flex items-baseline justify-between gap-3 border-b pb-3">
               <h2 id="patient-snapshots" className="text-lg font-semibold">Snapshots</h2>
