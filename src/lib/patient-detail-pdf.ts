@@ -3,7 +3,7 @@
 
 import { ReportPdf } from '@/lib/report-pdf';
 import { COLORS, formatDayKey, manilaDateKey, pdfFileName, periodLabel } from '@/lib/report-layout';
-import { NOT_RECORDED, type PatientDetailReport } from '@/lib/patient-detail-report';
+import { NOT_RECORDED, clinicCharts, type PatientDetailReport } from '@/lib/patient-detail-report';
 
 const show = (v: number | string | null) => (v === null || v === '' ? NOT_RECORDED : String(v));
 const day = (key: string) => (key === NOT_RECORDED || !key ? NOT_RECORDED : formatDayKey(key));
@@ -60,7 +60,7 @@ export async function downloadPatientDetailReport(input: {
     ],
   });
 
-  pdf.heading('Health readings from Snapshots');
+  pdf.heading('Reported by the patient (from Snapshots)');
   pdf.table({
     head: ['Date', 'Week', 'Weight (kg)', 'BP', 'Kicks', 'Mood'],
     rows: report.health.map((h) => [
@@ -75,6 +75,44 @@ export async function downloadPatientDetailReport(input: {
     widths: [1.8, 0.9, 1.3, 1.3, 1, 1.4],
   });
 
+  // Measured at the clinic: values only, no notes, no interpretation.
+  pdf.heading('Measured at the clinic');
+  if (report.clinic.length === 0) {
+    pdf.note('No clinic readings in this period.');
+  } else {
+    const dash = (v: number | null) => (v === null ? '-' : String(v));
+    pdf.table({
+      head: ['Date', 'Weight (kg)', 'Blood pressure (mmHg)', 'Fundal height (cm)', 'Fetal heart rate (bpm)', 'Pulse (bpm)', 'Temperature (C)', 'Entered by'],
+      rows: report.clinic.map((r) => [
+        formatDayKey(r.date),
+        dash(r.weightKg),
+        r.bpSys !== null && r.bpDia !== null ? `${r.bpSys}/${r.bpDia}` : '-',
+        dash(r.fundalHeightCm),
+        dash(r.fetalHeartRate),
+        dash(r.pulse),
+        dash(r.temperatureC),
+        r.enteredBy,
+      ]),
+      numeric: [1, 3, 4, 5, 6],
+      widths: [1.7, 1.15, 1.45, 1.2, 1.3, 1, 1.35, 2],
+    });
+    for (const chart of clinicCharts(report.clinic)) {
+      // Keep a chart's heading on the same page as the chart.
+      if (!('few' in chart)) pdf.ensureSpace(70);
+      pdf.heading(`Clinic: ${chart.title}`);
+      if ('few' in chart) {
+        pdf.note('Not enough clinic readings for a chart.');
+        continue;
+      }
+      pdf.lineChart({
+        xLabels: chart.days.map((d) => formatDayKey(d).replace(/, \d{4}$/, '')),
+        unit: chart.unit,
+        series: chart.series.map((s, i) => ({ label: s.label, values: s.values, color: COLORS.chart[chart.series.length > 1 ? (i === 0 ? 3 : 1) : 0] })),
+      });
+    }
+  }
+  pdf.note('Recorded by the clinic. This report does not interpret the values.');
+
   pdf.heading('Snapshots');
   pdf.table({
     head: ['Date', 'Type', 'Week', 'Caption'],
@@ -84,7 +122,7 @@ export async function downloadPatientDetailReport(input: {
 
   pdf.heading('Notes');
   pdf.note(
-    'Weeks and trimesters use the dashboard rule (280-day model from the due date; trimesters at weeks 0-13, 14-27, 28-40). Health readings are what the patient recorded with each Snapshot. Dates are Philippine dates. Photos and clinical notes are not included. "Not recorded" means the value was not provided.'
+    'Weeks and trimesters use the dashboard rule (280-day model from the due date; trimesters at weeks 0-13, 14-27, 28-40). "Reported by the patient" is what she recorded with each Snapshot; "Measured at the clinic" is what the clinic entered, shown in its own table and charts. Dates are Philippine dates. Photos and clinical notes are not included. "Not recorded" means the value was not provided.'
   );
 
   const slug = `patient-report-${report.patientName}`;

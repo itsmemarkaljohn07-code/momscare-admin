@@ -333,7 +333,8 @@ export class ReportPdf {
     this.color('text', COLORS.muted);
     for (const v of [min, (min + max) / 2, max]) {
       d.line(left, yAt(v), right, yAt(v));
-      d.text(String(Math.round(v)), left - 2, yAt(v) + 1, { align: 'right' });
+      // The middle tick can be a half (36.5): show it, not a rounded twin of an end tick.
+      d.text(Number.isInteger(v) ? String(v) : v.toFixed(1), left - 2, yAt(v) + 1, { align: 'right' });
     }
     const step = Math.max(1, Math.ceil(input.xLabels.length / 6));
     input.xLabels.forEach((l, i) => {

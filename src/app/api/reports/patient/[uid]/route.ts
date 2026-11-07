@@ -42,9 +42,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ uid:
     }
 
     const patientRef = adminDb.collection('users').doc(uid);
-    const [appts, snaps, generatedBy] = await Promise.all([
+    const [appts, snaps, readings, generatedBy] = await Promise.all([
       patientRef.collection('appointments').select('date', 'time', 'label', 'type', 'doctor', 'status', 'doctorApproval').get(),
       patientRef.collection('snapshots').select('createdAt', 'type', 'week', 'caption', 'healthSnapshot').get(),
+      // Clinic readings without their note: notes never go in this PDF.
+      patientRef.collection('clinicReadings')
+        .select('measuredOn', 'weightKg', 'bpSys', 'bpDia', 'fundalHeightCm', 'fetalHeartRate', 'pulse', 'temperatureC', 'enteredByName')
+        .get(),
       admin ? reportActor(admin) : Promise.resolve(doctor!.doctorName),
     ]);
 
@@ -72,6 +76,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ uid:
         week: typeof d.get('week') === 'number' ? d.get('week') : null,
         caption: String(d.get('caption') ?? ''),
         health: d.get('healthSnapshot') ?? null,
+      })),
+      clinicReadings: readings.docs.map((d) => d.data()).map((x) => ({
+        measuredOn: x.measuredOn,
+        weightKg: x.weightKg,
+        bpSys: x.bpSys,
+        bpDia: x.bpDia,
+        fundalHeightCm: x.fundalHeightCm,
+        fetalHeartRate: x.fetalHeartRate,
+        pulse: x.pulse,
+        temperatureC: x.temperatureC,
+        enteredByName: x.enteredByName,
       })),
       range,
       now: new Date(),
