@@ -33,36 +33,8 @@ import { showApiError } from '@/lib/error-messages';
 import { formatRelativeTime } from '@/lib/format-relative-time';
 import { exportToCsv } from '@/lib/export-csv';
 import { matchesName } from '@/lib/patient-name';
-import type { DeletionPreview, DeletionResult, StepName, StepStatus } from '@/lib/patient-deletion';
-
-const COLLECTION_LABELS: Record<string, string> = {
-  appointments: 'Appointments',
-  snapshots: 'Snapshot records',
-  health: 'Health tracker records',
-  healthLogs: 'Health log entries',
-  checklist: 'Checklist items',
-  notifications: 'Notifications',
-  clinicalNotes: 'Clinical notes',
-  stays: 'Birth stays',
-};
-
-const STEP_LABELS: Record<StepName, string> = {
-  disable_login: 'Disable sign-in and revoke sessions',
-  read_data: 'Read username and photo IDs',
-  cloudinary_images: 'Delete photos on Cloudinary',
-  firestore_data: 'Delete profile and all records',
-  username: 'Release username',
-  audit_history: 'Anonymise past audit entries',
-  login_account: 'Delete login account',
-  audit_entry: 'Record audit entry',
-};
-
-const STATUS_LABELS: Record<StepStatus, string> = {
-  done: 'Done',
-  already_gone: 'Already gone',
-  skipped: 'Skipped',
-  failed: 'Failed',
-};
+import type { DeletionPreview, DeletionResult } from '@/lib/patient-deletion';
+import { STATUS_LABELS, STEP_LABELS, collectionLabel } from '@/lib/patient-deletion-labels';
 
 export function UsersTable({ users }: { users: AdminUserView[] }) {
   const router = useRouter();
@@ -509,7 +481,7 @@ export function UsersTable({ users }: { users: AdminUserView[] }) {
                 </li>
                 {preview.collections.map((c) => (
                   <li key={c.name}>
-                    {COLLECTION_LABELS[c.name] ?? c.name}: {c.count}
+                    {collectionLabel(c.name)}: {c.count}
                   </li>
                 ))}
                 <li>Comments on photos: {preview.comments}</li>
