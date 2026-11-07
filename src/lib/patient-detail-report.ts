@@ -245,6 +245,12 @@ export function clinicCharts(rows: ClinicRow[]): (ClinicChart | { title: string;
     .map((c) => (c.days.length < 2 ? { title: c.title, few: true as const } : c));
 }
 
+/** The same charts for the admin screen, over every reading: only the
+ *  measures with 2 or more clinic points (no "not enough" entries). */
+export function clinicTrendCharts(readings: ClinicReadingInput[]): ClinicChart[] {
+  return clinicCharts(clinicRows(readings, { from: null, to: null })).filter((c): c is ClinicChart => !('few' in c));
+}
+
 /** Points for a line chart: values with their row index, nulls skipped. */
 export function seriesPoints(values: (number | null)[]): { i: number; v: number }[] {
   return values.flatMap((v, i) => (v === null ? [] : [{ i, v }]));

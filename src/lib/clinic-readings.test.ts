@@ -2,7 +2,7 @@
 // (run it under TZ=Asia/Manila and TZ=UTC: the answers must not change)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { editedReadingFields, formatBp, newReadingDoc, readingFromData, sortReadings, validateReading, type ReadingValues } from './clinic-readings';
+import { MEASURES_SHOWN, editedReadingFields, formatBp, latestClinicValues, latestText, measureText, newReadingDoc, readingFromData, sortReadings, validateReading, type ReadingValues } from './clinic-readings';
 
 const TODAY = '2026-11-05';
 const ok = (body: object) => {
@@ -179,4 +179,55 @@ test('a spoofed enteredBy is ignored with the new fields too', () => {
   const doc = newReadingDoc(r.value, { uid: 'doc-1', doctorName: 'Dr Real' }, 'NOW');
   assert.deepEqual([doc.enteredByUid, doc.enteredByName, doc.pulse], ['doc-1', 'Dr Real', 80]);
   assert.ok(!('fundal' in doc));
+});
+
+const row = (measuredOn: string, values: Partial<Record<string, unknown>> = {}, enteredAt = 0) => ({
+  weightKg: null, bpSys: null, bpDia: null, fundalHeightCm: null, fetalHeartRate: null, pulse: null, temperatureC: null,
+  measuredOn, enteredAt, ...values,
+}) as Parameters<typeof latestClinicValues>[0][number];
+
+test('latest values: each measure on its own newest day, blood pressure as a pair', () => {
+  const l = latestClinicValues([
+    row('2026-10-06', { weightKg: 60.2, bpSys: 112, bpDia: 72, fundalHeightCm: 24.5, fetalHeartRate: 150, pulse: 80, temperatureC: 36.6 }),
+    row('2026-11-03', { weightKg: 62.4, bpSys: 120, bpDia: 80, fundalHeightCm: 28.5, fetalHeartRate: 142, pulse: 84, temperatureC: 36.8 }),
+    row('2026-11-05', { pulse: 88 }), // only a pulse
+    row('2026-09-20', { weightKg: 59.1, bpSys: 110, bpDia: 70 }), // old style
+  ]);
+  assert.deepEqual(l.weightKg, { value: 62.4, date: '2026-11-03' });
+  assert.deepEqual(l.bp, { sys: 120, dia: 80, date: '2026-11-03' });
+  assert.deepEqual(l.pulse, { value: 88, date: '2026-11-05' });
+  assert.deepEqual(l.temperatureC, { value: 36.8, date: '2026-11-03' });
+  assert.deepEqual(MEASURES_SHOWN.map((m) => latestText(m.key, l)?.text), ['62.4 kg', '120/80 mmHg', '28.5 cm', '142 bpm', '88 bpm', '36.8 °C']);
+});
+
+test('latest values: empty list, nulls, garbage, half a blood pressure, unreadable dates', () => {
+  const none = latestClinicValues([]);
+  assert.deepEqual(Object.values(none), [null, null, null, null, null, null]);
+  const l = latestClinicValues([
+    row('2026-11-06', { weightKg: '61', pulse: Number.NaN, temperatureC: Infinity, bpSys: 120 }), // no number, half a BP
+    row('2026-13-01', { pulse: 99 }), // not a real day
+    row('2026-10-01', { pulse: 70, bpSys: 100, bpDia: 60 }),
+  ]);
+  assert.equal(l.weightKg, null);
+  assert.deepEqual(l.pulse, { value: 70, date: '2026-10-01' });
+  assert.deepEqual(l.bp, { sys: 100, dia: 60, date: '2026-10-01' });
+  assert.equal(l.temperatureC, null);
+  assert.equal(latestText('fundalHeightCm', l), null);
+});
+
+test('latest values: same day, the latest entered wins; old documents work', () => {
+  const l = latestClinicValues([row('2026-11-03', { pulse: 80 }, 100), row('2026-11-03', { pulse: 90 }, 200), row('2026-11-02', { pulse: 70 }, 999)]);
+  assert.deepEqual(l.pulse, { value: 90, date: '2026-11-03' });
+  const old = readingFromData('o', { measuredOn: '2026-09-20', weightKg: 59.1, bpSys: 110, bpDia: 70 });
+  const lo = latestClinicValues([old]);
+  assert.deepEqual([lo.weightKg?.value, lo.bp?.sys, lo.fundalHeightCm, lo.pulse], [59.1, 110, null, null]);
+});
+
+test('measure text: units, never a judgement, null when not taken', () => {
+  const r = row('2026-11-03', { weightKg: 62.4, bpSys: 120, bpDia: 80, temperatureC: 36.8 });
+  assert.equal(measureText('weightKg', r), '62.4 kg');
+  assert.equal(measureText('bp', r), '120/80 mmHg');
+  assert.equal(measureText('temperatureC', r), '36.8 °C');
+  assert.equal(measureText('pulse', r), null);
+  assert.equal(measureText('bp', row('2026-11-03', { bpSys: 120 })), null);
 });

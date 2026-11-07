@@ -2,7 +2,7 @@
 // (run it under TZ=Asia/Manila and TZ=UTC: the answers must not change)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { NOT_RECORDED, axisRange, buildPatientDetailReport, clinicCharts, clinicRows, seriesPoints } from './patient-detail-report';
+import { NOT_RECORDED, axisRange, buildPatientDetailReport, clinicCharts, clinicRows, clinicTrendCharts, seriesPoints } from './patient-detail-report';
 
 const NOW = new Date('2026-10-19T02:00:00Z'); // Oct 19, 10:00 AM Manila
 const profile = { fullName: 'Ana Cruz', username: null, email: 'a@x.test', clinicName: '', dueDate: '2027-03-14T16:00:00.000Z', firstTimeMom: null };
@@ -133,4 +133,21 @@ test('an empty period, and 500 readings without an error', () => {
   assert.equal(rows.length, 500);
   assert.equal(rows[0].date, '2026-05-15');
   assert.equal(clinicCharts(rows).length, 3);
+});
+
+test('admin trend charts: 2+ points only, oldest first, clinic points only, 500 readings', () => {
+  assert.deepEqual(clinicTrendCharts([]), []);
+  assert.deepEqual(clinicTrendCharts([reading('2026-11-01', { pulse: 80 })]), []); // 1 point: no chart
+  const two = clinicTrendCharts([reading('2026-11-03', { pulse: 84 }), reading('2026-11-01', { pulse: 80 })]);
+  assert.deepEqual(two.map((c) => [c.title, c.days, c.series[0].values]), [['Pulse', ['2026-11-01', '2026-11-03'], [80, 84]]]);
+  const mixed = clinicTrendCharts([
+    reading('2026-10-06', { weightKg: 60.2, bpSys: 112, bpDia: 72, fundalHeightCm: 24.5 }),
+    reading('2026-11-03', { weightKg: 62.4, bpSys: 120, bpDia: 80 }),
+    reading('2026-11-05', { pulse: 88, temperatureC: 'x' }),
+  ]);
+  assert.deepEqual(mixed.map((c) => c.title), ['Weight', 'Blood pressure']); // fundal 1 point, pulse 1 point
+  const many = Array.from({ length: 500 }, (_, i) => reading(new Date(Date.UTC(2025, 0, 1 + i)).toISOString().slice(0, 10), { weightKg: 50 + (i % 30) / 10, pulse: 70 + (i % 10) }));
+  const charts = clinicTrendCharts(many);
+  assert.deepEqual(charts.map((c) => [c.title, c.days.length]), [['Weight', 500], ['Pulse', 500]]);
+  assert.equal(charts[0].days[0], '2025-01-01');
 });

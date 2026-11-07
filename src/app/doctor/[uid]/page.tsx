@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation';
 import { getDoctorSession } from '@/lib/get-doctor-session';
 import { getUserSnapshots } from '@/lib/get-user-snapshots';
 import { DoctorSnapshotCard } from '@/components/doctor-snapshot-card';
-import { ClinicReadingsCard, type PatientReported } from '@/components/clinic-readings-card';
+import { ClinicReadingsCard } from '@/components/clinic-readings-card';
+import { latestPatientReported } from '@/lib/patient-reported';
 import { ClinicalNotesPanel } from '@/components/clinical-notes-panel';
 import { PatientReportDownload } from '@/components/patient-report-download';
 import { PageHeader } from '@/components/page-header';
@@ -32,19 +33,7 @@ export default async function DoctorPatientSnapshotsPage({
 
   // The latest weight and blood pressure the patient logged with a
   // Snapshot (photos come newest first), from the data fetched above.
-  const positive = (v: unknown) => (typeof v === 'number' && v > 0 ? v : null);
-  const latest = groups.flatMap((g) => g.items).find((p) => {
-    const h = p.healthSnapshot;
-    return h && (positive(h.weight) !== null || (positive(h.bpSys) !== null && positive(h.bpDia) !== null));
-  });
-  const reported: PatientReported | null = latest?.healthSnapshot
-    ? {
-        weightKg: positive(latest.healthSnapshot.weight),
-        bpSys: positive(latest.healthSnapshot.bpDia) !== null ? positive(latest.healthSnapshot.bpSys) : null,
-        bpDia: positive(latest.healthSnapshot.bpSys) !== null ? positive(latest.healthSnapshot.bpDia) : null,
-        at: latest.createdAt,
-      }
-    : null;
+  const reported = latestPatientReported(groups.flatMap((g) => g.items));
 
   return (
     <div className="space-y-6">

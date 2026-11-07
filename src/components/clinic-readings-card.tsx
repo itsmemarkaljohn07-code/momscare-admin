@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { CalendarDays, Loader2, Pencil, Smartphone, Trash2 } from 'lucide-react';
+import { CalendarDays, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,22 +15,17 @@ import { manilaKey } from '@/lib/report-aggregations';
 import { formatDateKey } from '@/lib/pregnancy-display';
 import {
   DIA_MAX, DIA_MIN, FHR_MAX, FHR_MIN, FUNDAL_MAX, FUNDAL_MIN, NOTE_MAX, PULSE_MAX, PULSE_MIN, SYS_MAX, SYS_MIN, TEMP_MAX, TEMP_MIN,
-  WEIGHT_MAX, WEIGHT_MIN, formatBp, validateReading, type ClinicReading, type ReadingField,
+  WEIGHT_MAX, WEIGHT_MIN, validateReading, type ClinicReading, type ReadingField,
 } from '@/lib/clinic-readings';
+import type { PatientReported } from '@/lib/patient-reported';
+import { LatestValuesStrip, PatientReportedLine } from '@/components/clinic-readings-shared';
 
 type Row = ClinicReading & { id: string };
 type FormField = Exclude<ReadingField, 'form'>;
 type Form = Record<FormField, string>;
 type Errors = Partial<Record<ReadingField, string>>;
 
-/** The latest weight and blood pressure the patient logged with a Snapshot. */
-export interface PatientReported {
-  weightKg: number | null;
-  bpSys: number | null;
-  bpDia: number | null;
-  /** ISO time of that Snapshot. */
-  at: string | null;
-}
+export type { PatientReported };
 
 const FIELD_ORDER: FormField[] = ['measuredOn', 'weightKg', 'bpSys', 'bpDia', 'pulse', 'temperatureC', 'fundalHeightCm', 'fetalHeartRate', 'note'];
 const today = () => manilaKey(new Date());
@@ -39,7 +34,6 @@ const emptyForm = (): Form => ({
 });
 const text = (n: number | null) => (n === null ? '' : String(n));
 const longDate = (day: string) => formatDateKey(day, { month: 'short', day: 'numeric', year: 'numeric' });
-const shortDate = (day: string) => formatDateKey(day, { month: 'short', day: 'numeric' });
 
 /**
  * The six measures, in the order shown everywhere (strip, "Will save",
@@ -227,33 +221,6 @@ function ReadingFields({ prefix, form, errors, set }: { prefix: string; form: Fo
   );
 }
 
-/** Newest value of each measure across the clinic readings (rows come newest first). */
-function LatestStrip({ rows }: { rows: Row[] }) {
-  return (
-    <section aria-labelledby="latest-values-title" className="space-y-2">
-      <h3 id="latest-values-title" className="text-sm font-semibold">Latest values</h3>
-      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-        {MEASURES.map((m) => {
-          const row = rows.find((r) => m.value(r) !== null);
-          return (
-            <div key={m.key} className="min-w-0 rounded-xl border bg-muted/30 px-3 py-2">
-              <dt className="truncate text-xs text-muted-foreground">{m.label}</dt>
-              {row ? (
-                <dd>
-                  <span className="block truncate text-base font-semibold tabular-nums">{m.value(row)}</span>
-                  <span className="text-xs text-muted-foreground">{shortDate(row.measuredOn)}</span>
-                </dd>
-              ) : (
-                <dd className="py-1 text-sm text-muted-foreground">Not taken yet</dd>
-              )}
-            </div>
-          );
-        })}
-      </dl>
-    </section>
-  );
-}
-
 /** Health readings taken at the clinic by the assigned doctor: add, list,
  *  edit and delete (own readings). The server checks everything again. */
 export function ClinicReadingsCard({ patientUid, patientName, reported }: { patientUid: string; patientName: string; reported: PatientReported | null }) {
@@ -377,8 +344,6 @@ export function ClinicReadingsCard({ patientUid, patientName, reported }: { pati
   }
 
   const spinner = <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />;
-  const reportedBp = reported ? formatBp(reported) : '';
-  const hasReported = reported && (reported.weightKg !== null || reportedBp);
 
   return (
     <Card>
@@ -387,22 +352,9 @@ export function ClinicReadingsCard({ patientUid, patientName, reported }: { pati
         <CardDescription>Measured at the clinic.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        {rows !== null && <LatestStrip rows={rows} />}
+        {rows !== null && <LatestValuesStrip rows={rows} />}
 
-        <p className="flex items-start gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span>
-            <span className="font-medium text-foreground">Patient-reported (latest):</span>{' '}
-            {hasReported ? (
-              <>
-                {[reported!.weightKg !== null ? `${reported!.weightKg} kg` : '', reportedBp ? `BP ${reportedBp}` : ''].filter(Boolean).join(', ')}
-                {reported!.at && <> · logged by the patient with a Snapshot on {new Date(reported!.at).toLocaleDateString('en-US', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })}</>}
-              </>
-            ) : (
-              'nothing logged by the patient yet.'
-            )}
-          </span>
-        </p>
+        <PatientReportedLine reported={reported} />
 
         <section aria-labelledby="add-reading-title" className="space-y-3 border-t pt-4">
           <h3 id="add-reading-title" className="text-sm font-semibold">Add a reading</h3>

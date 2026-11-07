@@ -210,3 +210,68 @@ export function sortReadings<R extends { measuredOn: string; enteredAt: number }
 export function formatBp(r: { bpSys: number | null; bpDia: number | null }): string {
   return r.bpSys !== null && r.bpDia !== null ? `${r.bpSys}/${r.bpDia}` : '';
 }
+
+/** The six measures as shown (strip, reading cards), blood pressure as one. */
+export type MeasureKey = 'weightKg' | 'bp' | 'fundalHeightCm' | 'fetalHeartRate' | 'pulse' | 'temperatureC';
+export const MEASURES_SHOWN: { key: MeasureKey; label: string }[] = [
+  { key: 'weightKg', label: 'Weight' },
+  { key: 'bp', label: 'Blood pressure' },
+  { key: 'fundalHeightCm', label: 'Fundal height' },
+  { key: 'fetalHeartRate', label: 'Fetal heart rate' },
+  { key: 'pulse', label: 'Pulse' },
+  { key: 'temperatureC', label: 'Temperature' },
+];
+
+type Measured = Pick<ClinicReading, 'weightKg' | 'bpSys' | 'bpDia' | 'fundalHeightCm' | 'fetalHeartRate' | 'pulse' | 'temperatureC'>;
+const taken = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** A measure with its unit ("62.4 kg", "120/80 mmHg"), or null when not
+ *  taken (blood pressure needs both values). Never judged. */
+export function measureText(key: MeasureKey, r: Measured): string | null {
+  switch (key) {
+    case 'weightKg': return taken(r.weightKg) ? `${r.weightKg} kg` : null;
+    case 'bp': return taken(r.bpSys) && taken(r.bpDia) ? `${r.bpSys}/${r.bpDia} mmHg` : null;
+    case 'fundalHeightCm': return taken(r.fundalHeightCm) ? `${r.fundalHeightCm} cm` : null;
+    case 'fetalHeartRate': return taken(r.fetalHeartRate) ? `${r.fetalHeartRate} bpm` : null;
+    case 'pulse': return taken(r.pulse) ? `${r.pulse} bpm` : null;
+    case 'temperatureC': return taken(r.temperatureC) ? `${r.temperatureC} °C` : null;
+  }
+}
+
+export interface LatestClinicValues {
+  weightKg: { value: number; date: string } | null;
+  bp: { sys: number; dia: number; date: string } | null;
+  fundalHeightCm: { value: number; date: string } | null;
+  fetalHeartRate: { value: number; date: string } | null;
+  pulse: { value: number; date: string } | null;
+  temperatureC: { value: number; date: string } | null;
+}
+
+/** The newest value of each measure with its own date (newest measuredOn;
+ *  the same day, the latest entered), or null when never taken. Readings
+ *  with an unreadable date and values that are not numbers are skipped. */
+export function latestClinicValues(rows: (Measured & { measuredOn: string; enteredAt: number })[]): LatestClinicValues {
+  const sorted = sortReadings(rows.filter((r) => isRealDay(r.measuredOn)).map((r) => ({ ...r, enteredAt: taken(r.enteredAt) ? r.enteredAt : 0 })));
+  const one = (pick: (r: Measured) => unknown) => {
+    const r = sorted.find((x) => taken(pick(x)));
+    return r ? { value: pick(r) as number, date: r.measuredOn } : null;
+  };
+  const bp = sorted.find((x) => taken(x.bpSys) && taken(x.bpDia));
+  return {
+    weightKg: one((r) => r.weightKg),
+    bp: bp ? { sys: bp.bpSys as number, dia: bp.bpDia as number, date: bp.measuredOn } : null,
+    fundalHeightCm: one((r) => r.fundalHeightCm),
+    fetalHeartRate: one((r) => r.fetalHeartRate),
+    pulse: one((r) => r.pulse),
+    temperatureC: one((r) => r.temperatureC),
+  };
+}
+
+/** The strip text of a latest value ("62.4 kg"), or null. */
+export function latestText(key: MeasureKey, latest: LatestClinicValues): { text: string; date: string } | null {
+  if (key === 'bp') return latest.bp ? { text: `${latest.bp.sys}/${latest.bp.dia} mmHg`, date: latest.bp.date } : null;
+  const v = latest[key];
+  if (!v) return null;
+  const blank = { weightKg: null, bpSys: null, bpDia: null, fundalHeightCm: null, fetalHeartRate: null, pulse: null, temperatureC: null };
+  return { text: measureText(key, { ...blank, [key]: v.value }) as string, date: v.date };
+}
