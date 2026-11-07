@@ -83,6 +83,7 @@ export function AdminSnapshotCard({
               </svg>
               <span>{MOOD_NAMES[photo.healthSnapshot.mood]}</span>
             </div>
+            <p className="col-span-2 text-muted-foreground">Logged by the patient with this photo</p>
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">No health data recorded for this photo</p>

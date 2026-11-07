@@ -239,6 +239,10 @@ export function SnapshotViewer({
                 Health data at upload
               </p>
               <SnapshotHealthMetrics health={photo.healthSnapshot} variant="full" />
+              {/* Admin view: say whose values these are (the doctor's view is unchanged). */}
+              {readOnly && photo.healthSnapshot && (
+                <p className="text-xs text-muted-foreground">Logged by the patient with this photo</p>
+              )}
             </div>
 
             {readOnly ? (
